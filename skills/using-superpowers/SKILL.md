@@ -72,17 +72,19 @@ These thoughts mean STOP---you're rationalizing:
 
 When multiple skills could apply, use this order:
 
-1. **Process skills first** (brainstorming, debugging) - these determine HOW to approach the task
-2. **Implementation skills second** (frontend-design, mcp-builder) - these guide execution
+1. **Process skills first** (brainstorming, systematic-debugging, writing-plans)
+2. **Workflow skills second** (test-driven-development, subagent-driven-development, executing-plans, using-git-worktrees)
+3. **Review skills** (requesting-code-review, receiving-code-review, verification-before-completion)
+4. **Domain skills** (nix-helper, claude-nix-config, gh-pr-review, obsidian-cli, writing-skills)
 
-"Let's build X" -> brainstorming first, then implementation skills.
-"Fix this bug" -> debugging first, then domain-specific skills.
+"Let's build X" → brainstorming, then writing-plans, then test-driven-development.
+"Fix this bug" → systematic-debugging, then test-driven-development.
 
 ## Skill Types
 
-**Rigid** (TDD, debugging): Follow exactly. Don't adapt away discipline.
+**Rigid** (test-driven-development, systematic-debugging, verification-before-completion): Follow exactly. Don't adapt away discipline.
 
-**Flexible** (patterns): Adapt principles to context.
+**Flexible** (brainstorming, writing-plans, nix-helper, obsidian-cli): Adapt principles to context.
 
 The skill itself tells you which.
 
