@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
-# SessionStart hook for superpowers plugin
+# SessionStart hook for agent-skills plugin
 
 set -euo pipefail
-
-# Determine plugin root directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # Check if legacy skills directory exists and build warning
 warning_message=""
@@ -14,8 +10,8 @@ if [ -d "$legacy_skills_dir" ]; then
     warning_message="\n\n<important-reminder>IN YOUR FIRST REPLY AFTER SEEING THIS MESSAGE YOU MUST TELL THE USER:⚠️ **WARNING:** Superpowers now uses Claude Code's skills system. Custom skills in ~/.config/superpowers/skills will not be read. Move custom skills to ~/.claude/skills instead. To make this message go away, remove ~/.config/superpowers/skills</important-reminder>"
 fi
 
-# Read using-superpowers content
-using_superpowers_content=$(cat "${PLUGIN_ROOT}/skills/using-superpowers/SKILL.md" 2>&1 || echo "Error reading using-superpowers skill")
+# Read using-superpowers content (path injected at nix build time)
+using_superpowers_content=$(cat "@USING_SUPERPOWERS_SKILL@" 2>&1 || echo "Error reading using-superpowers skill")
 
 # Escape string for JSON embedding using bash parameter substitution.
 # Each ${s//old/new} is a single C-level pass - orders of magnitude

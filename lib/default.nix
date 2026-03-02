@@ -48,8 +48,9 @@ let
     in
     map (name: rec {
       inherit name;
-      meta = evalSkillNix (import (skillsDir + "/${name}/skill.nix"));
-      drv = buildSkillDrv name meta (skillsDir + "/${name}");
+      dir = skillsDir + "/${name}";
+      meta = evalSkillNix (import (dir + "/skill.nix"));
+      drv = buildSkillDrv name meta dir;
     }) validNames;
 
   # Build the complete plugin from discovered skills
@@ -78,12 +79,39 @@ let
         lspServers = allLspServers;
       };
 
-      # Hooks derivation
+      # Build using-superpowers SKILL.md content for the session-start hook
+      usingSuperpowersSkill = lib.findFirst (s: s.name == "using-superpowers") null skills;
+      usingSuperpowersContent =
+        if usingSuperpowersSkill != null then
+          let
+            meta = usingSuperpowersSkill.meta;
+            body = builtins.readFile (usingSuperpowersSkill.dir + "/SKILL.md");
+            fields =
+              [ "name: ${meta.name}" "description: ${meta.description}" ]
+              ++ lib.optional ((meta.allowed-tools or [ ]) != [ ]) "allowed-tools: ${
+                toString (meta.allowed-tools or [ ])
+              }";
+          in
+          "---\n" + lib.concatStringsSep "\n" fields + "\n---\n\n" + body
+        else
+          "";
+      skillContentFile = pkgs.writeText "using-superpowers-content" usingSuperpowersContent;
+
+      # Hooks derivation — substitutes @USING_SUPERPOWERS_SKILL@ with nix store path
       hooksDrv = lib.optional (hooksDir != null) (
         pkgs.runCommand "${name}-hooks" { } ''
           mkdir -p $out/hooks
-          cp -r ${hooksDir}/* $out/hooks/
-          chmod +x $out/hooks/*.sh 2>/dev/null || true
+          for item in ${hooksDir}/*; do
+            basename=$(basename "$item")
+            case "$basename" in
+              *.sh)
+                substitute "$item" $out/hooks/"$basename" \
+                  --replace-fail @USING_SUPERPOWERS_SKILL@ ${skillContentFile}
+                chmod +x $out/hooks/"$basename"
+                ;;
+              *) cp "$item" $out/hooks/"$basename" ;;
+            esac
+          done
         ''
       );
 
