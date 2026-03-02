@@ -11,9 +11,9 @@
 
   outputs =
     {
-      self,
       nixpkgs,
       claude-nix,
+      ...
     }:
     let
       systems = [
@@ -34,7 +34,7 @@
     in
     {
       packages = forAllSystems (
-        { pkgs, system }:
+        { pkgs, ... }:
         let
           lib = pkgs.lib;
           claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
