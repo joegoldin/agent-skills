@@ -1,4 +1,8 @@
 
+<SUBAGENT-STOP>
+If you were dispatched as a subagent to execute a specific task, skip this skill.
+</SUBAGENT-STOP>
+
 <EXTREMELY-IMPORTANT>
 If you think there is even a 1% chance a skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill.
 
@@ -7,9 +11,19 @@ IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.
 This is not negotiable. This is not optional. You cannot rationalize your way out of this.
 </EXTREMELY-IMPORTANT>
 
+## Instruction Priority
+
+Skills override default system prompt behavior, but **user instructions always take precedence**:
+
+1. **User's explicit instructions** (CLAUDE.md, direct requests) — highest priority
+2. **Agent skills** — override default system behavior where they conflict
+3. **Default system prompt** — lowest priority
+
+If CLAUDE.md says "don't use TDD" and a skill says "always use TDD," follow the user's instructions. The user is in control.
+
 ## How to Access Skills
 
-**In Claude Code:** Use the `Skill` tool. When you invoke a skill, its content is loaded and presented to you---follow it directly. Never use the Read tool on skill files.
+**In Claude Code:** Use the `Skill` tool. When you invoke a skill, its content is loaded and presented to you—follow it directly. Never use the Read tool on skill files.
 
 **In other environments:** Check your platform's documentation for how skills are loaded.
 
@@ -51,7 +65,7 @@ digraph skill_flow {
 
 ## Red Flags
 
-These thoughts mean STOP---you're rationalizing:
+These thoughts mean STOP—you're rationalizing:
 
 | Thought | Reality |
 |---------|---------|
@@ -72,8 +86,8 @@ These thoughts mean STOP---you're rationalizing:
 
 When multiple skills could apply, use this order:
 
-1. **Process skills first** (brainstorming, systematic-debugging, writing-plans)
-2. **Workflow skills second** (test-driven-development, subagent-driven-development, executing-plans, using-git-worktrees)
+1. **Process skills first** (brainstorming, systematic-debugging, writing-plans) - these determine HOW to approach the task
+2. **Workflow skills second** (test-driven-development, subagent-driven-development, executing-plans, dispatching-parallel-agents, using-git-worktrees, finishing-a-development-branch) - these guide execution
 3. **Review skills** (requesting-code-review, receiving-code-review, verification-before-completion)
 4. **Domain skills** (nix-helper, claude-nix-config, gh-pr-review, obsidian-cli, writing-skills)
 
