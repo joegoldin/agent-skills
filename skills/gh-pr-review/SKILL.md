@@ -9,7 +9,7 @@ GitHub CLI extension for inline PR review comments with LLM-friendly JSON output
 
 ```sh
 fish -c 'ghreview'
-fish -c 'ghreview --pretty --no-bots'
+fish -c 'ghreview --pretty'
 ```
 
 Never run `ghreview` directly in bash — it will fail with `command not found`.
@@ -22,7 +22,6 @@ Never run `ghreview` directly in bash — it will fail with `command not found`.
 
 | Flag | Default | Purpose |
 |------|---------|---------|
-| `--no-bots` | off | Exclude bot authors (login ending in `[bot]`) |
 | `--no-code` | off | Skip injecting source code context into comments |
 | `--pretty` | off | Render as readable markdown instead of JSON |
 | `--raw` | off | Output raw JSON (skip jq pretty-printing) |
@@ -37,9 +36,6 @@ fish -c 'ghreview'
 
 # Readable markdown output with code
 fish -c 'ghreview --pretty'
-
-# Human-only comments as markdown
-fish -c 'ghreview --pretty --no-bots'
 
 # Raw compact JSON (for piping)
 fish -c 'ghreview --raw'
@@ -61,7 +57,6 @@ fish -c 'ghreview review view --unresolved --not_outdated'
 fish -c 'ghreview review view --reviewer octocat'
 fish -c 'ghreview review view --states CHANGES_REQUESTED,COMMENTED'
 fish -c 'ghreview review view --tail 1'
-fish -c 'ghreview --no-bots review view --unresolved'
 ```
 
 | Flag | Purpose |
@@ -152,7 +147,7 @@ Renders reviews as readable markdown with fenced code blocks for code context an
 ### Get actionable review feedback
 
 ```sh
-fish -c 'ghreview --pretty --no-bots review view --unresolved --not_outdated'
+fish -c 'ghreview --pretty review view --unresolved --not_outdated'
 ```
 
 ### Reply and resolve
