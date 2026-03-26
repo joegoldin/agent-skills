@@ -32,6 +32,11 @@
 
         If there are thread replies, note which comments already have responses and which are unanswered.
 
+        After addressing comments with code changes:
+        7. Reply to each addressed comment thread explaining what was changed
+        8. Resolve threads that were fully addressed (do NOT resolve threads where you disagree or need reviewer sign-off)
+        9. Update the PR description to reflect changes made from review feedback
+
         $ARGUMENTS
       ''
     )

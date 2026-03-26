@@ -142,6 +142,64 @@ Structured JSON with code context. IDs use GraphQL format: `PRR_` (reviews), `PR
 
 Renders reviews as readable markdown with fenced code blocks for code context and threaded replies as blockquotes.
 
+## Addressing Review Feedback
+
+When you've made code changes to address review comments, you MUST complete the feedback loop:
+
+### 1. Update PR Description
+
+After addressing feedback, update the PR description to reflect the current state. Use `gh pr edit` to update:
+
+```sh
+gh pr edit --body "$(cat <<'EOF'
+Updated description here...
+EOF
+)"
+```
+
+Include a "Changes from review" or similar section summarizing what was addressed.
+
+### 2. Reply to Addressed Comments
+
+For every comment you've addressed with a code change, reply to the thread explaining what you did:
+
+```sh
+fish -c 'ghreview comments reply --thread-id PRRT_xxx --body "Fixed — refactored to use the helper as suggested"'
+```
+
+Keep replies concise and specific. Reference the actual change made, not just "done" or "fixed."
+
+### 3. Resolve Addressed Threads
+
+After replying to a comment you've fully addressed, resolve the thread:
+
+```sh
+fish -c 'ghreview threads resolve --thread-id PRRT_xxx'
+```
+
+**When to resolve:**
+- You made the requested code change → resolve
+- The comment was a question and you replied with an answer → resolve
+- You replied explaining why you disagree or won't change → do NOT resolve (let the reviewer decide)
+- The comment requires discussion or reviewer sign-off → do NOT resolve
+
+**Batch workflow for addressing feedback:**
+
+```sh
+# 1. Get all unresolved threads with IDs
+fish -c 'ghreview threads list --unresolved'
+
+# 2. For each addressed thread: reply then resolve
+fish -c 'ghreview comments reply --thread-id PRRT_xxx --body "Addressed — changed X to Y"'
+fish -c 'ghreview threads resolve --thread-id PRRT_xxx'
+
+# 3. Update PR description
+gh pr edit --body "$(cat <<'EOF'
+...updated description...
+EOF
+)"
+```
+
 ## Common Workflows
 
 ### Get actionable review feedback
