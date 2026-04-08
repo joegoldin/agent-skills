@@ -3,228 +3,160 @@
 
 GitHub CLI extension for inline PR review comments with LLM-friendly JSON output.
 
-## IMPORTANT: Running Commands
+## Running ghreview
 
-`ghreview` is a fish shell function. **Always run it via fish:**
-
-```sh
-fish -c 'ghreview'
-fish -c 'ghreview --pretty'
-```
-
-Never run `ghreview` directly in bash — it will fail with `command not found`.
-
-## Shell Wrapper
-
-`ghreview` auto-detects repo and PR from the current directory/branch. All args pass through to `gh pr-review`. Defaults to `review view` with code context.
-
-### Wrapper Flags
-
-| Flag | Default | Purpose |
-|------|---------|---------|
-| `--no-code` | off | Skip injecting source code context into comments |
-| `--pretty` | off | Render as readable markdown instead of JSON |
-| `--raw` | off | Output raw JSON (skip jq pretty-printing) |
-
-Code context is injected by default — each comment includes a `code_context` field with the referenced source lines (3 lines above and below). Use `--no-code` to disable.
-
-### Quick Reference
+`ghreview` is a fish script with `#!/usr/bin/env fish` and lives on `$PATH`. **Run it directly from any shell** — bash, zsh, the Bash tool, whatever:
 
 ```sh
-# View all reviews for current PR (default, includes code context)
-fish -c 'ghreview'
-
-# Readable markdown output with code
-fish -c 'ghreview --pretty'
-
-# Raw compact JSON (for piping)
-fish -c 'ghreview --raw'
-
-# Skip code injection (faster, less output)
-fish -c 'ghreview --no-code'
-
-# Override auto-detection
-fish -c 'ghreview -R owner/repo --pr 42 review view'
+ghreview
+ghreview --pretty
+ghreview comments reply --thread-id PRRT_xxx --body "Fixed in abc123"
 ```
 
-## Core Commands
+Do **not** wrap it in `fish -c '...'`. That used to be necessary; it isn't anymore.
 
-### View Reviews and Threads
+The wrapper auto-detects repo (`-R`) and PR (`--pr`) from the current branch and forwards everything else to `gh pr-review`. Unknown flags pass through, so subcommand-specific flags like `--thread-id`, `--body`, `--unresolved`, `--not_outdated`, `--reviewer`, `--states` all just work.
 
-```sh
-fish -c 'ghreview'
-fish -c 'ghreview review view --unresolved --not_outdated'
-fish -c 'ghreview review view --reviewer octocat'
-fish -c 'ghreview review view --states CHANGES_REQUESTED,COMMENTED'
-fish -c 'ghreview review view --tail 1'
-```
+### Wrapper-only flags
 
 | Flag | Purpose |
 |------|---------|
-| `--reviewer <login>` | Filter by reviewer |
-| `--states <list>` | APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED |
-| `--unresolved` | Only unresolved threads |
-| `--not_outdated` | Exclude outdated threads |
-| `--tail <n>` | Keep last n replies per thread |
-| `--include-comment-node-id` | Add GraphQL comment IDs |
+| `--no-code` | Skip injecting source code context into comments |
+| `--pretty` | Render reviews/threads as readable markdown |
+| `--raw` | Output raw JSON (skip jq pretty-printing) |
 
-### Reply to Threads
+Code context is included by default — every comment gets a `code_context` field with ±3 lines around the referenced line.
 
-```sh
-fish -c 'ghreview comments reply --thread-id PRRT_xxx --body "Addressed in latest commit"'
-```
+## Subcommands (forwarded to `gh pr-review`)
 
-### List Threads
+Default subcommand is `review view`, so bare `ghreview` shows all reviews on the current PR.
+
+### View reviews
 
 ```sh
-fish -c 'ghreview threads list --unresolved --mine'
+ghreview                                          # all reviews, JSON
+ghreview --pretty                                 # all reviews, markdown
+ghreview review view --unresolved --not_outdated  # actionable only
+ghreview review view --reviewer octocat
+ghreview review view --states CHANGES_REQUESTED,COMMENTED
+ghreview review view --tail 1                     # last reply per thread
 ```
 
-### Resolve / Unresolve Threads
+### List threads
 
 ```sh
-fish -c 'ghreview threads resolve --thread-id PRRT_xxx'
-fish -c 'ghreview threads unresolve --thread-id PRRT_xxx'
+ghreview threads list
+ghreview threads list --unresolved
+ghreview threads list --unresolved --mine
 ```
 
-### Create and Submit Reviews
+### Reply / resolve / unresolve
 
 ```sh
-# Start pending review
-fish -c 'ghreview review --start'
-
-# Add inline comment
-fish -c 'ghreview review --add-comment --review-id PRR_xxx --path src/file.go --line 42 --body "nit: use helper"'
-
-# Submit
-fish -c 'ghreview review --submit --review-id PRR_xxx --event REQUEST_CHANGES --body "Please address the comments"'
+ghreview comments reply --thread-id PRRT_xxx --body "Fixed in abc123"
+ghreview threads resolve   --thread-id PRRT_xxx
+ghreview threads unresolve --thread-id PRRT_xxx
 ```
 
-Events: `APPROVE`, `REQUEST_CHANGES`, `COMMENT`
+### Create and submit a review
 
-## Output Format
-
-### JSON (default)
-
-Structured JSON with code context. IDs use GraphQL format: `PRR_` (reviews), `PRRT_` (threads), `PRRC_` (comments).
-
-```json
-{
-  "reviews": [
-    {
-      "id": "PRR_...",
-      "state": "CHANGES_REQUESTED",
-      "author_login": "reviewer",
-      "comments": [
-        {
-          "thread_id": "PRRT_...",
-          "path": "src/file.go",
-          "line": 42,
-          "author_login": "reviewer",
-          "body": "Consider refactoring this",
-          "is_resolved": false,
-          "is_outdated": false,
-          "code_context": "39: func handler() {\n40:   ...\n41:   // existing code\n42:   problematicCall()\n43:   ...\n44: }\n45: ",
-          "thread_comments": [
-            {
-              "author_login": "author",
-              "body": "Good point, will fix"
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
+```sh
+ghreview review --start
+ghreview review --add-comment --review-id PRR_xxx --path src/file.go --line 42 --body "nit: use helper"
+ghreview review --submit --review-id PRR_xxx --event REQUEST_CHANGES --body "See inline comments"
 ```
 
-### Markdown (`--pretty`)
+Events: `APPROVE`, `REQUEST_CHANGES`, `COMMENT`.
 
-Renders reviews as readable markdown with fenced code blocks for code context and threaded replies as blockquotes.
+## Output format
 
-## Addressing Review Feedback
+JSON by default. ID prefixes: `PRR_` (reviews), `PRRT_` (threads), `PRRC_` (comments). Each comment includes `thread_id`, `path`, `line`, `body`, `is_resolved`, `is_outdated`, `code_context`, and any `thread_comments` (replies).
 
-When you've made code changes to address review comments, you MUST complete the feedback loop:
+`--pretty` renders the same data as markdown with fenced code blocks for `code_context` and blockquoted thread replies.
 
-### 1. Update PR Description
+## Full flow: addressing review feedback
 
-After addressing feedback, update the PR description to reflect the current state. Use `gh pr edit` to update:
+This is the canonical loop. Do all of it — replies and resolves are not optional.
+
+### 1. Get the actionable list
+
+```sh
+ghreview --pretty review view --unresolved --not_outdated
+```
+
+Read the rendered feedback. For batch processing, grab JSON and extract `thread_id` per comment:
+
+```sh
+ghreview --raw review view --unresolved --not_outdated > /tmp/pr.json
+python3 -c "
+import json
+d = json.load(open('/tmp/pr.json'))
+for r in d.get('reviews', []):
+    for c in r.get('comments', []):
+        if not c.get('is_resolved') and not c.get('is_outdated'):
+            print(c['thread_id'], c['path'] + ':' + str(c.get('line')))
+            print('  ', c['body'][:120])
+"
+```
+
+### 2. Make the code changes, run tests, commit, push
+
+Standard dev loop. Reference the resulting commit SHA in your replies so reviewers can see what changed.
+
+### 3. Reply to every addressed thread
+
+One reply per thread, specific about what changed. Cite the commit and the actual fix — never just "done" or "fixed".
+
+```sh
+ghreview comments reply --thread-id PRRT_xxx \
+  --body "Fixed in 1907889 — _compute_missing_stubs now skips canonical kinds already present anywhere in the plan, so a plan starting with SUBMIT_MOBILE no longer gets a duplicate."
+```
+
+### 4. Resolve threads you've fully addressed
+
+```sh
+ghreview threads resolve --thread-id PRRT_xxx
+```
+
+**Resolve when:**
+- You made the requested code change.
+- The comment was a question and your reply answers it definitively.
+
+**Do NOT resolve when:**
+- You disagree or chose not to change — let the reviewer decide.
+- The thread needs further discussion or sign-off.
+
+### 5. Update the PR description
 
 ```sh
 gh pr edit --body "$(cat <<'EOF'
-Updated description here...
+...updated description with a "Changes from review" section...
 EOF
 )"
 ```
 
-Include a "Changes from review" or similar section summarizing what was addressed.
-
-### 2. Reply to Addressed Comments
-
-For every comment you've addressed with a code change, reply to the thread explaining what you did:
+### End-to-end example (single thread)
 
 ```sh
-fish -c 'ghreview comments reply --thread-id PRRT_xxx --body "Fixed — refactored to use the helper as suggested"'
-```
+# 1. See what's open
+ghreview --pretty review view --unresolved --not_outdated
 
-Keep replies concise and specific. Reference the actual change made, not just "done" or "fixed."
+# 2. (edit code, run tests)
+git add -u && git commit -m "fix: address review feedback" && git push
 
-### 3. Resolve Addressed Threads
+# 3. Reply
+ghreview comments reply --thread-id PRRT_kwDODXqFN855XW1G \
+  --body "Fixed in $(git rev-parse --short HEAD) — dropped the misleading docstring phrase."
 
-After replying to a comment you've fully addressed, resolve the thread:
+# 4. Resolve
+ghreview threads resolve --thread-id PRRT_kwDODXqFN855XW1G
 
-```sh
-fish -c 'ghreview threads resolve --thread-id PRRT_xxx'
-```
-
-**When to resolve:**
-- You made the requested code change → resolve
-- The comment was a question and you replied with an answer → resolve
-- You replied explaining why you disagree or won't change → do NOT resolve (let the reviewer decide)
-- The comment requires discussion or reviewer sign-off → do NOT resolve
-
-**Batch workflow for addressing feedback:**
-
-```sh
-# 1. Get all unresolved threads with IDs
-fish -c 'ghreview threads list --unresolved'
-
-# 2. For each addressed thread: reply then resolve
-fish -c 'ghreview comments reply --thread-id PRRT_xxx --body "Addressed — changed X to Y"'
-fish -c 'ghreview threads resolve --thread-id PRRT_xxx'
-
-# 3. Update PR description
+# 5. Refresh PR description
 gh pr edit --body "$(cat <<'EOF'
-...updated description...
+## Summary
+...
+## Changes from review
+- Dropped misleading docstring phrase (thread PRRT_...G)
 EOF
 )"
-```
-
-## Common Workflows
-
-### Get actionable review feedback
-
-```sh
-fish -c 'ghreview --pretty review view --unresolved --not_outdated'
-```
-
-### Reply and resolve
-
-```sh
-# Get thread IDs
-fish -c 'ghreview threads list --unresolved'
-
-# Reply
-fish -c 'ghreview comments reply --thread-id PRRT_xxx --body "Fixed in abc123"'
-
-# Resolve
-fish -c 'ghreview threads resolve --thread-id PRRT_xxx'
-```
-
-### Full review cycle
-
-```sh
-fish -c 'ghreview review --start'
-fish -c 'ghreview review --add-comment --review-id PRR_xxx --path file.go --line 10 --body "Issue here"'
-fish -c 'ghreview review --submit --review-id PRR_xxx --event REQUEST_CHANGES --body "See inline comments"'
 ```
