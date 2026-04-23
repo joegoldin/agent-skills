@@ -21,6 +21,23 @@
         "type": "github"
       }
     },
+    "codex-nix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1776839792,
+        "narHash": "sha256-i/TTNtNAFRNRc7CgmeQA0v0HBxBco5huvBVTrA2KyjQ=",
+        "path": "/home/joe/Development/codex-nix",
+        "type": "path"
+      },
+      "original": {
+        "path": "/home/joe/Development/codex-nix",
+        "type": "path"
+      }
+    },
     "flake-utils": {
       "inputs": {
         "systems": "systems"
@@ -36,6 +53,26 @@
       "original": {
         "owner": "numtide",
         "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "gemini-nix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1775631629,
+        "narHash": "sha256-Xo665z8Y2AnhvUeXh3etT3CVGKPYsRAVlBE14+NVqJY=",
+        "owner": "joegoldin",
+        "repo": "gemini-nix",
+        "rev": "cdad1c03612be0b1f97e7782a405dc6e7345058a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "joegoldin",
+        "repo": "gemini-nix",
         "type": "github"
       }
     },
@@ -58,6 +95,8 @@
     "root": {
       "inputs": {
         "claude-nix": "claude-nix",
+        "codex-nix": "codex-nix",
+        "gemini-nix": "gemini-nix",
         "nixpkgs": "nixpkgs"
       }
     },
