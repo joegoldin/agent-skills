@@ -12,7 +12,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     codex-nix = {
-      url = "path:/home/joe/Development/codex-nix";
+      url = "git+ssh://git@github.com/joegoldin/codex-nix.git";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
