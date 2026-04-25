@@ -1,138 +1,139 @@
 
-# Claude Nix Configuration
+# Agent Skills Configuration
 
-This dotfiles repo manages Claude Code declaratively via [claude-nix](https://github.com/joegoldin/claude-nix). All skills, commands, agents, and plugin settings are defined in Nix and built into a wrapped `claude` binary with plugins baked in.
+This dotfiles repo manages Claude Code, Gemini CLI, and Codex declaratively via Nix. All skills, commands, agents, and plugin settings are defined in Nix and built into plugins for each tool.
+
+## Repository: agent-skills
+
+The `agent-skills/` directory (at `/home/joe/dotfiles/agent-skills/`) is the single entry point. It re-exports `homeManagerModules` from three upstream repos:
+
+- **claude-nix** — Claude Code plugin system
+- **gemini-nix** — Gemini CLI plugin system
+- **codex-nix** — Codex plugin system
+
+Plugins are built per-target: `claude-plugin`, `gemini-plugin`, `codex-plugin`.
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `hosts/common/home/claude/default.nix` | Main config — plugins, skills, commands, packages |
-| `hosts/common/home/claude/settings.nix` | `settings.json` — permissions, hooks |
-| `hosts/common/home/claude/skills/<name>/SKILL.md` | Local skill definitions |
+| `agent-skills/flake.nix` | Flake definition — inputs (claude-nix, gemini-nix, codex-nix), builds plugins, exports homeManagerModules |
+| `agent-skills/lib/default.nix` | Build system — `discoverSkills`, `buildPlugin`, `buildGeminiPlugin`, `buildCodexPlugin` |
+| `agent-skills/skills/<name>/skill.nix` | Skill metadata (name, description, optional commands/agents/mcpServers/lspServers) |
+| `agent-skills/skills/<name>/SKILL.md` | Skill content — the instructions loaded when the skill is invoked |
+| `agent-skills/hooks/` | Claude hook scripts (e.g., session-start) |
+| `agent-skills/ATTRIBUTION.md` | Attribution file bundled into all plugins |
 
-## Architecture
+## How to Add a Skill
 
-```
-claudeLib = import claude-nix/lib { pkgs = ...; }
+1. Create `agent-skills/skills/<skill-name>/skill.nix`:
 
-claudeLib.mkPlugin    → creates a plugin (bundles skills + commands + agents)
-claudeLib.mkSkill     → creates a skill derivation
-claudeLib.mkCommand   → creates a slash command derivation
-claudeLib.mkAgent     → creates an agent derivation
-claudeLib.mkClaude    → wraps claude binary with --plugin-dir flags
-```
-
-The plugin is built and passed to `mkClaude`, which produces a wrapped `claude` binary installed via `home.packages`.
-
-## Adding a Local Skill
-
-1. Create `hosts/common/home/claude/skills/<skill-name>/SKILL.md` with frontmatter:
-
-```markdown
----
-name: my-skill
-description: When to use this skill
----
-
-# Skill content here
-```
-
-2. Register it in `default.nix`:
-
+**Simple skill** (no packages needed):
 ```nix
-superpowersSkillDerivations = (map wrapSkill skillNames) ++ [
-  (localSkill "executing-plans")
-  (localSkill "gh-pr-review")
-  (localSkill "obsidian-cli")
-  (localSkill "my-skill")        # <-- add here
-];
+{
+  name = "my-skill";
+  description = "When to use this skill";
+}
 ```
 
-3. Rebuild: `darwin-rebuild switch --flake .`
-
-## Adding a Nix-Inline Skill
-
-For skills that reference nix packages or binaries:
-
+**Skill with packages** (function form — receives `{ pkgs, lib, claudeLib }`):
 ```nix
-mySkill = claudeLib.mkSkill {
-  name = "my-tool";
-  description = "When to use this";
-  allowed-tools = ["Bash(${pkgs.sometool}/bin/sometool)"];
-} ''
-  Skill content referencing ${pkgs.sometool}/bin/sometool
-'';
-```
-
-Then add `mySkill` to the plugin's `skills` list.
-
-## Adding a Command (Slash Command)
-
-Commands become `/command-name` in Claude Code.
-
-```nix
-myCommand = claudeLib.mkCommand {
-  name = "my-command";
-  description = "What this command does";
-  allowed-tools = ["Bash" "Read" "Skill"];  # optional
-  # argument-hint = "optional hint";        # optional
-  # model = "claude-sonnet-4-20250514";     # optional model override
-} ''
-  Command prompt content here.
-  Use $ARGUMENTS for user input.
-'';
-```
-
-Then add to the plugin:
-
-```nix
-superpowersPlugin = claudeLib.mkPlugin {
-  name = "superpowers";
-  description = "...";
-  skills = superpowersSkillDerivations;
-  commands = [
-    myCommand
+{ pkgs, ... }:
+{
+  name = "my-skill";
+  description = "When to use this skill";
+  allowed-tools = [
+    "Bash(${pkgs.sometool}/bin/sometool)"
   ];
-};
+}
 ```
 
-## Adding an Agent
+**Skill with commands, agents, MCP servers, LSP servers:**
+```nix
+{ pkgs, lib, claudeLib, ... }:
+{
+  name = "my-skill";
+  description = "When to use this skill";
+
+  commands = [
+    (claudeLib.mkCommand {
+      name = "my-command";
+      description = "What this command does";
+      allowed-tools = [ "Bash" "Read" ];
+    } ''
+      Command prompt. Use $ARGUMENTS for user input.
+    '')
+  ];
+
+  agents = [
+    (claudeLib.mkAgent {
+      name = "my-agent";
+      description = "What this agent does";
+      tools = [ "Bash" "Read" "Write" ];
+    } ''
+      Agent system prompt.
+    '')
+  ];
+
+  mcpServers = {
+    my-server = {
+      command = "${pkgs.my-mcp}/bin/my-mcp";
+    };
+  };
+
+  lspServers = {
+    my-lang = {
+      command = lib.getExe pkgs.my-lsp;
+      extensionToLanguage = { ".ext" = "my-lang"; };
+    };
+  };
+}
+```
+
+2. Create `agent-skills/skills/<skill-name>/SKILL.md` with the skill content.
+
+3. That's it — `discoverSkills` auto-discovers any directory under `skills/` that contains a `skill.nix`.
+
+## How the Build System Works
+
+1. **`discoverSkills ./skills`** — scans for directories with `skill.nix`, evaluates each (handles both plain attrsets and functions), builds skill derivations with frontmatter-injected SKILL.md
+2. **`buildPlugin`** — aggregates all skills' commands, agents, mcpServers, lspServers into a single Claude plugin via `claudeLib.mkPlugin`
+3. **`buildGeminiPlugin`** — converts skills using `geminiLib.mkSkill` and bundles into a Gemini plugin
+4. **`buildCodexPlugin`** — converts skills using `codexLib.mkSkill` and bundles into a Codex plugin
+
+## Dotfiles Integration
+
+In the main dotfiles `flake.nix`, agent-skills is imported as a path input:
 
 ```nix
-myAgent = claudeLib.mkAgent {
-  name = "my-agent";
-  description = "What this agent does";
-  tools = ["Bash" "Read" "Write"];  # optional tool restrictions
-  # model = "claude-haiku-4-20250514";  # optional model override
-} ''
-  Agent system prompt here.
-'';
+agent-skills = { url = "path:./agent-skills"; inputs.nixpkgs.follows = "nixpkgs"; };
 ```
 
-Then add to the plugin's `agents` list.
+Home-manager modules are used in host configs:
 
-## Upstream Skills (superpowers)
+```nix
+# Enable Claude Code with agent-skills plugin
+programs.claude-nix.enable = true;  # via agent-skills.homeManagerModules.claude
 
-Upstream skills come from `inputs.superpowers` (github:obra/superpowers). They are listed in `skillNames` and wrapped with `wrapSkill`. To add a new upstream skill, just add its name to the `skillNames` list.
+# Enable Gemini CLI
+programs.gemini-nix.enable = true;  # via agent-skills.homeManagerModules.gemini
 
-To update upstream skills: `nix flake update superpowers`
-
-## Settings (Permissions & Hooks)
-
-Edit `settings.nix` to modify:
-- `permissions.allow` / `permissions.deny` — tool access control
-- `hooks` — shell commands triggered on events (Notification, Stop, PreToolUse)
-- `defaultMode` — default permission mode
+# Enable Codex
+programs.codex-nix.enable = true;   # via agent-skills.homeManagerModules.codex
+```
 
 ## Build & Apply
 
 ```sh
-# In the dotfiles repo
-darwin-rebuild switch --flake .
+# Build agent-skills standalone (quick check)
+cd agent-skills && just build
+# or: nix build .#claude-plugin && nix build .#gemini-plugin && nix build .#codex-plugin
 
-# Or for NixOS
+# Apply to system (NixOS)
 sudo nixos-rebuild switch --flake .
+
+# Apply to system (macOS)
+darwin-rebuild switch --flake .
 ```
 
 Skills hot-reload in modern Claude Code, but commands and plugin structure require a rebuild.

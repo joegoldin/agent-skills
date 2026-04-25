@@ -47,6 +47,8 @@
         | Host | Platform | Config dir |
         |------|----------|------------|
         | joe-desktop | NixOS (x86_64-linux), KDE Plasma 6 | hosts/nixos/ |
+        | office-pc | NixOS (x86_64-linux), compute/training, AMD GPU | hosts/office-pc/ |
+        | joe-steamdeck | NixOS (x86_64-linux), Jovian/Steam Deck | hosts/steamdeck/ |
         | Joes-MacBook-Pro | macOS (aarch64-darwin) | hosts/darwin/ |
         | joe-wsl | NixOS on WSL | hosts/wsl/ |
         | oracle-cloud-bastion | NixOS server | hosts/oracle-cloud/ |

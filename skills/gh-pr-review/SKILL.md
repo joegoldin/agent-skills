@@ -3,76 +3,76 @@
 
 GitHub CLI extension for inline PR review comments with LLM-friendly JSON output.
 
-## Running ghreview
+## Setup
 
-`ghreview` is a fish script with `#!/usr/bin/env fish` and lives on `$PATH`. **Run it directly from any shell** — bash, zsh, the Bash tool, whatever:
+`gh pr-review` is a GitHub CLI extension. Run it with `gh pr-review <subcommand>` and pass `-R owner/repo` and `--pr <number>` to target a specific PR.
+
+### Auto-detecting repo and PR
+
+From within a repo checkout on a PR branch, auto-detect both:
 
 ```sh
-ghreview
-ghreview --pretty
-ghreview comments reply --thread-id PRRT_xxx --body "Fixed in abc123"
+REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+PR=$(gh pr view --json number -q .number)
 ```
 
-Do **not** wrap it in `fish -c '...'`. That used to be necessary; it isn't anymore.
+Then pass them explicitly:
 
-The wrapper auto-detects repo (`-R`) and PR (`--pr`) from the current branch and forwards everything else to `gh pr-review`. Unknown flags pass through, so subcommand-specific flags like `--thread-id`, `--body`, `--unresolved`, `--not_outdated`, `--reviewer`, `--states` all just work.
+```sh
+gh pr-review review view -R "$REPO" --pr "$PR" --unresolved --not_outdated
+```
 
-### Wrapper-only flags
+If you are already in the repo directory on the correct branch, `-R` and `--pr` can often be omitted — the extension will detect them from git context.
 
-| Flag | Purpose |
-|------|---------|
-| `--no-code` | Skip injecting source code context into comments |
-| `--pretty` | Render reviews/threads as readable markdown |
-| `--raw` | Output raw JSON (skip jq pretty-printing) |
+### Getting code context
 
-Code context is included by default — every comment gets a `code_context` field with ±3 lines around the referenced line.
+The extension outputs comment metadata (path, line number). To see surrounding code, read the file directly with the Read tool or `git show` rather than relying on a wrapper.
 
-## Subcommands (forwarded to `gh pr-review`)
+## Subcommands
 
-Default subcommand is `review view`, so bare `ghreview` shows all reviews on the current PR.
+Default subcommand is `review view`, so bare `gh pr-review` shows all reviews on the current PR.
 
 ### View reviews
 
 ```sh
-ghreview                                          # all reviews, JSON
-ghreview --pretty                                 # all reviews, markdown
-ghreview review view --unresolved --not_outdated  # actionable only
-ghreview review view --reviewer octocat
-ghreview review view --states CHANGES_REQUESTED,COMMENTED
-ghreview review view --tail 1                     # last reply per thread
+gh pr-review review view                                          # all reviews, JSON
+gh pr-review review view --unresolved --not_outdated              # actionable only
+gh pr-review review view --reviewer octocat
+gh pr-review review view --states CHANGES_REQUESTED,COMMENTED
+gh pr-review review view --tail 1                                 # last reply per thread
 ```
 
 ### List threads
 
 ```sh
-ghreview threads list
-ghreview threads list --unresolved
-ghreview threads list --unresolved --mine
+gh pr-review threads list
+gh pr-review threads list --unresolved
+gh pr-review threads list --unresolved --mine
 ```
 
 ### Reply / resolve / unresolve
 
 ```sh
-ghreview comments reply --thread-id PRRT_xxx --body "Fixed in abc123"
-ghreview threads resolve   --thread-id PRRT_xxx
-ghreview threads unresolve --thread-id PRRT_xxx
+gh pr-review comments reply --thread-id PRRT_xxx --body "Fixed in abc123"
+gh pr-review threads resolve   --thread-id PRRT_xxx
+gh pr-review threads unresolve --thread-id PRRT_xxx
 ```
 
 ### Create and submit a review
 
 ```sh
-ghreview review --start
-ghreview review --add-comment --review-id PRR_xxx --path src/file.go --line 42 --body "nit: use helper"
-ghreview review --submit --review-id PRR_xxx --event REQUEST_CHANGES --body "See inline comments"
+gh pr-review review --start
+gh pr-review review --add-comment --review-id PRR_xxx --path src/file.go --line 42 --body "nit: use helper"
+gh pr-review review --submit --review-id PRR_xxx --event REQUEST_CHANGES --body "See inline comments"
 ```
 
 Events: `APPROVE`, `REQUEST_CHANGES`, `COMMENT`.
 
 ## Output format
 
-JSON by default. ID prefixes: `PRR_` (reviews), `PRRT_` (threads), `PRRC_` (comments). Each comment includes `thread_id`, `path`, `line`, `body`, `is_resolved`, `is_outdated`, `code_context`, and any `thread_comments` (replies).
+JSON by default. ID prefixes: `PRR_` (reviews), `PRRT_` (threads), `PRRC_` (comments). Each comment includes `thread_id`, `path`, `line`, `body`, `is_resolved`, `is_outdated`, and any `thread_comments` (replies).
 
-`--pretty` renders the same data as markdown with fenced code blocks for `code_context` and blockquoted thread replies.
+To render output as readable markdown, format it yourself from the JSON.
 
 ## Full flow: addressing review feedback
 
@@ -81,13 +81,13 @@ This is the canonical loop. Do all of it — replies and resolves are not option
 ### 1. Get the actionable list
 
 ```sh
-ghreview --pretty review view --unresolved --not_outdated
+gh pr-review review view --unresolved --not_outdated
 ```
 
-Read the rendered feedback. For batch processing, grab JSON and extract `thread_id` per comment:
+Read the feedback. For batch processing, extract `thread_id` per comment:
 
 ```sh
-ghreview --raw review view --unresolved --not_outdated > /tmp/pr.json
+gh pr-review review view --unresolved --not_outdated > /tmp/pr.json
 python3 -c "
 import json
 d = json.load(open('/tmp/pr.json'))
@@ -99,6 +99,8 @@ for r in d.get('reviews', []):
 "
 ```
 
+For code context around a comment, use the Read tool on the file at the referenced line.
+
 ### 2. Make the code changes, run tests, commit, push
 
 Standard dev loop. Reference the resulting commit SHA in your replies so reviewers can see what changed.
@@ -108,14 +110,14 @@ Standard dev loop. Reference the resulting commit SHA in your replies so reviewe
 One reply per thread, specific about what changed. Cite the commit and the actual fix — never just "done" or "fixed".
 
 ```sh
-ghreview comments reply --thread-id PRRT_xxx \
+gh pr-review comments reply --thread-id PRRT_xxx \
   --body "Fixed in 1907889 — _compute_missing_stubs now skips canonical kinds already present anywhere in the plan, so a plan starting with SUBMIT_MOBILE no longer gets a duplicate."
 ```
 
 ### 4. Resolve threads you've fully addressed
 
 ```sh
-ghreview threads resolve --thread-id PRRT_xxx
+gh pr-review threads resolve --thread-id PRRT_xxx
 ```
 
 **Resolve when:**
@@ -139,17 +141,17 @@ EOF
 
 ```sh
 # 1. See what's open
-ghreview --pretty review view --unresolved --not_outdated
+gh pr-review review view --unresolved --not_outdated
 
 # 2. (edit code, run tests)
 git add -u && git commit -m "fix: address review feedback" && git push
 
 # 3. Reply
-ghreview comments reply --thread-id PRRT_kwDODXqFN855XW1G \
+gh pr-review comments reply --thread-id PRRT_kwDODXqFN855XW1G \
   --body "Fixed in $(git rev-parse --short HEAD) — dropped the misleading docstring phrase."
 
 # 4. Resolve
-ghreview threads resolve --thread-id PRRT_kwDODXqFN855XW1G
+gh pr-review threads resolve --thread-id PRRT_kwDODXqFN855XW1G
 
 # 5. Refresh PR description
 gh pr edit --body "$(cat <<'EOF'

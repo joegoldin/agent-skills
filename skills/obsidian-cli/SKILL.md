@@ -7,11 +7,11 @@ Command-line interface for controlling Obsidian from the terminal. Requires Obsi
 
 **Core syntax:** `obsidian <command> [param=value...] [flags]`
 
-## Vault: "Main Vault"
+## Discovering Vaults
 
-Located at `~/Obsidian/Main Vault`. When cwd is this path, no `vault=` prefix needed.
+To find available vaults, run `obsidian vaults list`. If that doesn't work, check common locations: `~/Obsidian/`, `~/Documents/Obsidian/`, `~/Documents/`. Use `vault=<name>` to target a specific vault, or `cd` into the vault root (the folder containing `.obsidian/`) to use it implicitly.
 
-### Folder Structure
+### Folder Structure (typical vault)
 
 | Folder | Purpose |
 |--------|---------|
