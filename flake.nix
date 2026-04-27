@@ -81,6 +81,7 @@
             name = "agent-skills";
             description = "Agent skills for Gemini CLI";
             inherit skills;
+            hooksDir = ./hooks;
             attributionFile = ./ATTRIBUTION.md;
           };
 
@@ -89,6 +90,7 @@
             name = "agent-skills";
             description = "Agent skills for Codex";
             inherit skills;
+            hooksDir = ./hooks;
             attributionFile = ./ATTRIBUTION.md;
           };
 

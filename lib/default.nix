@@ -87,8 +87,9 @@ let
     else
       "";
 
-  # ── Build hooks derivation for Claude (uses ${CLAUDE_PLUGIN_ROOT}) ──
-  buildClaudeHooks =
+  # ── Build session-start hooks derivation (shared across all targets) ──
+  # Returns a derivation with hooks/session-start.sh (substituted with skill content)
+  buildSessionStartHooks =
     name: skills: hooksDir:
     let
       usingSuperpowersContent = buildUsingSuperpowersContent skills;
@@ -108,6 +109,54 @@ let
         esac
       done
     '';
+
+  # ── Build a SessionStart hook list for a target (gemini/codex) ──
+  # Produces `[ (mkHook {...}) ]` ready to merge into mkPlugin's `hooks` arg.
+  # The hook runs the substituted session-start.sh by absolute store path,
+  # since codex/gemini hooks.json/settings.json don't expand a plugin-root
+  # variable the way Claude's `${CLAUDE_PLUGIN_ROOT}` does.
+  buildTargetSessionStartHooks =
+    {
+      mkHook,
+      name,
+      skills,
+      hooksDir,
+    }:
+    let
+      hooksDrv = buildSessionStartHooks name skills hooksDir;
+    in
+    [
+      (mkHook {
+        event = "SessionStart";
+        matcher = "startup|resume|clear|compact";
+        name = "agent-skills-session-start";
+        command = "${hooksDrv}/hooks/session-start.sh";
+      })
+    ];
+
+  buildGeminiHooks =
+    {
+      name,
+      skills,
+      hooksDir,
+    }:
+    assert geminiLib != null;
+    buildTargetSessionStartHooks {
+      inherit name skills hooksDir;
+      mkHook = geminiLib.mkHook;
+    };
+
+  buildCodexHooks =
+    {
+      name,
+      skills,
+      hooksDir,
+    }:
+    assert codexLib != null;
+    buildTargetSessionStartHooks {
+      inherit name skills hooksDir;
+      mkHook = codexLib.mkHook;
+    };
 
   # ── Claude plugin (backward compatible) ──
   buildPlugin =
@@ -136,7 +185,7 @@ let
       };
 
       # Hooks derivation
-      hooksDrv = lib.optional (hooksDir != null) (buildClaudeHooks name skills hooksDir);
+      hooksDrv = lib.optional (hooksDir != null) (buildSessionStartHooks name skills hooksDir);
 
       # Attribution derivation
       attributionDrv = lib.optional (attributionFile != null) (
@@ -177,6 +226,7 @@ let
       description,
       skills,
       hooks ? [ ],
+      hooksDir ? null,
       attributionFile ? null,
     }:
     assert geminiLib != null;
@@ -184,12 +234,19 @@ let
       # Build each skill using geminiLib.mkSkill
       geminiSkills = map (buildSkillForTarget geminiLib.mkSkill) skills;
 
+      # Session-start hook (shared derivation)
+      sessionStartHooks =
+        if hooksDir != null then
+          buildGeminiHooks { inherit name skills hooksDir; }
+        else
+          [ ];
+
       # Build the plugin
       plugin = geminiLib.mkPlugin {
         inherit name;
         description = description;
         skills = geminiSkills;
-        inherit hooks;
+        hooks = hooks ++ sessionStartHooks;
       };
 
       # Attribution derivation
@@ -200,9 +257,12 @@ let
         ''
       );
     in
-    pkgs.buildEnv {
+    (pkgs.buildEnv {
       name = "${name}-gemini-complete";
       paths = [ plugin ] ++ attributionDrv;
+    })
+    // {
+      _gemini = plugin._gemini or { };
     };
 
   # ── Codex plugin ──
@@ -212,6 +272,7 @@ let
       description,
       skills,
       hooks ? [ ],
+      hooksDir ? null,
       attributionFile ? null,
     }:
     assert codexLib != null;
@@ -222,12 +283,19 @@ let
       # Aggregate MCP servers from skill metadata (MCP is universal)
       allMcpServers = lib.foldl' (acc: s: acc // (s.meta.mcpServers or { })) { } skills;
 
+      # Session-start hook (shared derivation)
+      sessionStartHooks =
+        if hooksDir != null then
+          buildCodexHooks { inherit name skills hooksDir; }
+        else
+          [ ];
+
       # Build the plugin
       plugin = codexLib.mkPlugin {
         inherit name;
         description = description;
         skills = codexSkills;
-        inherit hooks;
+        hooks = hooks ++ sessionStartHooks;
         mcpServers = allMcpServers;
       };
 
@@ -239,9 +307,12 @@ let
         ''
       );
     in
-    pkgs.buildEnv {
+    (pkgs.buildEnv {
       name = "${name}-codex-complete";
       paths = [ plugin ] ++ attributionDrv;
+    })
+    // {
+      _codex = plugin._codex or { };
     };
 in
 {
@@ -253,5 +324,8 @@ in
     buildSkillForTarget
     buildGeminiPlugin
     buildCodexPlugin
+    buildGeminiHooks
+    buildCodexHooks
+    buildSessionStartHooks
     ;
 }
