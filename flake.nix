@@ -65,7 +65,10 @@
           skills = build.discoverSkills ./skills;
 
           # code-notify package
-          codeNotify = pkgs.callPackage ./packages/code-notify.nix { };
+          codeNotify = pkgs.callPackage ./packages/code-notify { };
+
+          # WakaTime plugin for Claude Code (uses system wakatime-cli)
+          wakatimePlugin = pkgs.callPackage ./packages/wakatime-plugin { };
 
           # ── Claude plugin ──
           claude-plugin = build.buildPlugin {
@@ -110,6 +113,7 @@
             gemini-plugin
             codex-plugin
             codeNotify
+            wakatimePlugin
             ;
         }
       );
