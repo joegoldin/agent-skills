@@ -181,7 +181,7 @@
             in
             {
               imports = [ "${claude-nix}/modules/home-manager.nix" ];
-              programs.claude-nix.plugins = lib.mkDefault [
+              programs.claude-nix.plugins = lib.mkBefore [
                 self.packages.${pkgs.system}.claude-plugin
               ];
               programs.claude-nix.settings = {
@@ -203,7 +203,7 @@
             in
             {
               imports = [ "${gemini-nix}/modules/home-manager.nix" ];
-              programs.gemini-nix.plugins = lib.mkDefault [
+              programs.gemini-nix.plugins = lib.mkBefore [
                 (
                   self.packages.${pkgs.system}.gemini-plugin
                   // {
@@ -245,7 +245,7 @@
             in
             {
               imports = [ "${codex-nix}/modules/home-manager.nix" ];
-              programs.codex-nix.plugins = lib.mkDefault [
+              programs.codex-nix.plugins = lib.mkBefore [
                 (
                   self.packages.${pkgs.system}.codex-plugin
                   // {
@@ -283,7 +283,7 @@
             {
               imports = [ ./modules/agent-skills.nix ];
               programs.agent-skills.enable = lib.mkDefault true;
-              programs.agent-skills.plugins = lib.mkDefault [
+              programs.agent-skills.plugins = lib.mkBefore [
                 self.packages.${pkgs.system}.claude-plugin
               ];
             };
