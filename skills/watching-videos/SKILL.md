@@ -1,3 +1,8 @@
+<!--
+Pairs with the watchyt CLI in joegoldin/dotfiles, which is a customized port
+of https://github.com/bradautomates/claude-video (MIT). This skill teaches the
+agent the invocation contract for that CLI.
+-->
 # watching-videos — see + hear what's in a video
 
 You don't have a native video input. This skill gives you one. The bundled `watchyt` CLI downloads the video, extracts frames as JPEGs, fetches a timestamped transcript (native captions first, `audiomemo transcribe` as fallback), and prints frame paths. You then `Read` each frame to see the images and combine them with the transcript to answer the user.

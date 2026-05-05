@@ -22,3 +22,10 @@ licensed under the MIT License:
 
 These skills have been copied and may be modified from their originals.
 See the superpowers repository for the original versions.
+
+## Other Skills
+
+- **watching-videos** — pairs with the `watchyt` CLI in
+  [joegoldin/dotfiles](https://github.com/joegoldin/dotfiles), which is a
+  customized port of [bradautomates/claude-video](https://github.com/bradautomates/claude-video)
+  (MIT License). The skill itself is original; the CLI it drives is the port.
