@@ -152,6 +152,16 @@ ssh dev1@shellbox.dev          # interactive shell
 ssh dev1@shellbox.dev          # resume exactly where you left off
 ```
 
+### Install Nix on a stock box
+
+```bash
+ssh mybox@shellbox.dev
+sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install) --daemon
+. /etc/profile.d/nix.sh   # or reconnect
+```
+
+Upstream multi-user installer (matches the rest of this dotfiles setup). Survives the pause/resume cycle. Flakes aren't on by default — enable in `~/.config/nix/nix.conf` or `/etc/nix/nix.conf`. For the full guide — flake-enable, dev shells, home-manager from a flake, GC, single-user mode, uninstall, troubleshooting — read `nix-install.md` in this skill's base directory.
+
 ### Use it as a hosted web service (cheap)
 
 ```bash
