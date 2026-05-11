@@ -39,5 +39,7 @@ in
     home.file = mkIf (builtins.pathExists "${combined}/skills") {
       ".agents/skills".source = "${combined}/skills";
     };
+
+    xdg.configFile."agent-skills/.keep".text = "";
   };
 }
