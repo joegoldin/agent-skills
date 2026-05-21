@@ -1,5 +1,5 @@
 # Manages the shared ~/.agents/skills symlink.
-# Import this module alongside the tool-specific modules (claude, gemini, codex).
+# Import this module alongside the tool-specific modules (claude, antigravity, codex).
 {
   config,
   lib,

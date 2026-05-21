@@ -2,7 +2,7 @@
   pkgs,
   lib,
   claudeLib,
-  geminiLib ? null,
+  agyLib ? null,
   codexLib ? null,
 }:
 let
@@ -18,7 +18,6 @@ let
     else
       raw;
 
-  # Build a single skill derivation: SKILL.md with frontmatter + extra files
   buildSkillDrv =
     name: meta: skillDir:
     let
@@ -38,7 +37,6 @@ let
       mkdir -p $out/skills/${name}
       cp ${skillMd} $out/skills/${name}/SKILL.md
 
-      # Copy extra files (everything except skill.nix and SKILL.md)
       for item in ${skillDir}/*; do
         basename=$(basename "$item")
         case "$basename" in
@@ -48,7 +46,6 @@ let
       done
     '';
 
-  # Discover all skills in a directory
   discoverSkills =
     skillsDir:
     let
@@ -88,7 +85,6 @@ let
       "";
 
   # ── Build session-start hooks derivation (shared across all targets) ──
-  # Returns a derivation with hooks/session-start.sh (substituted with skill content)
   buildSessionStartHooks =
     name: skills: hooksDir:
     let
@@ -110,11 +106,6 @@ let
       done
     '';
 
-  # ── Build a SessionStart hook list for a target (gemini/codex) ──
-  # Produces `[ (mkHook {...}) ]` ready to merge into mkPlugin's `hooks` arg.
-  # The hook runs the substituted session-start.sh by absolute store path,
-  # since codex/gemini hooks.json/settings.json don't expand a plugin-root
-  # variable the way Claude's `${CLAUDE_PLUGIN_ROOT}` does.
   buildTargetSessionStartHooks =
     {
       mkHook,
@@ -134,16 +125,16 @@ let
       })
     ];
 
-  buildGeminiHooks =
+  buildAntigravityHooks =
     {
       name,
       skills,
       hooksDir,
     }:
-    assert geminiLib != null;
+    assert agyLib != null;
     buildTargetSessionStartHooks {
       inherit name skills hooksDir;
-      mkHook = geminiLib.mkHook;
+      mkHook = agyLib.mkHook;
     };
 
   buildCodexHooks =
@@ -158,7 +149,7 @@ let
       mkHook = codexLib.mkHook;
     };
 
-  # ── Claude plugin (backward compatible) ──
+  # ── Claude plugin ──
   buildPlugin =
     {
       name,
@@ -168,13 +159,11 @@ let
       attributionFile ? null,
     }:
     let
-      # Aggregate optional components from all skills
       allCommands = lib.concatMap (s: s.meta.commands or [ ]) skills;
       allAgents = lib.concatMap (s: s.meta.agents or [ ]) skills;
       allMcpServers = lib.foldl' (acc: s: acc // (s.meta.mcpServers or { })) { } skills;
       allLspServers = lib.foldl' (acc: s: acc // (s.meta.lspServers or { })) { } skills;
 
-      # Build the plugin
       plugin = claudeLib.mkPlugin {
         inherit name description;
         skills = map (s: s.drv) skills;
@@ -184,10 +173,8 @@ let
         lspServers = allLspServers;
       };
 
-      # Hooks derivation
       hooksDrv = lib.optional (hooksDir != null) (buildSessionStartHooks name skills hooksDir);
 
-      # Attribution derivation
       attributionDrv = lib.optional (attributionFile != null) (
         pkgs.runCommand "${name}-attribution" { } ''
           mkdir -p $out
@@ -219,50 +206,41 @@ let
       inherit extraFiles;
     } skillBody;
 
-  # ── Gemini plugin ──
-  buildGeminiPlugin =
+  # ── Antigravity plugin ──
+  buildAntigravityPlugin =
     {
       name,
       description,
       skills,
       hooks ? [ ],
+      mcpServers ? [ ],
       hooksDir ? null,
       attributionFile ? null,
     }:
-    assert geminiLib != null;
+    assert agyLib != null;
     let
-      # Build each skill using geminiLib.mkSkill
-      geminiSkills = map (buildSkillForTarget geminiLib.mkSkill) skills;
+      agySkills = map (buildSkillForTarget agyLib.mkSkill) skills;
 
-      # Session-start hook (shared derivation)
       sessionStartHooks =
-        if hooksDir != null then
-          buildGeminiHooks { inherit name skills hooksDir; }
-        else
-          [ ];
+        if hooksDir != null then buildAntigravityHooks { inherit name skills hooksDir; } else [ ];
 
-      # Build the plugin
-      plugin = geminiLib.mkPlugin {
-        inherit name;
-        description = description;
-        skills = geminiSkills;
+      plugin = agyLib.mkPlugin {
+        inherit name description mcpServers;
+        skills = agySkills;
         hooks = hooks ++ sessionStartHooks;
       };
 
-      # Attribution derivation
       attributionDrv = lib.optional (attributionFile != null) (
-        pkgs.runCommand "${name}-gemini-attribution" { } ''
+        pkgs.runCommand "${name}-antigravity-attribution" { } ''
           mkdir -p $out
           cp ${attributionFile} $out/ATTRIBUTION
         ''
       );
     in
-    (pkgs.buildEnv {
-      name = "${name}-gemini-complete";
+    pkgs.buildEnv {
+      name = "${name}-antigravity-complete";
       paths = [ plugin ] ++ attributionDrv;
-    })
-    // {
-      _gemini = plugin._gemini or { };
+      passthru.meta = { inherit name description; };
     };
 
   # ── Codex plugin ──
@@ -277,20 +255,13 @@ let
     }:
     assert codexLib != null;
     let
-      # Build each skill using codexLib.mkSkill
       codexSkills = map (buildSkillForTarget codexLib.mkSkill) skills;
 
-      # Aggregate MCP servers from skill metadata (MCP is universal)
       allMcpServers = lib.foldl' (acc: s: acc // (s.meta.mcpServers or { })) { } skills;
 
-      # Session-start hook (shared derivation)
       sessionStartHooks =
-        if hooksDir != null then
-          buildCodexHooks { inherit name skills hooksDir; }
-        else
-          [ ];
+        if hooksDir != null then buildCodexHooks { inherit name skills hooksDir; } else [ ];
 
-      # Build the plugin
       plugin = codexLib.mkPlugin {
         inherit name;
         description = description;
@@ -299,7 +270,6 @@ let
         mcpServers = allMcpServers;
       };
 
-      # Attribution derivation
       attributionDrv = lib.optional (attributionFile != null) (
         pkgs.runCommand "${name}-codex-attribution" { } ''
           mkdir -p $out
@@ -322,9 +292,9 @@ in
     evalSkillNix
     buildSkillDrv
     buildSkillForTarget
-    buildGeminiPlugin
+    buildAntigravityPlugin
     buildCodexPlugin
-    buildGeminiHooks
+    buildAntigravityHooks
     buildCodexHooks
     buildSessionStartHooks
     ;

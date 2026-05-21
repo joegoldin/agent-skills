@@ -1,5 +1,5 @@
 {
-  description = "Agent skills, commands, and hooks for Claude, Gemini, and Codex";
+  description = "Agent skills, commands, and hooks for Claude, Antigravity, and Codex";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -7,8 +7,8 @@
       url = "github:joegoldin/claude-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    gemini-nix = {
-      url = "github:joegoldin/gemini-nix";
+    antigravity-cli-nix = {
+      url = "github:joegoldin/antigravity-cli-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     codex-nix = {
@@ -22,7 +22,7 @@
       self,
       nixpkgs,
       claude-nix,
-      gemini-nix,
+      antigravity-cli-nix,
       codex-nix,
       ...
     }:
@@ -49,26 +49,24 @@
         let
           lib = pkgs.lib;
           claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
-          geminiLib = import "${gemini-nix}/lib" { inherit pkgs lib; };
+          agyLib = import "${antigravity-cli-nix}/lib" { inherit pkgs lib; };
           codexLib = import "${codex-nix}/lib" { inherit pkgs lib; };
           build = import ./lib/default.nix {
             inherit
               pkgs
               lib
               claudeLib
-              geminiLib
+              agyLib
               codexLib
               ;
           };
 
-          # Discover and build all skills
           skills = build.discoverSkills ./skills;
 
-          # code-notify package
           codeNotify = pkgs.callPackage ./packages/code-notify { };
-
-          # WakaTime plugin for Claude Code (uses system wakatime-cli)
           wakatimePlugin = pkgs.callPackage ./packages/wakatime-plugin { };
+
+          notifier = "${codeNotify}/lib/code-notify/core/notifier.sh";
 
           # ── Claude plugin ──
           claude-plugin = build.buildPlugin {
@@ -79,13 +77,31 @@
             attributionFile = ./ATTRIBUTION.md;
           };
 
-          # ── Gemini plugin ──
-          gemini-plugin = build.buildGeminiPlugin {
+          # ── Antigravity plugin (with code-notify hooks baked in) ──
+          antigravity-plugin = build.buildAntigravityPlugin {
             name = "agent-skills";
-            description = "Agent skills for Gemini CLI";
+            description = "Agent skills for Antigravity CLI";
             inherit skills;
             hooksDir = ./hooks;
             attributionFile = ./ATTRIBUTION.md;
+            hooks = [
+              (agyLib.mkHook {
+                event = "Notification";
+                name = "code-notify-notification";
+                command = "${notifier} notification";
+              })
+              (agyLib.mkHook {
+                event = "Stop";
+                name = "code-notify-stop";
+                command = "${notifier} stop";
+              })
+              (agyLib.mkHook {
+                event = "PreToolUse";
+                matcher = "Bash";
+                name = "code-notify-pretooluse";
+                command = "${notifier} PreToolUse";
+              })
+            ];
           };
 
           # ── Codex plugin ──
@@ -97,7 +113,6 @@
             attributionFile = ./ATTRIBUTION.md;
           };
 
-          # Per-skill packages (auto-generated)
           perSkillPackages = lib.listToAttrs (
             map (s: {
               name = s.name;
@@ -110,7 +125,7 @@
           default = claude-plugin;
           inherit
             claude-plugin
-            gemini-plugin
+            antigravity-plugin
             codex-plugin
             codeNotify
             wakatimePlugin
@@ -190,45 +205,16 @@
               };
             };
 
-          gemini =
+          antigravity =
             {
               lib,
               pkgs,
               ...
             }:
-            let
-              codeNotify = self.packages.${pkgs.system}.codeNotify;
-              notifier = "${codeNotify}/lib/code-notify/core/notifier.sh";
-              geminiLib = import "${gemini-nix}/lib" { inherit pkgs lib; };
-            in
             {
-              imports = [ "${gemini-nix}/modules/home-manager.nix" ];
-              programs.gemini-nix.plugins = lib.mkBefore [
-                (
-                  self.packages.${pkgs.system}.gemini-plugin
-                  // {
-                    _gemini = (self.packages.${pkgs.system}.gemini-plugin._gemini or { }) // {
-                      hooks = (self.packages.${pkgs.system}.gemini-plugin._gemini.hooks or [ ]) ++ [
-                        (geminiLib.mkHook {
-                          event = "Notification";
-                          name = "code-notify-notification";
-                          command = "${notifier} notification";
-                        })
-                        (geminiLib.mkHook {
-                          event = "Stop";
-                          name = "code-notify-stop";
-                          command = "${notifier} stop";
-                        })
-                        (geminiLib.mkHook {
-                          event = "PreToolUse";
-                          matcher = "Bash";
-                          name = "code-notify-pretooluse";
-                          command = "${notifier} PreToolUse";
-                        })
-                      ];
-                    };
-                  }
-                )
+              imports = [ "${antigravity-cli-nix}/modules/home-manager.nix" ];
+              programs.antigravity-cli-nix.plugins = lib.mkBefore [
+                self.packages.${pkgs.system}.antigravity-plugin
               ];
             };
 
@@ -294,7 +280,7 @@
         { pkgs, ... }:
         {
           claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
-          geminiLib = import "${gemini-nix}/lib" {
+          agyLib = import "${antigravity-cli-nix}/lib" {
             inherit pkgs;
             lib = pkgs.lib;
           };

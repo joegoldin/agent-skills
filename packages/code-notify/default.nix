@@ -56,7 +56,7 @@ stdenv.mkDerivation rec {
   '';
 
   meta = with lib; {
-    description = "Desktop notifications for Claude Code, Codex, and Gemini CLI";
+    description = "Desktop notifications for Claude Code, Codex, and Antigravity CLI";
     homepage = "https://github.com/mylee04/code-notify";
     license = licenses.mit;
     platforms = platforms.unix;

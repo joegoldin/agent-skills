@@ -1,24 +1,24 @@
 
 # Agent Skills Configuration
 
-This dotfiles repo manages Claude Code, Gemini CLI, and Codex declaratively via Nix. All skills, commands, agents, and plugin settings are defined in Nix and built into plugins for each tool.
+This dotfiles repo manages Claude Code, Antigravity CLI, and Codex declaratively via Nix. All skills, commands, agents, and plugin settings are defined in Nix and built into plugins for each tool.
 
 ## Repository: agent-skills
 
 The `agent-skills/` directory (at `/home/joe/dotfiles/agent-skills/`) is the single entry point. It re-exports `homeManagerModules` from three upstream repos:
 
 - **claude-nix** — Claude Code plugin system
-- **gemini-nix** — Gemini CLI plugin system
+- **antigravity-cli-nix** — Antigravity CLI plugin system
 - **codex-nix** — Codex plugin system
 
-Plugins are built per-target: `claude-plugin`, `gemini-plugin`, `codex-plugin`.
+Plugins are built per-target: `claude-plugin`, `antigravity-plugin`, `codex-plugin`.
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `agent-skills/flake.nix` | Flake definition — inputs (claude-nix, gemini-nix, codex-nix), builds plugins, exports homeManagerModules |
-| `agent-skills/lib/default.nix` | Build system — `discoverSkills`, `buildPlugin`, `buildGeminiPlugin`, `buildCodexPlugin` |
+| `agent-skills/flake.nix` | Flake definition — inputs (claude-nix, antigravity-cli-nix, codex-nix), builds plugins, exports homeManagerModules |
+| `agent-skills/lib/default.nix` | Build system — `discoverSkills`, `buildPlugin`, `buildAntigravityPlugin`, `buildCodexPlugin` |
 | `agent-skills/skills/<name>/skill.nix` | Skill metadata (name, description, optional commands/agents/mcpServers/lspServers) |
 | `agent-skills/skills/<name>/SKILL.md` | Skill content — the instructions loaded when the skill is invoked |
 | `agent-skills/hooks/` | Claude hook scripts (e.g., session-start) |
@@ -98,7 +98,7 @@ Plugins are built per-target: `claude-plugin`, `gemini-plugin`, `codex-plugin`.
 
 1. **`discoverSkills ./skills`** — scans for directories with `skill.nix`, evaluates each (handles both plain attrsets and functions), builds skill derivations with frontmatter-injected SKILL.md
 2. **`buildPlugin`** — aggregates all skills' commands, agents, mcpServers, lspServers into a single Claude plugin via `claudeLib.mkPlugin`
-3. **`buildGeminiPlugin`** — converts skills using `geminiLib.mkSkill` and bundles into a Gemini plugin
+3. **`buildAntigravityPlugin`** — converts skills using `agyLib.mkSkill` and bundles into an Antigravity plugin
 4. **`buildCodexPlugin`** — converts skills using `codexLib.mkSkill` and bundles into a Codex plugin
 
 ## Dotfiles Integration
@@ -115,8 +115,8 @@ Home-manager modules are used in host configs:
 # Enable Claude Code with agent-skills plugin
 programs.claude-nix.enable = true;  # via agent-skills.homeManagerModules.claude
 
-# Enable Gemini CLI
-programs.gemini-nix.enable = true;  # via agent-skills.homeManagerModules.gemini
+# Enable Antigravity CLI
+programs.antigravity-cli-nix.enable = true;  # via agent-skills.homeManagerModules.antigravity
 
 # Enable Codex
 programs.codex-nix.enable = true;   # via agent-skills.homeManagerModules.codex
@@ -127,7 +127,7 @@ programs.codex-nix.enable = true;   # via agent-skills.homeManagerModules.codex
 ```sh
 # Build agent-skills standalone (quick check)
 cd agent-skills && just build
-# or: nix build .#claude-plugin && nix build .#gemini-plugin && nix build .#codex-plugin
+# or: nix build .#claude-plugin && nix build .#antigravity-plugin && nix build .#codex-plugin
 
 # Apply to system (NixOS)
 sudo nixos-rebuild switch --flake .

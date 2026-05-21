@@ -1,5 +1,25 @@
 {
   "nodes": {
+    "antigravity-cli-nix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1779322322,
+        "narHash": "sha256-XBoZhuBZYvlrlinuYL1FSxM1pGcvlsi+AvECYk65kBg=",
+        "owner": "joegoldin",
+        "repo": "antigravity-cli-nix",
+        "rev": "b470e523fb7e18782c088e71d3a3e848b6c96d80",
+        "type": "github"
+      },
+      "original": {
+        "owner": "joegoldin",
+        "repo": "antigravity-cli-nix",
+        "type": "github"
+      }
+    },
     "claude-nix": {
       "inputs": {
         "flake-utils": "flake-utils",
@@ -59,33 +79,13 @@
         "type": "github"
       }
     },
-    "gemini-nix": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1775631629,
-        "narHash": "sha256-Xo665z8Y2AnhvUeXh3etT3CVGKPYsRAVlBE14+NVqJY=",
-        "owner": "joegoldin",
-        "repo": "gemini-nix",
-        "rev": "cdad1c03612be0b1f97e7782a405dc6e7345058a",
-        "type": "github"
-      },
-      "original": {
-        "owner": "joegoldin",
-        "repo": "gemini-nix",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1772173633,
-        "narHash": "sha256-MOH58F4AIbCkh6qlQcwMycyk5SWvsqnS/TCfnqDlpj4=",
+        "lastModified": 1778869304,
+        "narHash": "sha256-30sZNZoA1cqF5JNO9fVX+wgiQYjB7HJqqJ4ztCDeBZE=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "c0f3d81a7ddbc2b1332be0d8481a672b4f6004d6",
+        "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
         "type": "github"
       },
       "original": {
@@ -97,9 +97,9 @@
     },
     "root": {
       "inputs": {
+        "antigravity-cli-nix": "antigravity-cli-nix",
         "claude-nix": "claude-nix",
         "codex-nix": "codex-nix",
-        "gemini-nix": "gemini-nix",
         "nixpkgs": "nixpkgs"
       }
     },
