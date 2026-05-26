@@ -203,6 +203,7 @@
                 permissions.allow = skillPermissions;
                 hooks = mkCodeNotifyHooks codeNotify;
               };
+              programs.claude-nix.statusLine.enable = true;
             };
 
           antigravity =
