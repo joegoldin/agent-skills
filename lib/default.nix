@@ -544,6 +544,10 @@ SKILLEOF
       pkgs.buildEnv {
         name = "agent-skills-temporal-antigravity-complete";
         paths = [ plugin python3 ] ++ attributionDrv;
+        passthru.meta = {
+          name = "agent-skills-temporal";
+          description = "Throttled time injection (Antigravity)";
+        };
       };
 
 in
