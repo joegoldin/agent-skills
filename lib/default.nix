@@ -287,6 +287,135 @@ let
     // {
       _codex = plugin._codex or { };
     };
+  # ── RTK plugin (per-target) ──
+  # For Claude: PreToolUse hook + awareness skill body.
+  # For Codex/Antigravity: awareness markdown only (upstream chose markdown-only).
+  buildRtkPlugin =
+    {
+      target,                        # "claude" | "codex" | "antigravity"
+      rtkPkg,                        # pkgs.rtk
+      hooksDir,                      # path: .../plugins/rtk/hooks
+      attributionFile ? null,
+    }:
+    let
+      # Awareness markdown lives at hooks/<target>/(rtk-awareness.md|rules.md)
+      awarenessFile =
+        if target == "claude" then "${hooksDir}/claude/rtk-awareness.md"
+        else if target == "codex" then "${hooksDir}/codex/rtk-awareness.md"
+        else "${hooksDir}/antigravity/rules.md";
+      awarenessBody = builtins.readFile awarenessFile;
+
+      skillBody = ''
+        # rtk — Rust Token Killer
+
+        ${awarenessBody}
+
+        ## When to use this skill
+
+        Use when the user asks about RTK token savings, `rtk gain` analytics,
+        debugging command rewriting, or wants to understand why a Bash call
+        appears as `rtk <cmd>` instead of the raw command.
+
+        Raw shell commands are rewritten automatically (Claude) or by your
+        convention (Codex/Antigravity). Never wrap `rtk` calls in another `rtk`.
+      '';
+
+      desc = "Use when the user asks about RTK, `rtk gain`, command rewriting, or token-saving CLI proxy behavior.";
+
+    in
+    if target == "claude" then
+      let
+        # Build the rtk-rewrite.sh hook with rtk + jq on PATH.
+        rtkHookWrapper = pkgs.writeShellScript "rtk-rewrite" ''
+          export PATH=${lib.makeBinPath [ rtkPkg pkgs.jq ]}:$PATH
+          exec ${pkgs.bash}/bin/bash ${hooksDir}/claude/rtk-rewrite.sh "$@"
+        '';
+
+        # Build a SKILL.md derivation directly without using buildSkillDrv,
+        # because buildSkillDrv calls builtins.readFile at eval time and can't
+        # consume a derivation output. We construct the same $out/skills/rtk/
+        # layout that claudeLib.mkPlugin expects.
+        skill = pkgs.runCommand "skill-rtk-claude" { } ''
+          mkdir -p $out/skills/rtk
+          cat > $out/skills/rtk/SKILL.md <<'SKILLEOF'
+---
+name: rtk
+description: ${desc}
+---
+
+${skillBody}
+SKILLEOF
+        '';
+
+        plugin = claudeLib.mkPlugin {
+          name = "agent-skills-rtk";
+          description = "RTK command rewriting + skill (Claude)";
+          skills = [ skill ];
+          commands = [ ];
+          agents = [ ];
+          mcpServers = { };
+          lspServers = { };
+        };
+
+        attributionDrv = lib.optional (attributionFile != null) (
+          pkgs.runCommand "rtk-claude-attribution" { } ''
+            mkdir -p $out
+            cp ${attributionFile} $out/ATTRIBUTION
+          ''
+        );
+      in
+      pkgs.buildEnv {
+        name = "agent-skills-rtk-claude-complete";
+        paths = [ plugin rtkPkg ] ++ attributionDrv;
+        passthru._claudeRtkHook = rtkHookWrapper;
+      }
+    else if target == "codex" then
+      let
+        codexSkill = codexLib.mkSkill {
+          name = "rtk";
+          description = desc;
+        } skillBody;
+        plugin = codexLib.mkPlugin {
+          name = "agent-skills-rtk";
+          description = "RTK awareness (Codex)";
+          skills = [ codexSkill ];
+        };
+        attributionDrv = lib.optional (attributionFile != null) (
+          pkgs.runCommand "rtk-codex-attribution" { } ''
+            mkdir -p $out
+            cp ${attributionFile} $out/ATTRIBUTION
+          ''
+        );
+      in
+      (pkgs.buildEnv {
+        name = "agent-skills-rtk-codex-complete";
+        paths = [ plugin rtkPkg ] ++ attributionDrv;
+      })
+      // { _codex = plugin._codex or { }; }
+    else  # antigravity
+      let
+        agySkill = agyLib.mkSkill {
+          name = "rtk";
+          description = desc;
+        } skillBody;
+        plugin = agyLib.mkPlugin {
+          name = "agent-skills-rtk";
+          description = "RTK awareness (Antigravity)";
+          skills = [ agySkill ];
+        };
+        attributionDrv = lib.optional (attributionFile != null) (
+          pkgs.runCommand "rtk-agy-attribution" { } ''
+            mkdir -p $out
+            cp ${attributionFile} $out/ATTRIBUTION
+          ''
+        );
+      in
+      pkgs.buildEnv {
+        name = "agent-skills-rtk-antigravity-complete";
+        paths = [ plugin rtkPkg ] ++ attributionDrv;
+        passthru.meta = { name = "agent-skills-rtk"; description = "RTK awareness (Antigravity)"; };
+      };
+
 in
 {
   inherit
@@ -300,5 +429,6 @@ in
     buildAntigravityHooks
     buildCodexHooks
     buildSessionStartHooks
+    buildRtkPlugin
     ;
 }
