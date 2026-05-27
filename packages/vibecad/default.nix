@@ -2,7 +2,6 @@
   lib,
   stdenv,
   makeWrapper,
-  bash,
   coreutils,
   openscad,
   python3,
