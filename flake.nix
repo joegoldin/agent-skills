@@ -65,6 +65,7 @@
 
           codeNotify = pkgs.callPackage ./packages/code-notify { };
           wakatimePlugin = pkgs.callPackage ./packages/wakatime-plugin { };
+          vibecad = pkgs.callPackage ./packages/vibecad { };
 
           notifier = "${codeNotify}/lib/code-notify/core/notifier.sh";
 
@@ -128,6 +129,7 @@
             antigravity-plugin
             codex-plugin
             codeNotify
+            vibecad
             wakatimePlugin
             ;
         }
