@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Emit 16 OpenSCAD --camera strings: turntable rotation around Z, fixed elevation."""
-import math, sys
 
 # camera spec: translate_x,y,z,rotate_x,y,z,distance
 # We orbit around origin at 25 degrees elevation, 200 units back.
