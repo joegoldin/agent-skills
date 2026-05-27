@@ -287,268 +287,150 @@ let
     // {
       _codex = plugin._codex or { };
     };
-  # ── RTK plugin (per-target) ──
-  # For Claude: PreToolUse hook + awareness skill body.
-  # For Codex/Antigravity: awareness markdown only (upstream chose markdown-only).
-  buildRtkPlugin =
+
+  # ── Cross-agent plugins ──
+  # Discovered from ./plugins/<name>/plugin.nix. Each is a function
+  # `{ pkgs, lib, target, ... }: { name; description; skill ? null; hooks ? [ ]; packages ? [ ]; }`.
+  # mkCrossAgentPlugin builds one for a single target using that target's
+  # mkPlugin/mkSkill/mkHook.
+  discoverPlugins =
+    pluginsDir:
+    let
+      entries = builtins.readDir pluginsDir;
+      dirNames = builtins.attrNames (lib.filterAttrs (_: type: type == "directory") entries);
+      validNames = builtins.filter (
+        name: builtins.pathExists (pluginsDir + "/${name}/plugin.nix")
+      ) dirNames;
+    in
+    map (name: {
+      inherit name;
+      dir = pluginsDir + "/${name}";
+      raw = import (pluginsDir + "/${name}/plugin.nix");
+    }) validNames;
+
+  # A plugin's declarative hooks → Claude settings.hooks fragment:
+  #   { <Event> = [ { matcher; hooks = [ { type = "command"; command; } ]; } ]; }
+  toClaudeHooks =
+    hooks:
+    lib.mapAttrs (
+      _event: hs:
+      map (h: {
+        matcher = h.matcher or "";
+        hooks = [
+          {
+            type = "command";
+            command = h.command;
+          }
+        ];
+      }) hs
+    ) (lib.groupBy (h: h.event) hooks);
+
+  # Merge Claude hook fragments from several plugins, concatenating the entry
+  # list per event (plugin order preserved, e.g. code-notify before rtk).
+  foldClaudeHooks =
+    fragments:
+    lib.foldl' (
+      acc: frag: acc // lib.mapAttrs (event: entries: (acc.${event} or [ ]) ++ entries) frag
+    ) { } fragments;
+
+  # Build one cross-agent plugin for a single target. Claude's mkPlugin has no
+  # `hooks` arg, so claude hooks are surfaced via passthru.claudeHooks for the
+  # home-manager module to fold into programs.claude-nix.settings.hooks.
+  mkCrossAgentPlugin =
     {
-      target,                        # "claude" | "codex" | "antigravity"
-      rtkPkg,                        # pkgs.rtk
-      hooksDir,                      # path: .../plugins/rtk/hooks
+      def,
+      target,
+      targetLib,
       attributionFile ? null,
     }:
     let
-      # Awareness markdown lives at hooks/<target>/(rtk-awareness.md|rules.md)
-      awarenessFile =
-        if target == "claude" then "${hooksDir}/claude/rtk-awareness.md"
-        else if target == "codex" then "${hooksDir}/codex/rtk-awareness.md"
-        else "${hooksDir}/antigravity/rules.md";
-      awarenessBody = builtins.readFile awarenessFile;
+      pluginName = "agent-skills-${def.name}";
+      hooks = def.hooks or [ ];
+      packages = def.packages or [ ];
+      skillSpec = def.skill or null;
 
-      skillBody = ''
-        # rtk — Rust Token Killer
-
-        ${awarenessBody}
-
-        ## When to use this skill
-
-        Use when the user asks about RTK token savings, `rtk gain` analytics,
-        debugging command rewriting, or wants to understand why a Bash call
-        appears as `rtk <cmd>` instead of the raw command.
-
-        Raw shell commands are rewritten automatically (Claude) or by your
-        convention (Codex/Antigravity). Never wrap `rtk` calls in another `rtk`.
-      '';
-
-      desc = "Use when the user asks about RTK, `rtk gain`, command rewriting, or token-saving CLI proxy behavior.";
-
-    in
-    if target == "claude" then
-      let
-        # Build the rtk-rewrite.sh hook with rtk + jq on PATH.
-        rtkHookWrapper = pkgs.writeShellScript "rtk-rewrite" ''
-          export PATH=${lib.makeBinPath [ rtkPkg pkgs.jq ]}:$PATH
-          exec ${pkgs.bash}/bin/bash ${hooksDir}/claude/rtk-rewrite.sh "$@"
-        '';
-
-        # Build a SKILL.md derivation directly without using buildSkillDrv,
-        # because buildSkillDrv calls builtins.readFile at eval time and can't
-        # consume a derivation output. We construct the same $out/skills/rtk/
-        # layout that claudeLib.mkPlugin expects.
-        skill = pkgs.runCommand "skill-rtk-claude" { } ''
-          mkdir -p $out/skills/rtk
-          cat > $out/skills/rtk/SKILL.md <<'SKILLEOF'
+      # Written directly (not via targetLib.mkSkill for Claude) so the
+      # allowed-tools frontmatter line is omitted when empty — an empty line
+      # would otherwise restrict the skill to no tools.
+      claudeSkill =
+        body:
+        pkgs.runCommand "skill-${def.name}-claude" { } ''
+          mkdir -p $out/skills/${def.name}
+          cat > $out/skills/${def.name}/SKILL.md <<'SKILLEOF'
 ---
-name: rtk
-description: ${desc}
+name: ${def.name}
+description: ${def.description}
 ---
 
-${skillBody}
+${body}
 SKILLEOF
         '';
 
-        plugin = claudeLib.mkPlugin {
-          name = "agent-skills-rtk";
-          description = "RTK command rewriting + skill (Claude)";
-          skills = [ skill ];
-          commands = [ ];
-          agents = [ ];
-          mcpServers = { };
-          lspServers = { };
-        };
+      skillDrv =
+        if skillSpec == null then
+          null
+        else if target == "claude" then
+          claudeSkill skillSpec.body
+        else
+          targetLib.mkSkill {
+            inherit (def) name description;
+          } skillSpec.body;
 
-        attributionDrv = lib.optional (attributionFile != null) (
-          pkgs.runCommand "rtk-claude-attribution" { } ''
-            mkdir -p $out
-            cp ${attributionFile} $out/ATTRIBUTION
-          ''
-        );
-      in
-      pkgs.buildEnv {
-        name = "agent-skills-rtk-claude-complete";
-        paths = [ plugin rtkPkg ] ++ attributionDrv;
-        passthru._claudeRtkHook = rtkHookWrapper;
-      }
-    else if target == "codex" then
-      let
-        codexSkill = codexLib.mkSkill {
-          name = "rtk";
-          description = desc;
-        } skillBody;
-        plugin = codexLib.mkPlugin {
-          name = "agent-skills-rtk";
-          description = "RTK awareness (Codex)";
-          skills = [ codexSkill ];
-        };
-        attributionDrv = lib.optional (attributionFile != null) (
-          pkgs.runCommand "rtk-codex-attribution" { } ''
-            mkdir -p $out
-            cp ${attributionFile} $out/ATTRIBUTION
-          ''
-        );
-      in
-      (pkgs.buildEnv {
-        name = "agent-skills-rtk-codex-complete";
-        paths = [ plugin rtkPkg ] ++ attributionDrv;
-      })
-      // { _codex = plugin._codex or { }; }
-    else  # antigravity
-      let
-        agySkill = agyLib.mkSkill {
-          name = "rtk";
-          description = desc;
-        } skillBody;
-        plugin = agyLib.mkPlugin {
-          name = "agent-skills-rtk";
-          description = "RTK awareness (Antigravity)";
-          skills = [ agySkill ];
-        };
-        attributionDrv = lib.optional (attributionFile != null) (
-          pkgs.runCommand "rtk-agy-attribution" { } ''
-            mkdir -p $out
-            cp ${attributionFile} $out/ATTRIBUTION
-          ''
-        );
-      in
-      pkgs.buildEnv {
-        name = "agent-skills-rtk-antigravity-complete";
-        paths = [ plugin rtkPkg ] ++ attributionDrv;
-        passthru.meta = { name = "agent-skills-rtk"; description = "RTK awareness (Antigravity)"; };
-      };
-
-  # ── Temporal plugin (per-target) ──
-  # Ships a Python time-injection hook. State dir is per-CLI via $TEMPORAL_STATE_DIR.
-  buildTemporalPlugin =
-    {
-      target,            # "claude" | "codex" | "antigravity"
-      scriptDir,         # path: .../plugins/temporal
-      stateDir,          # absolute path: where this CLI keeps its state, e.g. "/home/joe/.claude/.temporal"
-      attributionFile ? null,
-    }:
-    let
-      python3 = pkgs.python3;
-      # stateDir may contain $HOME — we leave it unquoted in the export so the
-      # shell expands it at runtime, not nix-eval time.
-      temporalScript = pkgs.writeShellScript "temporal-${target}" ''
-        export TEMPORAL_STATE_DIR="${stateDir}"
-        exec ${python3}/bin/python3 ${scriptDir}/temporal.py "$@"
-      '';
+      skills = lib.optional (skillDrv != null) skillDrv;
 
       attributionDrv = lib.optional (attributionFile != null) (
-        pkgs.runCommand "temporal-${target}-attribution" { } ''
+        pkgs.runCommand "${pluginName}-${target}-attribution" { } ''
           mkdir -p $out
           cp ${attributionFile} $out/ATTRIBUTION
         ''
       );
 
-      emptySkill = ''
-        # temporal — time awareness hook
-
-        Background-only — this plugin contributes a hook, not skill content
-        you invoke directly. The hook injects a throttled `[⏱ time]` block at
-        UserPromptSubmit and after compaction so the agent knows what time
-        it is.
-
-        Configure via env vars:
-        - `TEMPORAL_INTERVAL` (seconds, default 300): min interval between injects.
-        - `TEMPORAL_TTL_DAYS` (default 7): days before stale session state is swept.
-      '';
-
+      targetHooks = map (
+        h:
+        targetLib.mkHook {
+          inherit (h) event command;
+          matcher = h.matcher or "";
+          name = h.name or "${def.name}-${lib.toLower h.event}";
+        }
+      ) hooks;
     in
     if target == "claude" then
       let
-        # Same approach as buildRtkPlugin: build the skill derivation directly
-        # to avoid buildSkillDrv's eval-time readFile constraint.
-        desc = "Use when the user asks about time/date hooks, why timestamps appear in context, or wants to tune the [⏱] injection.";
-        skill = pkgs.runCommand "skill-temporal-claude" { } ''
-          mkdir -p $out/skills/temporal
-          cat > $out/skills/temporal/SKILL.md <<'SKILLEOF'
----
-name: temporal
-description: ${desc}
----
-
-${emptySkill}
-SKILLEOF
-        '';
-        plugin = claudeLib.mkPlugin {
-          name = "agent-skills-temporal";
-          description = "Throttled time injection (Claude)";
-          skills = [ skill ];
-          commands = [ ];
-          agents = [ ];
-          mcpServers = { };
-          lspServers = { };
+        plugin = targetLib.mkPlugin {
+          name = pluginName;
+          inherit (def) description;
+          inherit skills;
         };
       in
       pkgs.buildEnv {
-        name = "agent-skills-temporal-claude-complete";
-        paths = [ plugin python3 ] ++ attributionDrv;
-        passthru._temporalScript = temporalScript;
+        name = "${pluginName}-claude-complete";
+        paths = [ plugin ] ++ packages ++ attributionDrv;
+        passthru = {
+          meta = {
+            name = pluginName;
+            inherit (def) description;
+          };
+          claudeHooks = toClaudeHooks hooks;
+        };
       }
-    else if target == "codex" then
+    else
       let
-        codexSkill = codexLib.mkSkill {
-          name = "temporal";
-          description = "Use when the user asks about time/date hooks or `[⏱]` annotations.";
-        } emptySkill;
-        plugin = codexLib.mkPlugin {
-          name = "agent-skills-temporal";
-          description = "Throttled time injection (Codex)";
-          skills = [ codexSkill ];
-          hooks = [
-            (codexLib.mkHook {
-              event = "UserPromptSubmit";
-              name = "temporal-user-prompt-submit";
-              command = "${temporalScript}";
-            })
-            (codexLib.mkHook {
-              event = "SessionStart";
-              name = "temporal-session-start";
-              command = "${temporalScript}";
-            })
-          ];
+        plugin = targetLib.mkPlugin {
+          name = pluginName;
+          inherit (def) description;
+          inherit skills;
+          hooks = targetHooks;
         };
       in
       (pkgs.buildEnv {
-        name = "agent-skills-temporal-codex-complete";
-        paths = [ plugin python3 ] ++ attributionDrv;
-      })
-      // { _codex = plugin._codex or { }; }
-    else  # antigravity
-      let
-        agySkill = agyLib.mkSkill {
-          name = "temporal";
-          description = "Use when the user asks about time/date hooks or `[⏱]` annotations.";
-        } emptySkill;
-        plugin = agyLib.mkPlugin {
-          name = "agent-skills-temporal";
-          description = "Throttled time injection (Antigravity)";
-          skills = [ agySkill ];
-          hooks = [
-            (agyLib.mkHook {
-              event = "SessionStart";
-              name = "temporal-session-start";
-              command = "${temporalScript}";
-            })
-            # Best-effort UserPromptSubmit: if Antigravity ignores unknown events,
-            # this silently no-ops and we fall back to SessionStart-only behaviour.
-            (agyLib.mkHook {
-              event = "UserPromptSubmit";
-              name = "temporal-user-prompt-submit";
-              command = "${temporalScript}";
-            })
-          ];
-        };
-      in
-      pkgs.buildEnv {
-        name = "agent-skills-temporal-antigravity-complete";
-        paths = [ plugin python3 ] ++ attributionDrv;
+        name = "${pluginName}-${target}-complete";
+        paths = [ plugin ] ++ packages ++ attributionDrv;
         passthru.meta = {
-          name = "agent-skills-temporal";
-          description = "Throttled time injection (Antigravity)";
+          name = pluginName;
+          inherit (def) description;
         };
-      };
+      })
+      // lib.optionalAttrs (target == "codex") { _codex = plugin._codex or { }; };
 
 in
 {
@@ -563,7 +445,9 @@ in
     buildAntigravityHooks
     buildCodexHooks
     buildSessionStartHooks
-    buildRtkPlugin
-    buildTemporalPlugin
+    discoverPlugins
+    mkCrossAgentPlugin
+    toClaudeHooks
+    foldClaudeHooks
     ;
 }
