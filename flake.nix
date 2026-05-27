@@ -66,6 +66,7 @@
           codeNotify = pkgs.callPackage ./packages/code-notify { };
           wakatimePlugin = pkgs.callPackage ./packages/wakatime-plugin { };
           vibecad = pkgs.callPackage ./packages/vibecad { };
+          pxd = pkgs.callPackage ./packages/pxd { };
 
           notifier = "${codeNotify}/lib/code-notify/core/notifier.sh";
 
@@ -76,7 +77,7 @@
             inherit skills;
             hooksDir = ./hooks;
             attributionFile = ./ATTRIBUTION.md;
-            extraPackages = [ vibecad ];
+            extraPackages = [ vibecad pxd ];
           };
 
           # ── Antigravity plugin (with code-notify hooks baked in) ──
@@ -104,7 +105,7 @@
                 command = "${notifier} PreToolUse";
               })
             ];
-            extraPackages = [ vibecad ];
+            extraPackages = [ vibecad pxd ];
           };
 
           # ── Codex plugin ──
@@ -114,7 +115,7 @@
             inherit skills;
             hooksDir = ./hooks;
             attributionFile = ./ATTRIBUTION.md;
-            extraPackages = [ vibecad ];
+            extraPackages = [ vibecad pxd ];
           };
 
           perSkillPackages = lib.listToAttrs (
@@ -133,6 +134,7 @@
             codex-plugin
             codeNotify
             vibecad
+            pxd
             wakatimePlugin
             ;
         }
