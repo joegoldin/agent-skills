@@ -29,3 +29,12 @@ See the superpowers repository for the original versions.
   [joegoldin/dotfiles](https://github.com/joegoldin/dotfiles), which is a
   customized port of [bradautomates/claude-video](https://github.com/bradautomates/claude-video)
   (MIT License). The skill itself is original; the CLI it drives is the port.
+
+## Vibe Modeling Skill
+
+The `vibe-modeling` skill methodology is distilled from
+[cjtrowbridge/vibe-modeling](https://github.com/cjtrowbridge/vibe-modeling),
+which the project licenses as License: not declared upstream; attribution as courtesy. The skill prose is original;
+the `vibecad` CLI in `packages/vibecad/` is original to this repo and adapts
+the upstream's design ideas (numbered revisions, parameter JSON files, multi-view
+rendering) without copying upstream code.
