@@ -292,6 +292,7 @@
                     SessionStart = (codeNotifyHooks.SessionStart or [ ]) ++ temporalSessionStart;
                   };
               };
+              programs.claude-nix.statusLine.enable = true;
             };
 
           antigravity =
