@@ -72,8 +72,8 @@ cmd_put() {
     -X PUT \
     -H "Content-Type: application/octet-stream" \
     --data-binary "@$file" \
-    "$API/file/$enc"
-  echo  # trailing newline (the API returns no \n)
+    "$API/file/$enc" \
+  | jq -r '.id'
 }
 
 cmd_get() {
