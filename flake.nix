@@ -118,6 +118,28 @@
             extraPackages = [ vibecad pxd ];
           };
 
+          # ── RTK plugins (per-target) ──
+          claude-rtk-plugin = build.buildRtkPlugin {
+            target = "claude";
+            rtkPkg = pkgs.rtk;
+            hooksDir = ./plugins/rtk/hooks;
+            attributionFile = ./ATTRIBUTION.md;
+          };
+
+          antigravity-rtk-plugin = build.buildRtkPlugin {
+            target = "antigravity";
+            rtkPkg = pkgs.rtk;
+            hooksDir = ./plugins/rtk/hooks;
+            attributionFile = ./ATTRIBUTION.md;
+          };
+
+          codex-rtk-plugin = build.buildRtkPlugin {
+            target = "codex";
+            rtkPkg = pkgs.rtk;
+            hooksDir = ./plugins/rtk/hooks;
+            attributionFile = ./ATTRIBUTION.md;
+          };
+
           perSkillPackages = lib.listToAttrs (
             map (s: {
               name = s.name;
@@ -130,8 +152,11 @@
           default = claude-plugin;
           inherit
             claude-plugin
+            claude-rtk-plugin
             antigravity-plugin
+            antigravity-rtk-plugin
             codex-plugin
+            codex-rtk-plugin
             codeNotify
             vibecad
             pxd
