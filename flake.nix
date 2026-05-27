@@ -245,6 +245,8 @@
               codeNotify = self.packages.${pkgs.system}.codeNotify;
               claudeRtkPlugin = self.packages.${pkgs.system}.claude-rtk-plugin;
               claudeRtkHook = claudeRtkPlugin.passthru._claudeRtkHook;
+              claudeTemporalPlugin = self.packages.${pkgs.system}.claude-temporal-plugin;
+              claudeTemporalScript = claudeTemporalPlugin.passthru._temporalScript;
               skills =
                 (import ./lib/default.nix {
                   inherit pkgs lib;
@@ -258,6 +260,7 @@
               programs.claude-nix.plugins = lib.mkBefore [
                 self.packages.${pkgs.system}.claude-plugin
                 self.packages.${pkgs.system}.claude-rtk-plugin
+                self.packages.${pkgs.system}.claude-temporal-plugin
               ];
               programs.claude-nix.settings = {
                 permissions.allow = skillPermissions;
@@ -270,9 +273,23 @@
                         hooks = [{ type = "command"; command = "${claudeRtkHook}"; }];
                       }
                     ];
+                    temporalUserPromptSubmit = [
+                      {
+                        matcher = "";
+                        hooks = [{ type = "command"; command = "${claudeTemporalScript}"; }];
+                      }
+                    ];
+                    temporalSessionStart = [
+                      {
+                        matcher = "startup|resume|clear|compact";
+                        hooks = [{ type = "command"; command = "${claudeTemporalScript}"; }];
+                      }
+                    ];
                   in
                   codeNotifyHooks // {
                     PreToolUse = (codeNotifyHooks.PreToolUse or [ ]) ++ rtkPreToolUse;
+                    UserPromptSubmit = (codeNotifyHooks.UserPromptSubmit or [ ]) ++ temporalUserPromptSubmit;
+                    SessionStart = (codeNotifyHooks.SessionStart or [ ]) ++ temporalSessionStart;
                   };
               };
             };
