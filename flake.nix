@@ -76,6 +76,7 @@
             inherit skills;
             hooksDir = ./hooks;
             attributionFile = ./ATTRIBUTION.md;
+            extraPackages = [ vibecad ];
           };
 
           # ── Antigravity plugin (with code-notify hooks baked in) ──
@@ -103,6 +104,7 @@
                 command = "${notifier} PreToolUse";
               })
             ];
+            extraPackages = [ vibecad ];
           };
 
           # ── Codex plugin ──
@@ -112,6 +114,7 @@
             inherit skills;
             hooksDir = ./hooks;
             attributionFile = ./ATTRIBUTION.md;
+            extraPackages = [ vibecad ];
           };
 
           perSkillPackages = lib.listToAttrs (

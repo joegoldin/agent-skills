@@ -157,6 +157,7 @@ let
       skills,
       hooksDir ? null,
       attributionFile ? null,
+      extraPackages ? [ ],
     }:
     let
       allCommands = lib.concatMap (s: s.meta.commands or [ ]) skills;
@@ -184,7 +185,7 @@ let
     in
     pkgs.buildEnv {
       name = "${name}-complete";
-      paths = [ plugin ] ++ hooksDrv ++ attributionDrv;
+      paths = [ plugin ] ++ hooksDrv ++ attributionDrv ++ extraPackages;
     };
 
   # ── Build a skill using a target's mkSkill ──
@@ -216,6 +217,7 @@ let
       mcpServers ? [ ],
       hooksDir ? null,
       attributionFile ? null,
+      extraPackages ? [ ],
     }:
     assert agyLib != null;
     let
@@ -239,7 +241,7 @@ let
     in
     pkgs.buildEnv {
       name = "${name}-antigravity-complete";
-      paths = [ plugin ] ++ attributionDrv;
+      paths = [ plugin ] ++ attributionDrv ++ extraPackages;
       passthru.meta = { inherit name description; };
     };
 
@@ -252,6 +254,7 @@ let
       hooks ? [ ],
       hooksDir ? null,
       attributionFile ? null,
+      extraPackages ? [ ],
     }:
     assert codexLib != null;
     let
@@ -279,7 +282,7 @@ let
     in
     (pkgs.buildEnv {
       name = "${name}-codex-complete";
-      paths = [ plugin ] ++ attributionDrv;
+      paths = [ plugin ] ++ attributionDrv ++ extraPackages;
     })
     // {
       _codex = plugin._codex or { };
