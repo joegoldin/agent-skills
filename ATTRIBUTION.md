@@ -57,3 +57,22 @@ upstream commit `5a149a7fdb92afe758a0c28d805873ce61d8259f` from:
 
 The full Apache-2.0 LICENSE is preserved at `plugins/rtk/LICENSE`. The `rtk`
 binary itself is consumed unmodified from nixpkgs (`pkgs.rtk`).
+
+## temporal hook
+
+The `agent-skills-temporal` plugin vendors `temporal.py` from
+[asakin's gist](https://gist.github.com/asakin/e4225721bb8f16dd6bc34f4eec5499f9)
+(v1). A v2 with extended features lives at
+https://github.com/asakin/claude-context-hook.
+
+Vendored with minor modifications:
+
+- `$TEMPORAL_STATE_DIR` env var honored (defaults preserved) so each CLI gets
+  a distinct state directory.
+- `SessionStart` fires on startup/resume in addition to compact, to support
+  non-Claude CLIs that may not pass a `source` field.
+- Defensive `OSError` / `JSONDecodeError` handling around state I/O.
+
+See `plugins/temporal/README.md` for the diff narrative. The gist's license
+is not explicitly declared (GitHub gist default); we credit upstream by
+linkback as a courtesy.
