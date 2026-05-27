@@ -140,6 +140,28 @@
             attributionFile = ./ATTRIBUTION.md;
           };
 
+          # ── Temporal plugins (per-target) ──
+          claude-temporal-plugin = build.buildTemporalPlugin {
+            target = "claude";
+            scriptDir = ./plugins/temporal;
+            stateDir = "$HOME/.claude/.temporal";
+            attributionFile = ./ATTRIBUTION.md;
+          };
+
+          antigravity-temporal-plugin = build.buildTemporalPlugin {
+            target = "antigravity";
+            scriptDir = ./plugins/temporal;
+            stateDir = "$HOME/.antigravity/.temporal";
+            attributionFile = ./ATTRIBUTION.md;
+          };
+
+          codex-temporal-plugin = build.buildTemporalPlugin {
+            target = "codex";
+            scriptDir = ./plugins/temporal;
+            stateDir = "$HOME/.codex/.temporal";
+            attributionFile = ./ATTRIBUTION.md;
+          };
+
           perSkillPackages = lib.listToAttrs (
             map (s: {
               name = s.name;
@@ -153,10 +175,13 @@
           inherit
             claude-plugin
             claude-rtk-plugin
+            claude-temporal-plugin
             antigravity-plugin
             antigravity-rtk-plugin
+            antigravity-temporal-plugin
             codex-plugin
             codex-rtk-plugin
+            codex-temporal-plugin
             codeNotify
             vibecad
             pxd
