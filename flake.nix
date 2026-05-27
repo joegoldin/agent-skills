@@ -305,6 +305,7 @@
               programs.antigravity-cli-nix.plugins = lib.mkBefore [
                 self.packages.${pkgs.system}.antigravity-plugin
                 self.packages.${pkgs.system}.antigravity-rtk-plugin
+                self.packages.${pkgs.system}.antigravity-temporal-plugin
               ];
             };
 
@@ -348,6 +349,7 @@
                   }
                 )
                 self.packages.${pkgs.system}.codex-rtk-plugin
+                self.packages.${pkgs.system}.codex-temporal-plugin
               ];
             };
 
