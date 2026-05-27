@@ -218,6 +218,8 @@
             }:
             let
               codeNotify = self.packages.${pkgs.system}.codeNotify;
+              claudeRtkPlugin = self.packages.${pkgs.system}.claude-rtk-plugin;
+              claudeRtkHook = claudeRtkPlugin.passthru._claudeRtkHook;
               skills =
                 (import ./lib/default.nix {
                   inherit pkgs lib;
@@ -230,10 +232,23 @@
               imports = [ "${claude-nix}/modules/home-manager.nix" ];
               programs.claude-nix.plugins = lib.mkBefore [
                 self.packages.${pkgs.system}.claude-plugin
+                self.packages.${pkgs.system}.claude-rtk-plugin
               ];
               programs.claude-nix.settings = {
                 permissions.allow = skillPermissions;
-                hooks = mkCodeNotifyHooks codeNotify;
+                hooks =
+                  let
+                    codeNotifyHooks = mkCodeNotifyHooks codeNotify;
+                    rtkPreToolUse = [
+                      {
+                        matcher = "Bash";
+                        hooks = [{ type = "command"; command = "${claudeRtkHook}"; }];
+                      }
+                    ];
+                  in
+                  codeNotifyHooks // {
+                    PreToolUse = (codeNotifyHooks.PreToolUse or [ ]) ++ rtkPreToolUse;
+                  };
               };
             };
 
