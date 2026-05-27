@@ -30,6 +30,11 @@ See the superpowers repository for the original versions.
   customized port of [bradautomates/claude-video](https://github.com/bradautomates/claude-video)
   (MIT License). The skill itself is original; the CLI it drives is the port.
 
+- **pixeldrain** — pairs with the `pxd` CLI in `packages/pxd/` (original to this
+  repo). The skill prose and the CLI are both original; only the underlying
+  pixeldrain.com HTTP API is third-party. API documentation:
+  https://pixeldrain.com/api
+
 ## Vibe Modeling Skill
 
 The `vibe-modeling` skill methodology is distilled from
