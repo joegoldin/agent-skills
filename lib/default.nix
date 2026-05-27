@@ -416,6 +416,136 @@ SKILLEOF
         passthru.meta = { name = "agent-skills-rtk"; description = "RTK awareness (Antigravity)"; };
       };
 
+  # ── Temporal plugin (per-target) ──
+  # Ships a Python time-injection hook. State dir is per-CLI via $TEMPORAL_STATE_DIR.
+  buildTemporalPlugin =
+    {
+      target,            # "claude" | "codex" | "antigravity"
+      scriptDir,         # path: .../plugins/temporal
+      stateDir,          # absolute path: where this CLI keeps its state, e.g. "/home/joe/.claude/.temporal"
+      attributionFile ? null,
+    }:
+    let
+      python3 = pkgs.python3;
+      # stateDir may contain $HOME — we leave it unquoted in the export so the
+      # shell expands it at runtime, not nix-eval time.
+      temporalScript = pkgs.writeShellScript "temporal-${target}" ''
+        export TEMPORAL_STATE_DIR="${stateDir}"
+        exec ${python3}/bin/python3 ${scriptDir}/temporal.py "$@"
+      '';
+
+      attributionDrv = lib.optional (attributionFile != null) (
+        pkgs.runCommand "temporal-${target}-attribution" { } ''
+          mkdir -p $out
+          cp ${attributionFile} $out/ATTRIBUTION
+        ''
+      );
+
+      emptySkill = ''
+        # temporal — time awareness hook
+
+        Background-only — this plugin contributes a hook, not skill content
+        you invoke directly. The hook injects a throttled `[⏱ time]` block at
+        UserPromptSubmit and after compaction so the agent knows what time
+        it is.
+
+        Configure via env vars:
+        - `TEMPORAL_INTERVAL` (seconds, default 300): min interval between injects.
+        - `TEMPORAL_TTL_DAYS` (default 7): days before stale session state is swept.
+      '';
+
+    in
+    if target == "claude" then
+      let
+        # Same approach as buildRtkPlugin: build the skill derivation directly
+        # to avoid buildSkillDrv's eval-time readFile constraint.
+        desc = "Use when the user asks about time/date hooks, why timestamps appear in context, or wants to tune the [⏱] injection.";
+        skill = pkgs.runCommand "skill-temporal-claude" { } ''
+          mkdir -p $out/skills/temporal
+          cat > $out/skills/temporal/SKILL.md <<'SKILLEOF'
+---
+name: temporal
+description: ${desc}
+---
+
+${emptySkill}
+SKILLEOF
+        '';
+        plugin = claudeLib.mkPlugin {
+          name = "agent-skills-temporal";
+          description = "Throttled time injection (Claude)";
+          skills = [ skill ];
+          commands = [ ];
+          agents = [ ];
+          mcpServers = { };
+          lspServers = { };
+        };
+      in
+      pkgs.buildEnv {
+        name = "agent-skills-temporal-claude-complete";
+        paths = [ plugin python3 ] ++ attributionDrv;
+        passthru._temporalScript = temporalScript;
+      }
+    else if target == "codex" then
+      let
+        codexSkill = codexLib.mkSkill {
+          name = "temporal";
+          description = "Use when the user asks about time/date hooks or `[⏱]` annotations.";
+        } emptySkill;
+        plugin = codexLib.mkPlugin {
+          name = "agent-skills-temporal";
+          description = "Throttled time injection (Codex)";
+          skills = [ codexSkill ];
+          hooks = [
+            (codexLib.mkHook {
+              event = "UserPromptSubmit";
+              name = "temporal-user-prompt-submit";
+              command = "${temporalScript}";
+            })
+            (codexLib.mkHook {
+              event = "SessionStart";
+              name = "temporal-session-start";
+              command = "${temporalScript}";
+            })
+          ];
+        };
+      in
+      (pkgs.buildEnv {
+        name = "agent-skills-temporal-codex-complete";
+        paths = [ plugin python3 ] ++ attributionDrv;
+      })
+      // { _codex = plugin._codex or { }; }
+    else  # antigravity
+      let
+        agySkill = agyLib.mkSkill {
+          name = "temporal";
+          description = "Use when the user asks about time/date hooks or `[⏱]` annotations.";
+        } emptySkill;
+        plugin = agyLib.mkPlugin {
+          name = "agent-skills-temporal";
+          description = "Throttled time injection (Antigravity)";
+          skills = [ agySkill ];
+          hooks = [
+            (agyLib.mkHook {
+              event = "SessionStart";
+              name = "temporal-session-start";
+              command = "${temporalScript}";
+            })
+            # Best-effort UserPromptSubmit: if Antigravity ignores unknown events,
+            # this silently no-ops and we fall back to SessionStart-only behaviour.
+            (agyLib.mkHook {
+              event = "UserPromptSubmit";
+              name = "temporal-user-prompt-submit";
+              command = "${temporalScript}";
+            })
+          ];
+        };
+      in
+      pkgs.buildEnv {
+        name = "agent-skills-temporal-antigravity-complete";
+        paths = [ plugin python3 ] ++ attributionDrv;
+      };
+
 in
 {
   inherit
@@ -430,5 +560,6 @@ in
     buildCodexHooks
     buildSessionStartHooks
     buildRtkPlugin
+    buildTemporalPlugin
     ;
 }
