@@ -94,6 +94,13 @@ Plugins are built per-target: `claude-plugin`, `antigravity-plugin`, `codex-plug
 
 3. That's it — `discoverSkills` auto-discovers any directory under `skills/` that contains a `skill.nix`.
 
+## Permissions
+
+- A `Skill(agent-skills:<name>)` allow is auto-generated for every discovered skill and merged into `~/.claude/settings.json` via `programs.claude-nix.extraPermissions.allow` (additive — concatenates with claude-nix's defaults).
+- Per-skill Bash allows go in `allowed-tools` inside that skill's `skill.nix`.
+- Repo-wide additive perms (e.g. a new Bash variant every skill should have) go in `agent-skills/flake.nix` via `programs.claude-nix.extraPermissions.{allow,ask,deny}`, **not** `programs.claude-nix.settings.permissions.*` — the latter is a full-list replacement (via `lib.recursiveUpdate`) and will silently nuke the defaults shipped by claude-nix.
+- Default Bash/`rtk` allows themselves live upstream in `claude-nix/modules/home-manager.nix` (`defaultSettings.permissions.allow`).
+
 ## How the Build System Works
 
 1. **`discoverSkills ./skills`** — scans for directories with `skill.nix`, evaluates each (handles both plain attrsets and functions), builds skill derivations with frontmatter-injected SKILL.md
