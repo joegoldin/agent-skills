@@ -168,8 +168,8 @@
               programs.claude-nix.plugins = lib.mkBefore (
                 [ self.packages.${pkgs.system}.claude-plugin ] ++ claudePlugins
               );
+              programs.claude-nix.extraPermissions.allow = skillPermissions;
               programs.claude-nix.settings = {
-                permissions.allow = skillPermissions;
                 hooks = build.foldClaudeHooks (
                   map (p: p.passthru.claudeHooks or { }) claudePlugins
                 );
