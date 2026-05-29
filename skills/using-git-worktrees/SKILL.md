@@ -62,23 +62,25 @@ Follow this priority order. Explicit user preference always beats observed files
 
 1. **Check your instructions for a declared worktree directory preference.** If the user has already specified one, use it without asking.
 
-2. **Check for an existing project-local worktree directory:**
+2. **Check for an existing project-local worktree directory** (opt-in override):
    ```bash
    ls -d .worktrees 2>/dev/null     # Preferred (hidden)
    ls -d worktrees 2>/dev/null      # Alternative
    ```
    If found, use it. If both exist, `.worktrees` wins.
 
-3. **Check for an existing global directory:**
+3. **Check for an existing legacy global directory:**
    ```bash
    project=$(basename "$(git rev-parse --show-toplevel)")
    ls -d ~/.config/agent-skills/worktrees/$project 2>/dev/null
    ```
    If found, use it (backward compatibility with legacy global path).
 
-4. **If there is no other guidance available**, default to `.worktrees/` at the project root.
+4. **Default: `~/.worktrees/$project/$BRANCH_NAME`** (keeps the project tree clean — IDE search-all, fuzzy finders, etc. ignore `$HOME/.worktrees`).
 
 #### Safety Verification (project-local directories only)
+
+**Only required when using a project-local `.worktrees/` or `worktrees/` directory** (priority #2). The default global location (`~/.worktrees/`) lives outside the repo and needs no verification.
 
 **MUST verify directory is ignored before creating worktree:**
 
@@ -90,17 +92,18 @@ git check-ignore -q .worktrees 2>/dev/null || git check-ignore -q worktrees 2>/d
 
 **Why critical:** Prevents accidentally committing worktree contents to repository.
 
-Global directories (`~/.config/agent-skills/worktrees/`) need no verification.
-
 #### Create the Worktree
 
 ```bash
 project=$(basename "$(git rev-parse --show-toplevel)")
 
-# Determine path based on chosen location
-# For project-local: path="$LOCATION/$BRANCH_NAME"
-# For global: path="~/.config/agent-skills/worktrees/$project/$BRANCH_NAME"
+# Default (global, keeps project dir clean):
+path="$HOME/.worktrees/$project/$BRANCH_NAME"
 
+# Or project-local override (priority #2): path="$LOCATION/$BRANCH_NAME"
+# Or legacy global (priority #3):         path="$HOME/.config/agent-skills/worktrees/$project/$BRANCH_NAME"
+
+mkdir -p "$(dirname "$path")"
 git worktree add "$path" -b "$BRANCH_NAME"
 cd "$path"
 ```
@@ -158,9 +161,9 @@ Ready to implement <feature-name>
 | `.worktrees/` exists | Use it (verify ignored) |
 | `worktrees/` exists | Use it (verify ignored) |
 | Both exist | Use `.worktrees/` |
-| Neither exists | Check instruction file, then default `.worktrees/` |
-| Global path exists | Use it (backward compat) |
-| Directory not ignored | Add to .gitignore + commit |
+| Legacy global path exists | Use it (`~/.config/agent-skills/worktrees/$project`, backward compat) |
+| Neither exists | Default to `~/.worktrees/$project/$BRANCH_NAME` |
+| Project-local directory not ignored | Add to .gitignore + commit |
 | Permission error on create | Sandbox fallback, work in place |
 | Tests fail during baseline | Report failures + ask |
 | No package.json/Cargo.toml | Skip dependency install |
@@ -185,7 +188,7 @@ Ready to implement <feature-name>
 ### Assuming directory location
 
 - **Problem:** Creates inconsistency, violates project conventions
-- **Fix:** Follow priority: existing > global legacy > instruction file > default
+- **Fix:** Follow priority: instructions > existing project-local > legacy global > default `~/.worktrees/$project/$BRANCH_NAME`
 
 ### Proceeding with failing tests
 
@@ -205,7 +208,7 @@ Ready to implement <feature-name>
 **Always:**
 - Run Step 0 detection first
 - Prefer native tools over git fallback
-- Follow directory priority: existing > global legacy > instruction file > default
-- Verify directory is ignored for project-local
+- Follow directory priority: instructions > existing project-local > legacy global > default `~/.worktrees/$project/$BRANCH_NAME`
+- Verify directory is ignored for project-local (not needed for `~/.worktrees/`)
 - Auto-detect and run project setup
 - Verify clean test baseline
