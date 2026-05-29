@@ -58,16 +58,18 @@ Only proceed to Step 1b if you have no native worktree tool available.
 
 #### Directory Selection
 
+**New worktrees go in `~/.worktrees/$project/$BRANCH_NAME` by default.** Old worktrees may already live in a project-local `.worktrees/` — you can keep using those, but don't put *new* ones there unless told to.
+
 Follow this priority order. Explicit user preference always beats observed filesystem state.
 
 1. **Check your instructions for a declared worktree directory preference.** If the user has already specified one, use it without asking.
 
-2. **Check for an existing project-local worktree directory** (opt-in override):
+2. **Keep using an existing worktree already located in a project-local directory** (backward compat — don't relocate old worktrees):
    ```bash
-   ls -d .worktrees 2>/dev/null     # Preferred (hidden)
-   ls -d worktrees 2>/dev/null      # Alternative
+   # Existing worktrees registered with git, filtered to project-local paths:
+   git worktree list | grep -E "/(\.worktrees|worktrees)/"
    ```
-   If found, use it. If both exist, `.worktrees` wins.
+   If a worktree for the branch you want already exists under `.worktrees/` or `worktrees/`, use it in place. The mere *existence of the directory* is NOT a reason to create a new worktree there — only reuse worktrees that are already there.
 
 3. **Check for an existing legacy global directory:**
    ```bash
@@ -76,11 +78,11 @@ Follow this priority order. Explicit user preference always beats observed files
    ```
    If found, use it (backward compatibility with legacy global path).
 
-4. **Default: `~/.worktrees/$project/$BRANCH_NAME`** (keeps the project tree clean — IDE search-all, fuzzy finders, etc. ignore `$HOME/.worktrees`).
+4. **Default for new worktrees: `~/.worktrees/$project/$BRANCH_NAME`** (keeps the project tree clean — IDE search-all, fuzzy finders, etc. ignore `$HOME/.worktrees`). This is the default whenever priorities 1–3 don't apply, **even if a project-local `.worktrees/` directory exists**.
 
 #### Safety Verification (project-local directories only)
 
-**Only required when using a project-local `.worktrees/` or `worktrees/` directory** (priority #2). The default global location (`~/.worktrees/`) lives outside the repo and needs no verification.
+**Only required when reusing a project-local `.worktrees/` or `worktrees/` directory** (priority #2). The default global location (`~/.worktrees/`) lives outside the repo and needs no verification.
 
 **MUST verify directory is ignored before creating worktree:**
 
@@ -97,11 +99,11 @@ git check-ignore -q .worktrees 2>/dev/null || git check-ignore -q worktrees 2>/d
 ```bash
 project=$(basename "$(git rev-parse --show-toplevel)")
 
-# Default (global, keeps project dir clean):
+# Default for new worktrees (global, keeps project dir clean):
 path="$HOME/.worktrees/$project/$BRANCH_NAME"
 
-# Or project-local override (priority #2): path="$LOCATION/$BRANCH_NAME"
-# Or legacy global (priority #3):         path="$HOME/.config/agent-skills/worktrees/$project/$BRANCH_NAME"
+# Or reuse existing project-local worktree (priority #2): path="$LOCATION/$BRANCH_NAME"
+# Or legacy global (priority #3):                         path="$HOME/.config/agent-skills/worktrees/$project/$BRANCH_NAME"
 
 mkdir -p "$(dirname "$path")"
 git worktree add "$path" -b "$BRANCH_NAME"
@@ -158,12 +160,11 @@ Ready to implement <feature-name>
 | In a submodule | Treat as normal repo (Step 0 guard) |
 | Native worktree tool available | Use it (Step 1a) |
 | No native tool | Git worktree fallback (Step 1b) |
-| `.worktrees/` exists | Use it (verify ignored) |
-| `worktrees/` exists | Use it (verify ignored) |
-| Both exist | Use `.worktrees/` |
+| Existing worktree already in `.worktrees/` or `worktrees/` | Reuse it in place (verify ignored) |
+| `.worktrees/` directory in project dir merely exists (no existing worktree for branch) | Ignore it — default to `~/.worktrees/$project/$BRANCH_NAME` |
 | Legacy global path exists | Use it (`~/.config/agent-skills/worktrees/$project`, backward compat) |
-| Neither exists | Default to `~/.worktrees/$project/$BRANCH_NAME` |
-| Project-local directory not ignored | Add to .gitignore + commit |
+| Creating a new worktree | Default to `~/.worktrees/$project/$BRANCH_NAME` |
+| Reusing project-local directory not ignored | Add to .gitignore + commit |
 | Permission error on create | Sandbox fallback, work in place |
 | Tests fail during baseline | Report failures + ask |
 | No package.json/Cargo.toml | Skip dependency install |
@@ -188,7 +189,7 @@ Ready to implement <feature-name>
 ### Assuming directory location
 
 - **Problem:** Creates inconsistency, violates project conventions
-- **Fix:** Follow priority: instructions > existing project-local > legacy global > default `~/.worktrees/$project/$BRANCH_NAME`
+- **Fix:** Follow priority: instructions > existing project-local worktree (reuse only) > legacy global > default `~/.worktrees/$project/$BRANCH_NAME`. A bare `.worktrees/` directory in the project dir is not a reason to create new worktrees there.
 
 ### Proceeding with failing tests
 
@@ -208,7 +209,8 @@ Ready to implement <feature-name>
 **Always:**
 - Run Step 0 detection first
 - Prefer native tools over git fallback
-- Follow directory priority: instructions > existing project-local > legacy global > default `~/.worktrees/$project/$BRANCH_NAME`
-- Verify directory is ignored for project-local (not needed for `~/.worktrees/`)
+- Put new worktrees in `~/.worktrees/$project/$BRANCH_NAME` by default — only reuse old worktrees already living in a project-local `.worktrees/`
+- Follow directory priority: instructions > existing project-local worktree (reuse only) > legacy global > default `~/.worktrees/$project/$BRANCH_NAME`
+- Verify directory is ignored when reusing project-local (not needed for `~/.worktrees/`)
 - Auto-detect and run project setup
 - Verify clean test baseline
