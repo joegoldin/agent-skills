@@ -150,7 +150,6 @@
             {
               lib,
               pkgs,
-              config,
               ...
             }:
             let
@@ -163,7 +162,6 @@
               claudePlugins = map (
                 p: self.packages.${pkgs.system}."${p.name}-claude"
               ) (build.discoverPlugins ./plugins);
-              homeDir = config.home.homeDirectory;
             in
             {
               imports = [ "${claude-nix}/modules/home-manager.nix" ];
@@ -171,18 +169,9 @@
                 [ self.packages.${pkgs.system}.claude-plugin ] ++ claudePlugins
               );
               programs.claude-nix.extraPermissions.allow = skillPermissions;
-              programs.claude-nix.settings = {
-                hooks = build.foldClaudeHooks (
-                  map (p: p.passthru.claudeHooks or { }) claudePlugins
-                );
-                # Punch the 1Password SSH agent socket through Claude's
-                # default deny list so the sandboxed shell can use
-                # `ssh-add`, `ssh`, `git push`, etc. against the host's
-                # 1Password agent.
-                sandbox.filesystem.read.allowWithinDeny = [
-                  "${homeDir}/.1password/agent.sock"
-                ];
-              };
+              programs.claude-nix.extraHooks = build.foldClaudeHooks (
+                map (p: p.passthru.claudeHooks or { }) claudePlugins
+              );
               programs.claude-nix.statusLine.enable = true;
             };
 
