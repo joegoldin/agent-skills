@@ -308,7 +308,8 @@ let
       raw = import (pluginsDir + "/${name}/plugin.nix");
     }) validNames;
 
-  # A plugin's declarative hooks → Claude settings.hooks fragment:
+  # A plugin's declarative hooks → Claude hooks fragment consumed by
+  # programs.claude-nix.extraHooks:
   #   { <Event> = [ { matcher; hooks = [ { type = "command"; command; } ]; } ]; }
   toClaudeHooks =
     hooks:
@@ -333,9 +334,11 @@ let
       acc: frag: acc // lib.mapAttrs (event: entries: (acc.${event} or [ ]) ++ entries) frag
     ) { } fragments;
 
-  # Build one cross-agent plugin for a single target. Claude's mkPlugin has no
-  # `hooks` arg, so claude hooks are surfaced via passthru.claudeHooks for the
-  # home-manager module to fold into programs.claude-nix.settings.hooks.
+  # Build one cross-agent plugin for a single target. Claude hooks are
+  # surfaced via passthru.claudeHooks for the home-manager module to fold
+  # into programs.claude-nix.extraHooks (additive per-event lists).
+  # claudeLib.mkPlugin's hooks/hooksDir args are an alternative path for
+  # plugins that ship their own self-contained hook scripts.
   mkCrossAgentPlugin =
     {
       def,

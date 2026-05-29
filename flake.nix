@@ -249,5 +249,27 @@
           };
         }
       );
+
+      # ── Positive list of claude-targeted plugin packages ──
+      # Same set the homeManagerModules.claude wires into
+      # programs.claude-nix.plugins. Exposed so downstream consumers
+      # (claude-container's image build) can take the canonical list
+      # without filtering by name suffix — a future skill named
+      # `something-claude` would otherwise sneak into the container
+      # under that pattern.
+      claudePlugins = nixpkgs.lib.genAttrs systems (
+        system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+          build = import ./lib/default.nix {
+            inherit pkgs;
+            lib = pkgs.lib;
+            claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
+          };
+          discoveredPlugins = build.discoverPlugins ./plugins;
+        in
+        [ self.packages.${system}.claude-plugin ]
+        ++ map (p: self.packages.${system}."${p.name}-claude") discoveredPlugins
+      );
     };
 }
