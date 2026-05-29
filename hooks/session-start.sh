@@ -10,8 +10,8 @@ if [ -d "$legacy_skills_dir" ]; then
     warning_message="\n\n<important-reminder>IN YOUR FIRST REPLY AFTER SEEING THIS MESSAGE YOU MUST TELL THE USER:⚠️ **WARNING:** Superpowers now uses Claude Code's skills system. Custom skills in ~/.config/superpowers/skills will not be read. Move custom skills to ~/.claude/skills instead. To make this message go away, remove ~/.config/superpowers/skills</important-reminder>"
 fi
 
-# Read using-superpowers content (path injected at nix build time)
-using_superpowers_content=$(cat "@USING_SUPERPOWERS_SKILL@" 2>&1 || echo "Error reading using-superpowers skill")
+# Read using-agent-skills content (path injected at nix build time)
+using_agent_skills_content=$(cat "@USING_AGENT_SKILLS@" 2>&1 || echo "Error reading using-agent-skills skill")
 
 # Escape string for JSON embedding using bash parameter substitution.
 # Each ${s//old/new} is a single C-level pass - orders of magnitude
@@ -26,7 +26,7 @@ escape_for_json() {
     printf '%s' "$s"
 }
 
-using_superpowers_escaped=$(escape_for_json "$using_superpowers_content")
+using_agent_skills_escaped=$(escape_for_json "$using_agent_skills_content")
 warning_escaped=$(escape_for_json "$warning_message")
 
 # Output context injection as JSON
@@ -34,7 +34,7 @@ cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "<EXTREMELY_IMPORTANT>\nYou have superpowers.\n\n**Below is the full content of your 'superpowers:using-superpowers' skill - your introduction to using skills. For all other skills, use the 'Skill' tool:**\n\n${using_superpowers_escaped}\n\n${warning_escaped}\n</EXTREMELY_IMPORTANT>"
+    "additionalContext": "<EXTREMELY_IMPORTANT>\nYou have agent skills.\n\n**Below is the full content of your 'agent-skills:using-agent-skills' skill - your introduction to using skills. For all other skills, use the 'Skill' tool:**\n\n${using_agent_skills_escaped}\n\n${warning_escaped}\n</EXTREMELY_IMPORTANT>"
   }
 }
 EOF

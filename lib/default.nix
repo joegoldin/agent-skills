@@ -62,16 +62,16 @@ let
       drv = buildSkillDrv name meta dir;
     }) validNames;
 
-  # ── Build using-superpowers content (shared across targets) ──
-  buildUsingSuperpowersContent =
+  # ── Build using-agent-skills content (shared across targets) ──
+  buildUsingAgentSkillsContent =
     skills:
     let
-      usingSuperpowersSkill = lib.findFirst (s: s.name == "using-superpowers") null skills;
+      usingAgentSkillsSkill = lib.findFirst (s: s.name == "using-agent-skills") null skills;
     in
-    if usingSuperpowersSkill != null then
+    if usingAgentSkillsSkill != null then
       let
-        meta = usingSuperpowersSkill.meta;
-        body = builtins.readFile (usingSuperpowersSkill.dir + "/SKILL.md");
+        meta = usingAgentSkillsSkill.meta;
+        body = builtins.readFile (usingAgentSkillsSkill.dir + "/SKILL.md");
         fields = [
           "name: ${meta.name}"
           "description: ${meta.description}"
@@ -88,8 +88,8 @@ let
   buildSessionStartHooks =
     name: skills: hooksDir:
     let
-      usingSuperpowersContent = buildUsingSuperpowersContent skills;
-      skillContentFile = pkgs.writeText "using-superpowers-content" usingSuperpowersContent;
+      usingAgentSkillsContent = buildUsingAgentSkillsContent skills;
+      skillContentFile = pkgs.writeText "using-agent-skills-content" usingAgentSkillsContent;
     in
     pkgs.runCommand "${name}-hooks" { } ''
       mkdir -p $out/hooks
@@ -98,7 +98,7 @@ let
         case "$basename" in
           *.sh)
             substitute "$item" $out/hooks/"$basename" \
-              --replace-fail @USING_SUPERPOWERS_SKILL@ ${skillContentFile}
+              --replace-fail @USING_AGENT_SKILLS@ ${skillContentFile}
             chmod +x $out/hooks/"$basename"
             ;;
           *) cp "$item" $out/hooks/"$basename" ;;
