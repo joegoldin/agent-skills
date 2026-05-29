@@ -1,8 +1,5 @@
-# docker-guard — PreToolUse hook that validates docker commands before they
-# run. Self-gates on git remote so it only enforces inside the
-# claude-container project; everywhere else it's a silent passthrough.
-#
-# The hook is bash + jq. It rejects:
+# docker-guard — PreToolUse hook that validates docker commands before
+# they run. The hook is bash + jq. It rejects:
 #   - docker commands with shell metacharacters that bypass pattern matching
 #     (`#`, `$( ... )`, backticks)
 #   - docker run/build using images outside the claude-container* /
@@ -30,9 +27,6 @@ in
     skill content you invoke directly. The hook rejects docker commands
     that try to escape the claude-container / claude-proxy image
     allowlist or hide behind shell metacharacters.
-
-    Scope: enforces only inside the `claude-container` project (matched
-    by git origin URL). In every other project it silently no-ops.
 
     Don't try to disable or replace the hook from inside a session —
     deny outputs are non-blocking notes and the user can override.

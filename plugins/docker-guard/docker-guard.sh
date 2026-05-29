@@ -8,15 +8,6 @@
 
 set -eu
 
-# Self-gate: this hook ships globally via the agent-skills plugin bundle
-# but only enforces inside the claude-container project. Any non-matching
-# project (including non-git directories) is a silent passthrough.
-_remote=$(git config --get remote.origin.url 2>/dev/null || true)
-case "$_remote" in
-  *claude-container*) ;;
-  *) exit 0 ;;
-esac
-
 input=$(cat 2>/dev/null || true)
 cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // ""' 2>/dev/null || echo "")
 
