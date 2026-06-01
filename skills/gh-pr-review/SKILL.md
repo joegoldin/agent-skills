@@ -22,7 +22,7 @@ Then pass them explicitly:
 gh pr-review review view -R "$REPO" --pr "$PR" --unresolved --not_outdated
 ```
 
-If you are already in the repo directory on the correct branch, `-R` and `--pr` can often be omitted — the extension will detect them from git context.
+If you are already in the repo directory on the correct branch, `-R` and `--pr` can often be omitted — the extension will detect them from git context. **From a git worktree (or any non-standard checkout) detection fails with `must specify a pull request via --pr or selector` — always pass `-R` and `--pr` explicitly there, including on `comments reply` / `threads resolve` even though they take a `--thread-id`.**
 
 ### Getting code context
 
