@@ -38,7 +38,10 @@
         nixpkgs.lib.genAttrs systems (
           system:
           f {
-            pkgs = import nixpkgs { inherit system; };
+            pkgs = import nixpkgs {
+              inherit system;
+              config.allowUnfree = true;
+            };
             inherit system;
           }
         );
@@ -260,7 +263,10 @@
       claudePlugins = nixpkgs.lib.genAttrs systems (
         system:
         let
-          pkgs = import nixpkgs { inherit system; };
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
           build = import ./lib/default.nix {
             inherit pkgs;
             lib = pkgs.lib;
