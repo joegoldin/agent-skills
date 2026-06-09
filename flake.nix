@@ -146,6 +146,67 @@
         }
       );
 
+      checks = forAllSystems (
+        { pkgs, ... }:
+        let
+          lib = pkgs.lib;
+          mcp = import ./lib/mcp.nix { inherit lib; };
+          # Fill submodule defaults exactly as the real option does.
+          servers =
+            (lib.evalModules {
+              modules = [
+                {
+                  options.servers = lib.mkOption { type = lib.types.attrsOf mcp.normalizedModule; };
+                  config.servers = {
+                    ctx = {
+                      command = "npx";
+                      args = [ "-y" "ctx" ];
+                    };
+                    remote = {
+                      url = "https://x/mcp";
+                      headers.Authorization = "Bearer Y";
+                      bearerTokenEnvVar = "TOK";
+                    };
+                    off = {
+                      command = "nope";
+                      disabled = true;
+                    };
+                  };
+                }
+              ];
+            }).config.servers;
+          claudeJson = pkgs.writeText "claude-mcp.json" (builtins.toJSON (mcp.mcpNativeFor "claude" servers));
+          agyJson = pkgs.writeText "agy-mcp.json" (builtins.toJSON (mcp.mcpNativeFor "antigravity" servers));
+          codexJson = pkgs.writeText "codex-mcp.json" (builtins.toJSON (mcp.mcpNativeFor "codex" servers));
+        in
+        {
+          eval-mcp =
+            pkgs.runCommand "eval-mcp" { nativeBuildInputs = [ pkgs.jq ]; } ''
+              # disabled servers are omitted from every target
+              jq -e 'has("off") | not' ${claudeJson} >/dev/null
+              jq -e 'has("off") | not' ${agyJson} >/dev/null
+              jq -e 'has("off") | not' ${codexJson} >/dev/null
+
+              # stdio is identical across all three targets
+              jq -e '.ctx.command == "npx" and (.ctx.args == ["-y","ctx"])' ${claudeJson} >/dev/null
+              jq -e '.ctx.command == "npx"' ${agyJson} >/dev/null
+              jq -e '.ctx.command == "npx"' ${codexJson} >/dev/null
+
+              # claude remote → type:"http" + url + headers
+              jq -e '.remote.type == "http" and .remote.url == "https://x/mcp" and .remote.headers.Authorization == "Bearer Y"' ${claudeJson} >/dev/null
+
+              # antigravity remote → serverUrl (no url), + headers
+              jq -e '.remote.serverUrl == "https://x/mcp" and (.remote | has("url") | not)' ${agyJson} >/dev/null
+
+              # codex remote → url + bearer_token_env_var + http_headers (no headers/type)
+              jq -e '.remote.url == "https://x/mcp" and .remote.bearer_token_env_var == "TOK" and .remote.http_headers.Authorization == "Bearer Y"' ${codexJson} >/dev/null
+              jq -e '.remote | (has("type") | not) and (has("serverUrl") | not)' ${codexJson} >/dev/null
+
+              touch $out
+            '';
+        }
+      );
+
       # ── Re-exported home-manager modules ──
       homeManagerModules =
         {

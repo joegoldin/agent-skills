@@ -6,6 +6,8 @@
   codexLib ? null,
 }:
 let
+  mcpLib = import ./mcp.nix { inherit lib; };
+
   # Import a skill.nix — handles both plain attrsets and functions.
   # For non-Claude targets, pass claudeLib as a stub so skill.nix files
   # that reference claudeLib builders (mkCommand, mkAgent) don't break.
@@ -453,4 +455,5 @@ in
     toClaudeHooks
     foldClaudeHooks
     ;
+  inherit (mcpLib) mcpNativeFor normalizedModule;
 }
