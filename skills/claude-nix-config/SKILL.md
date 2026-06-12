@@ -5,7 +5,7 @@ This dotfiles repo manages Claude Code, Antigravity CLI, and Codex declaratively
 
 ## Repository: agent-skills
 
-The `agent-skills/` directory (at `/home/joe/dotfiles/agent-skills/`) is the single entry point. It re-exports `homeManagerModules` from three upstream repos:
+agent-skills is a standalone repo (canonical clone: `~/Development/agent-skills`; github:joegoldin/agent-skills), consumed by the dotfiles as a git+ssh flake input. It is the single entry point. It re-exports `homeManagerModules` from three upstream repos:
 
 - **claude-nix** — Claude Code plugin system
 - **antigravity-cli-nix** — Antigravity CLI plugin system
@@ -110,34 +110,32 @@ Plugins are built per-target: `claude-plugin`, `antigravity-plugin`, `codex-plug
 
 ## Dotfiles Integration
 
-In the main dotfiles `flake.nix`, agent-skills is imported as a path input:
+In the main dotfiles `flake.nix`, agent-skills is a remote ssh input:
 
 ```nix
-agent-skills = { url = "path:./agent-skills"; inputs.nixpkgs.follows = "nixpkgs"; };
+agent-skills = {
+  url = "git+ssh://git@github.com/joegoldin/agent-skills";
+  inputs.nixpkgs.follows = "nixpkgs";
+};
 ```
 
-Home-manager modules are used in host configs:
-
-```nix
-# Enable Claude Code with agent-skills plugin
-programs.claude-nix.enable = true;  # via agent-skills.homeManagerModules.claude
-
-# Enable Antigravity CLI
-programs.antigravity-cli-nix.enable = true;  # via agent-skills.homeManagerModules.antigravity
-
-# Enable Codex
-programs.codex-nix.enable = true;   # via agent-skills.homeManagerModules.codex
-```
+The home-manager modules are wired inside den aspects in the dotfiles —
+`modules/ai/{claude,codex,antigravity}.nix` (each imports its
+`agent-skills.homeManagerModules.*` and sets `programs.*-nix`), included on
+hosts via the `home-baseline` aspect.
 
 ## Build & Apply
 
 ```sh
-# Build agent-skills standalone (quick check)
-cd agent-skills && just build
-# or: nix build .#claude-plugin && nix build .#antigravity-plugin && nix build .#codex-plugin
+# Build plugins standalone (quick check, from this repo)
+nix build .#claude-plugin && nix build .#antigravity-plugin && nix build .#codex-plugin
+
+# Release: push this repo, then bump the dotfiles input and switch
+git push
+cd ~/dotfiles && nix flake update agent-skills
 
 # Apply to system (NixOS)
-sudo nixos-rebuild switch --flake .
+just switch   # or: sudo nixos-rebuild switch --flake .
 
 # Apply to system (macOS)
 darwin-rebuild switch --flake .

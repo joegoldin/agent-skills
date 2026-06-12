@@ -72,7 +72,7 @@ agy-plugin-<name>/
 Antigravity-specific dotfiles config lives at:
 
 ```
-hosts/common/home/antigravity/default.nix
+modules/ai/antigravity.nix   # den.aspects.antigravity (imports the hm module)
 ```
 
 Plugins are wired through the agent-skills flake.
@@ -80,14 +80,17 @@ Plugins are wired through the agent-skills flake.
 ## Build and Apply
 
 ```sh
-# Build agent-skills antigravity plugin standalone
-cd agent-skills && nix build .#antigravity-plugin
+# Build the antigravity plugin standalone (from the agent-skills repo)
+nix build .#antigravity-plugin
 
 # Inspect the result tree
 find result/ -maxdepth 3
 
+# Release: push agent-skills, bump the dotfiles input, switch
+git push && cd ~/dotfiles && nix flake update agent-skills
+
 # Apply to system (NixOS)
-sudo nixos-rebuild switch --flake .
+just switch   # or: sudo nixos-rebuild switch --flake .
 
 # Apply to system (macOS)
 darwin-rebuild switch --flake .

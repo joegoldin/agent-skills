@@ -74,7 +74,7 @@ command = "/path/to/server"
 The dotfiles Codex configuration lives at:
 
 ```
-hosts/common/home/codex/default.nix
+modules/ai/codex.nix   # den.aspects.codex (imports the codex hm module)
 ```
 
 This file sets `programs.codex-nix.enable`, `package`, and `settings` (approval_policy, sandbox_mode, etc.). Plugins are wired through the agent-skills flake.
@@ -82,12 +82,14 @@ This file sets `programs.codex-nix.enable`, `package`, and `settings` (approval_
 ## Build and Apply
 
 ```sh
-# Build agent-skills standalone (quick check)
-cd agent-skills && just build
-# or: nix build .#codex-plugin
+# Build the plugin standalone (quick check, from the agent-skills repo)
+nix build .#codex-plugin
+
+# Release: push agent-skills, bump the dotfiles input, switch
+git push && cd ~/dotfiles && nix flake update agent-skills
 
 # Apply to system (NixOS)
-sudo nixos-rebuild switch --flake .
+just switch   # or: sudo nixos-rebuild switch --flake .
 
 # Apply to system (macOS)
 darwin-rebuild switch --flake .

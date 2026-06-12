@@ -40,51 +40,67 @@
         argument-hint = "<what to change>";
       }
       ''
-        You are working in a multi-platform Nix dotfiles repo. Use this context to make changes efficiently.
+        You are working in a multi-platform Nix dotfiles repo organized around
+        the dendritic pattern with den (github:denful/den): every non-underscore
+        .nix file under modules/ is auto-loaded as a flake-parts module, features
+        are den *aspects* (one file per feature, carrying nixos/darwin/homeManager
+        halves together), and hosts are den *entities* that select aspects via
+        `includes`. Read the repo's README.md for the architecture; the key rule:
+        a NEW file under modules/ is immediately live — disable by underscore-
+        prefixing, never by commenting an import.
 
-        ## Hosts
+        ## Hosts (modules/hosts/<dir>/)
 
         | Host | Platform | Config dir |
         |------|----------|------------|
-        | joe-desktop | NixOS (x86_64-linux), KDE Plasma 6 | hosts/nixos/ |
-        | office-pc | NixOS (x86_64-linux), compute/training, AMD GPU | hosts/office-pc/ |
-        | joe-steamdeck | NixOS (x86_64-linux), Jovian/Steam Deck | hosts/steamdeck/ |
-        | Joes-MacBook-Pro | macOS (aarch64-darwin) | hosts/darwin/ |
-        | joe-wsl | NixOS on WSL | hosts/wsl/ |
-        | oracle-cloud-bastion | NixOS server | hosts/oracle-cloud/ |
-        | racknerd-cloud-agent | NixOS server | hosts/racknerd-cloud/ |
+        | joe-desktop | NixOS (x86_64-linux), KDE Plasma 6 | modules/hosts/joe-desktop/ |
+        | office-pc | NixOS (x86_64-linux), compute/training, AMD GPU | modules/hosts/office-pc/ |
+        | joe-steamdeck | NixOS (x86_64-linux), Jovian/Steam Deck | modules/hosts/joe-steamdeck/ |
+        | Joes-MacBook-Pro | macOS (aarch64-darwin) | modules/hosts/macbook/ |
+        | cloud-proxy | NixOS VPS (caddy reverse proxy) | modules/hosts/cloud-proxy/ |
+        | oracle-cloud-bastion | NixOS server (hostName "bastion") | modules/hosts/oracle-cloud-bastion/ |
+        | racknerd-cloud-agent | NixOS server (attic cache) | modules/hosts/racknerd-cloud-agent/ |
+
+        Each host dir: default.nix (entity + aspect includes + agenix secrets),
+        system.nix (base system), machine.nix (hardware tuning), home.nix
+        (host-specific home config), plus per-concern sibling files — all merge
+        into den.aspects.<host> by name.
 
         ## Key Files — Where to make changes
 
         | What you want to do | File(s) to edit |
         |---------------------|-----------------|
-        | Add a NixOS desktop package | hosts/nixos/packages.nix |
-        | Add a common CLI package | hosts/common/home/packages.nix |
-        | Define a custom package from source | hosts/common/system/pkgs/default.nix (or new .nix file there) |
-        | Add a flake input | flake.nix (inputs section) |
-        | Add an overlay | hosts/common/system/overlays/default.nix |
-        | Configure a home-manager program | hosts/common/home/<program>.nix |
-        | NixOS system config (services, boot, etc.) | hosts/nixos/joe-desktop.nix or hosts/nixos/configuration.nix |
-        | macOS homebrew package | hosts/darwin/homebrew.nix |
-        | macOS system settings | hosts/darwin/defaults.nix |
-        | KDE Plasma config | hosts/nixos/plasma.nix |
-        | Fish shell config | hosts/common/home/fish/ |
-        | Git config | hosts/common/home/git.nix |
+        | Add a CLI package for every full home | modules/home/packages/default.nix (cli-packages aspect) |
+        | Add a workstation package | modules/home/packages/workstation.nix (linux-only: linux-workstation.nix) |
+        | Add a host-specific package | modules/hosts/<host>/home.nix (or its _packages payload) |
+        | Define a custom package from source | modules/flake/_pkgs/ (register in its default.nix) |
+        | Add a flake input | flake.nix (inputs; reference it only in the owning aspect) |
+        | Add an overlay | modules/flake/_overlays/default.nix (see its README) |
+        | New home-manager feature | modules/home/<feature>.nix as den.aspects.<feature>.homeManager, then add to a host's includes / home-baseline / users/joe.nix |
+        | NixOS system config for one host | modules/hosts/<host>/system.nix or a new sibling aspect file |
+        | Shared system feature | modules/system/<feature>.nix (aspect) |
+        | macOS homebrew package | modules/hosts/macbook/homebrew.nix |
+        | macOS system settings | modules/hosts/macbook/mac-system.nix |
+        | KDE Plasma config | modules/home/plasma.nix (shared) or modules/hosts/<host>/home.nix + _plasma-panels.nix |
+        | Fish shell config | modules/home/fish/ |
+        | Git config | modules/home/git.nix |
+        | AI tooling (claude/codex/antigravity/mcp) | modules/ai/ |
+        | User scripts (bins) | modules/home/bin/_scripts/<name>.nix |
 
         ## Package Patterns (copy these)
 
         **Nixpkgs stable:** `pkgs.packageName`
         **Nixpkgs unstable:** `unstable.packageName` (overlay provides `pkgs.unstable.*`)
-        **Custom package from GitHub (npm/yarn):** See `hosts/common/system/pkgs/default.nix`
-        **Custom package from GitHub (Go):** See `hosts/common/home/go.nix` — `claude-squad` using `buildGoModule`
-        **Custom package from GitHub (binary):** See `hosts/common/home/sprites.nix` — platform-specific binary fetch
-        **Custom Python package:** See `hosts/common/home/python/custom-pypi-packages.nix`
-        **Shell wrapper:** See `google-chrome-stable` or `aws-cli` in `hosts/common/system/pkgs/default.nix`
+        **Custom package from GitHub (npm/yarn):** See `modules/flake/_pkgs/default.nix`
+        **Custom package from GitHub (Go):** See `modules/home/_go.nix` — `buildGoModule` examples
+        **Custom package from GitHub (binary):** See `modules/home/_sprites.nix` — platform-specific binary fetch
+        **Custom Python package:** See `modules/home/_python/custom-pypi-packages.nix` (or run the `setup-python-packages` bins command)
+        **Shell wrapper:** See `google-chrome-stable` or `aws-cli` in `modules/flake/_pkgs/default.nix`
         **Flake input package:** Add input to `flake.nix`, use via overlay or direct reference
 
-        ## Overlays (hosts/common/system/overlays/default.nix)
+        ## Overlays (modules/flake/_overlays/default.nix)
 
-        - `additions` — custom packages from `hosts/common/system/pkgs/`
+        - `additions` — custom packages from `modules/flake/_pkgs/`
         - `modifications` — patches to existing packages
         - `unstable-packages` — makes `pkgs.unstable.*` available
         - `llm-agents-packages` — Claude Code, Codex, Gemini CLI
@@ -94,8 +110,9 @@
 
         - Formatter: nixfmt (pre-commit hook enforced)
         - Lint: statix, gitleaks
-        - Dual nixpkgs: stable (nixos-25.11) + unstable channel
-        - Apply NixOS: `sudo nixos-rebuild switch --flake .`
+        - Dual nixpkgs: stable (nixos-26.05) + unstable channel (`pkgs.unstable.*`)
+        - No URL pins (flake.lock is the pin; update via `just flake-update`)
+        - Apply NixOS: `just switch` (nh) or `sudo nixos-rebuild switch --flake .`
         - Apply macOS: `darwin-rebuild switch --flake .`
         - Test build: `nix build .#packageName`
 
