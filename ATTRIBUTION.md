@@ -53,9 +53,9 @@ from [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-
 
 **Skill (`skills/avoid-ai-writing/`).** `SKILL.md` is the upstream `SKILL.md`
 body. Per this repo's convention the YAML frontmatter was moved into
-`skills/avoid-ai-writing/skill.nix` (the build regenerates it); an attribution
-header comment and a short local section documenting the `avoid-ai-detect` CLI
-were added. The body is otherwise upstream.
+`skills/avoid-ai-writing/skill.nix` (the build regenerates it), and a short local
+section documenting the `avoid-ai-detect` CLI was added. The body is otherwise
+upstream.
 
 **Detector (`packages/avoid-ai-detect/`).** The engine and its tests are copied
 byte-for-byte (verifiably unmodified) from upstream `detector/`:

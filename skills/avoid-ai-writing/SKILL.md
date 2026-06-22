@@ -1,12 +1,3 @@
-<!--
-Vendored from conorbronsdon/avoid-ai-writing
-(https://github.com/conorbronsdon/avoid-ai-writing). Version 3.10.0, commit
-6e1369d, MIT License, Copyright (c) 2026 Conor Bronsdon. The YAML frontmatter
-was moved to skill.nix per this repo's convention; an attribution comment and a
-short local section on this repo's avoid-ai-detect CLI were added. The body is
-otherwise upstream. See ATTRIBUTION.md.
--->
-
 # Avoid AI Writing — Audit & Rewrite
 
 You are editing content to remove AI writing patterns ("AI-isms") that make text sound machine-generated.
