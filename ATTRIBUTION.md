@@ -79,6 +79,20 @@ AI writing," [blader/humanizer](https://github.com/blader/humanizer),
 [Aboudjem/humanizer-skill](https://github.com/Aboudjem/humanizer-skill), and the
 OpenClaw humanizer ecosystem. Those inline credits are preserved in the skill body.
 
+## Prose Craft Skill
+
+The `prose-craft` skill teaches generative writing techniques and keeps the
+coined terminology (freighting, telescoping, melted-together words, line-ups,
+recyclables with its simile-reforming / antiquing / soldering / culturing moves,
+netting, and hieroglyphics) from Gary and Glynis Hoffman's *Adios, Strunk and
+White: A Handbook for the New Academic Essay*.
+
+Copyright protects expression, not methods or ideas (17 USC 102(b)). This skill
+reproduces none of the book: every line of prose and every example in `SKILL.md`
+is original to this repo. The book is credited here as the source of the
+techniques and their names. No part of *Adios, Strunk and White*, or any summary
+of it, is included.
+
 ## RTK (Rust Token Killer)
 
 The `agent-skills-rtk` plugin vendors hook scripts and awareness markdowns from
