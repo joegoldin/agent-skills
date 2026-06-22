@@ -44,20 +44,34 @@ The skill prose is original; the `vibecad` CLI in `packages/vibecad/` is origina
 to this repo and adapts the upstream's design ideas (numbered revisions,
 parameter JSON files, multi-view rendering) without copying upstream code.
 
-## Avoid AI Writing Skill
+## Avoid AI Writing Skill + Detector
 
-The `avoid-ai-writing` skill is vendored from
-[conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing)
-(MIT License, Copyright (c) 2026 Conor Bronsdon). Vendored at upstream commit
-`6e1369dad98e61b165928f3849f225e11855cdaf` (v3.10.0):
+The `avoid-ai-writing` skill and the `avoid-ai-detect` detector CLI are vendored
+from [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing)
+(MIT License, Copyright (c) 2026 Conor Bronsdon), at upstream commit
+`6e1369dad98e61b165928f3849f225e11855cdaf` (v3.10.0).
 
-- `SKILL.md` → `skills/avoid-ai-writing/SKILL.md`
+**Skill (`skills/avoid-ai-writing/`).** `SKILL.md` is the upstream `SKILL.md`
+body. Per this repo's convention the YAML frontmatter was moved into
+`skills/avoid-ai-writing/skill.nix` (the build regenerates it); an attribution
+header comment and a short local section documenting the `avoid-ai-detect` CLI
+were added. The body is otherwise upstream.
 
-The body is upstream prose, unmodified except for an attribution header comment.
-Per this repo's convention the YAML frontmatter was moved out of `SKILL.md` into
-`skills/avoid-ai-writing/skill.nix`, which the build regenerates. The upstream
-detector engine, Cursor rules, test suite, and packaging are not vendored — the
-skill is self-contained and needs no external tools.
+**Detector (`packages/avoid-ai-detect/`).** The engine and its tests are copied
+byte-for-byte (verifiably unmodified) from upstream `detector/`:
+
+- `patterns.js` → `packages/avoid-ai-detect/patterns.js`
+- `CATEGORIES.md` → `packages/avoid-ai-detect/CATEGORIES.md`
+- `patterns.test.js` → `packages/avoid-ai-detect/patterns.test.js`
+- `categories.test.js` → `packages/avoid-ai-detect/categories.test.js`
+
+The upstream MIT `LICENSE` is preserved at `packages/avoid-ai-detect/LICENSE`.
+`default.nix`, `cli.js`, and `avoid-ai-detect.sh` are original to this repo: a
+Nix package plus a thin CLI (read file or stdin, run `AIDetector.analyzeText`,
+print a report or `--json`) wrapping the unmodified zero-dependency engine with
+`nodejs`. The skill calls the resulting `avoid-ai-detect` binary. Upstream's
+Cursor rules, GitHub workflows, and demo assets are not vendored; this repo
+builds its own multi-agent plugins.
 
 Upstream credits its own pattern research to Pangram Labs, Wikipedia's "Signs of
 AI writing," [blader/humanizer](https://github.com/blader/humanizer),

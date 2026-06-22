@@ -2,8 +2,9 @@
 Vendored from conorbronsdon/avoid-ai-writing
 (https://github.com/conorbronsdon/avoid-ai-writing). Version 3.10.0, commit
 6e1369d, MIT License, Copyright (c) 2026 Conor Bronsdon. The YAML frontmatter
-was moved to skill.nix per this repo's convention; the body is otherwise
-upstream. See ATTRIBUTION.md.
+was moved to skill.nix per this repo's convention; an attribution comment and a
+short local section on this repo's avoid-ai-detect CLI were added. The body is
+otherwise upstream. See ATTRIBUTION.md.
 -->
 
 # Avoid AI Writing — Audit & Rewrite
@@ -37,6 +38,19 @@ Trigger detect mode when the user says "detect," "flag only," "audit only," "jus
 **Invocation.** Natural language is enough ("rewrite this in a blunt voice for LinkedIn," "edit `post.md` in place," "scan this, don't rewrite"). Power users can also pass explicit options, which map to the sections below: `[--mode rewrite|detect|edit]`, `[--voice casual|professional|technical|warm|blunt]`, `[--context linkedin|blog|technical-blog|investor-email|docs|casual]`, `[--file PATH]`, `[--iterate N]` (max 2).
 
 **Iterate to convergence (optional).** Rewrite mode already runs one corrective second pass (see Output format) — that built-in pass *is* pass 2, so `--iterate` does not stack on top of it. When the writer asks to "iterate," "keep going until it's clean," or passes `--iterate N`, repeat the audit→rewrite cycle until no patterns remain or **N passes** are reached. Cap **N at 2**: a rewrite plus one corrective pass clears the flagged patterns, and a third pass costs a full regeneration while rarely finding more. Report how many passes it took ("converged in 2 passes").
+
+## Optional: the `avoid-ai-detect` tool
+
+This repo ships a deterministic companion CLI, `avoid-ai-detect`, that scores text from 0 to 100 and lists the regex-detectable tells with their severity. It is optional (the skill works without it), but it is useful for triage and for confirming a rewrite actually landed.
+
+```bash
+avoid-ai-detect draft.md                       # report: score, classification, flagged issues
+cat draft.md | avoid-ai-detect                 # same, reading from stdin
+avoid-ai-detect --json draft.md                # full result object (score, issues[], stats, class_probabilities)
+avoid-ai-detect --context technical draft.md   # relax flags that are legitimate in code-adjacent prose
+```
+
+How to use it: in **detect** mode, run it first to anchor the audit in a number and catch the machine-detectable hits, then add the judgment-call patterns from the catalog below that a regex cannot see. In **rewrite** and **edit** modes, run it before and after; a lower score on the second run is a quick objective check that the pass worked. The score is a signal, not a verdict (see "What this skill is and isn't" above). The prose rules in this file are the full catalog; the detector implements only the subset that survives as deterministic regex, plus a few stylometric signals it would not make sense to write out as rules.
 
 ---
 
