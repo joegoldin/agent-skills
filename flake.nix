@@ -69,6 +69,7 @@
           codeNotify = pkgs.callPackage ./packages/code-notify { };
           vibecad = pkgs.callPackage ./packages/vibecad { };
           pxd = pkgs.callPackage ./packages/pxd { };
+          avoidAiDetect = pkgs.callPackage ./packages/avoid-ai-detect { };
 
           # ── Claude plugin ──
           claude-plugin = build.buildPlugin {
@@ -77,7 +78,11 @@
             inherit skills;
             hooksDir = ./hooks;
             attributionFile = ./ATTRIBUTION.md;
-            extraPackages = [ vibecad pxd ];
+            extraPackages = [
+              vibecad
+              pxd
+              avoidAiDetect
+            ];
           };
 
           # ── Antigravity plugin ──
@@ -87,7 +92,11 @@
             inherit skills;
             hooksDir = ./hooks;
             attributionFile = ./ATTRIBUTION.md;
-            extraPackages = [ vibecad pxd ];
+            extraPackages = [
+              vibecad
+              pxd
+              avoidAiDetect
+            ];
           };
 
           # ── Codex plugin ──
@@ -97,7 +106,11 @@
             inherit skills;
             hooksDir = ./hooks;
             attributionFile = ./ATTRIBUTION.md;
-            extraPackages = [ vibecad pxd ];
+            extraPackages = [
+              vibecad
+              pxd
+              avoidAiDetect
+            ];
           };
 
           # ── Cross-agent plugins (rtk, temporal, code-notify) ──
@@ -135,6 +148,7 @@
         // crossPlugins
         // {
           default = claude-plugin;
+          avoid-ai-detect = avoidAiDetect;
           inherit
             claude-plugin
             antigravity-plugin
@@ -204,6 +218,10 @@
 
               touch $out
             '';
+
+          # Builds the detector package, whose checkPhase runs the vendored
+          # engine tests (patterns.test.js + categories.test.js).
+          avoid-ai-detect = pkgs.callPackage ./packages/avoid-ai-detect { };
         }
       );
 
