@@ -44,6 +44,27 @@ The skill prose is original; the `vibecad` CLI in `packages/vibecad/` is origina
 to this repo and adapts the upstream's design ideas (numbered revisions,
 parameter JSON files, multi-view rendering) without copying upstream code.
 
+## Avoid AI Writing Skill
+
+The `avoid-ai-writing` skill is vendored from
+[conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing)
+(MIT License, Copyright (c) 2026 Conor Bronsdon). Vendored at upstream commit
+`6e1369dad98e61b165928f3849f225e11855cdaf` (v3.10.0):
+
+- `SKILL.md` → `skills/avoid-ai-writing/SKILL.md`
+
+The body is upstream prose, unmodified except for an attribution header comment.
+Per this repo's convention the YAML frontmatter was moved out of `SKILL.md` into
+`skills/avoid-ai-writing/skill.nix`, which the build regenerates. The upstream
+detector engine, Cursor rules, test suite, and packaging are not vendored — the
+skill is self-contained and needs no external tools.
+
+Upstream credits its own pattern research to Pangram Labs, Wikipedia's "Signs of
+AI writing," [blader/humanizer](https://github.com/blader/humanizer),
+[brandonwise/humanizer](https://github.com/brandonwise/humanizer),
+[Aboudjem/humanizer-skill](https://github.com/Aboudjem/humanizer-skill), and the
+OpenClaw humanizer ecosystem. Those inline credits are preserved in the skill body.
+
 ## RTK (Rust Token Killer)
 
 The `agent-skills-rtk` plugin vendors hook scripts and awareness markdowns from
