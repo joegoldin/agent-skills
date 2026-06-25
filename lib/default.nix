@@ -64,6 +64,56 @@ let
       drv = buildSkillDrv name meta dir;
     }) validNames;
 
+  # ── Web/app uploadable skills bundle ──
+  # Emits $out/<name>/ for every skill so each top-level folder is a complete,
+  # ready-to-zip skill (folder = zip root for the Claude web/app
+  # "Customize > Skills" upload format). Reuses each skill's per-skill drv
+  # (SKILL.md with frontmatter + scripts/references/examples already assembled).
+  #
+  # avoid-ai-writing is made self-contained for the web/app code sandbox: the
+  # pure-Node detector (cli.js + patterns.js) is vendored into its scripts/ and
+  # the SKILL.md command invocations are rewritten to `node scripts/cli.js`.
+  # No deps are bundled — the engine is Node stdlib only.
+  buildWebBundle =
+    {
+      name ? "web-skills",
+      skills,
+      avoidAiDetectSrc,
+    }:
+    let
+      copyCmds = lib.concatMapStringsSep "\n" (
+        s: "cp -r ${s.drv}/skills/${s.name} $out/${s.name}"
+      ) skills;
+    in
+    pkgs.runCommand name { } ''
+      mkdir -p $out
+      ${copyCmds}
+
+      # ── Make avoid-ai-writing self-contained for the web/app sandbox ──
+      aaw=$out/avoid-ai-writing
+      if [ -d "$aaw" ]; then
+        chmod -R u+w "$aaw"
+        mkdir -p "$aaw/scripts"
+        # Only the two files the engine actually needs at runtime; cli.js
+        # resolves patterns.js via __dirname. (CATEGORIES.md is docs-only and
+        # neither loaded nor referenced, so it is deliberately not copied.)
+        cp ${avoidAiDetectSrc}/cli.js "$aaw/scripts/cli.js"
+        cp ${avoidAiDetectSrc}/patterns.js "$aaw/scripts/patterns.js"
+
+        # Surgical rewrite: command invocations + allowed-tools only. Prose
+        # mentions of the engine name are intentionally left intact.
+        sed -i \
+          -e 's#^avoid-ai-detect #node scripts/cli.js #' \
+          -e 's#| avoid-ai-detect#| node scripts/cli.js#' \
+          -e 's#Bash(avoid-ai-detect:\*)#Bash(node:*)#' \
+          -e 's#Bash(avoid-ai-detect)#Bash(node)#' \
+          "$aaw/SKILL.md"
+
+        # Declare the runtime dependency (Node stdlib; no npm packages).
+        sed -i '0,/^description:/ s/^description:/dependencies: node>=18\ndescription:/' "$aaw/SKILL.md"
+      fi
+    '';
+
   # ── Build using-agent-skills content (shared across targets) ──
   buildUsingAgentSkillsContent =
     skills:
@@ -441,6 +491,7 @@ in
 {
   inherit
     discoverSkills
+    buildWebBundle
     buildPlugin
     evalSkillNix
     buildSkillDrv

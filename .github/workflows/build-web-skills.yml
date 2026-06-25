@@ -1,0 +1,43 @@
+name: Build web skills bundle
+
+# Builds the Nix flake and uploads one combined zip artifact containing every
+# skill as a folder, ready to upload to the Claude web/app "Customize > Skills"
+# UI (each skill folder is its own zip root — re-zip a single folder to upload).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The flake has a private SSH input (codex-nix). Building `.#web-skills`
+      # only forces the public inputs (nixpkgs, claude-nix) via lazy eval, so
+      # no SSH is needed. If a future change makes codex-nix get fetched here,
+      # uncomment the step below and add a CODEX_NIX_DEPLOY_KEY secret:
+      # - uses: webfactory/ssh-agent@v0.9.0
+      #   with:
+      #     ssh-private-key: ${{ secrets.CODEX_NIX_DEPLOY_KEY }}
+
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Build web skills bundle
+        run: nix build .#web-skills --print-build-logs -o result-web
+
+      - name: Stage artifact
+        # cp -L dereferences the result symlink into real files; upload-artifact
+        # does not follow Nix store symlinks.
+        run: |
+          mkdir -p dist
+          cp -rL result-web/. dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: claude-skills
+          path: dist
+          if-no-files-found: error
