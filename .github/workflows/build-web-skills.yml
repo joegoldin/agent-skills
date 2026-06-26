@@ -1,0 +1,80 @@
+name: Build web skills bundle
+
+# Builds the Nix flake and uploads a single artifact containing one .zip per
+# skill, each ready to upload to the Claude web/app "Customize > Skills" UI.
+# The UI requires every uploaded zip to contain exactly one top-level folder
+# and exactly one SKILL.md, so each skill is zipped on its own.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# actions:write is needed to delete old artifacts from previous runs.
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The flake has a private SSH input (codex-nix). Building `.#web-skills`
+      # only forces the public inputs (nixpkgs, claude-nix) via lazy eval, so
+      # no SSH is needed. If a future change makes codex-nix get fetched here,
+      # uncomment the step below and add a CODEX_NIX_DEPLOY_KEY secret:
+      # - uses: webfactory/ssh-agent@v0.9.0
+      #   with:
+      #     ssh-private-key: ${{ secrets.CODEX_NIX_DEPLOY_KEY }}
+
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Build web skills bundle
+        run: nix build .#web-skills --print-build-logs -o result-web
+
+      - name: Package one zip per skill
+        # cp -L dereferences the result symlink (upload-artifact / zip won't
+        # follow Nix store symlinks); chmod makes the extracted files writable.
+        # Each skill folder is zipped on its own so the zip root has exactly one
+        # top-level folder + one SKILL.md, as the upload UI requires.
+        run: |
+          set -euo pipefail
+          rm -rf staging dist
+          mkdir -p staging dist
+          cp -rL result-web/. staging/
+          chmod -R u+w staging
+          cd staging
+          for name in */; do
+            name="${name%/}"
+            zip -q -r -X "../dist/${name}.zip" "$name"
+          done
+          cd ..
+          echo "Packaged $(ls dist/*.zip | wc -l) skill zips:"
+          ls -1 dist
+
+      - name: Delete old artifacts from previous runs
+        # Keeps GitHub storage from growing: removes any prior "claude-skills"
+        # artifacts before uploading the fresh one (current run's isn't created
+        # yet, so it is never deleted here).
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ids=$(gh api --paginate \
+            "repos/${{ github.repository }}/actions/artifacts" \
+            --jq '.artifacts[] | select(.name=="claude-skills") | .id')
+          for id in $ids; do
+            echo "Deleting old artifact $id"
+            gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id" || true
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: claude-skills
+          path: dist
+          if-no-files-found: error
+          # Backstop in case a run can't clean up (e.g. the delete step fails).
+          retention-days: 7

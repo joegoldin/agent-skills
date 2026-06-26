@@ -143,11 +143,21 @@
               value = s.drv;
             }) skills
           );
+
+          # ── Web/app uploadable skills bundle ──
+          # One folder per skill (folder = zip root for the Claude web/app
+          # "Customize > Skills" upload format). avoid-ai-writing ships its
+          # Node detector vendored into scripts/ so it runs in the sandbox.
+          web-skills = build.buildWebBundle {
+            inherit skills;
+            avoidAiDetectSrc = ./packages/avoid-ai-detect;
+          };
         in
         perSkillPackages
         // crossPlugins
         // {
           default = claude-plugin;
+          inherit web-skills;
           avoid-ai-detect = avoidAiDetect;
           inherit
             claude-plugin
