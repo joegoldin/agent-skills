@@ -93,20 +93,6 @@ is original to this repo. The book is credited here as the source of the
 techniques and their names. No part of *Adios, Strunk and White*, or any summary
 of it, is included.
 
-## RTK (Rust Token Killer)
-
-The `agent-skills-rtk` plugin vendors hook scripts and awareness markdowns from
-[rtk-ai/rtk](https://github.com/rtk-ai/rtk) (Apache License 2.0). Vendored at
-upstream commit `5a149a7fdb92afe758a0c28d805873ce61d8259f` from:
-
-- `hooks/claude/rtk-rewrite.sh` → `plugins/rtk/hooks/claude/rtk-rewrite.sh`
-- `hooks/claude/rtk-awareness.md` → `plugins/rtk/hooks/claude/rtk-awareness.md`
-- `hooks/codex/rtk-awareness.md` → `plugins/rtk/hooks/codex/rtk-awareness.md`
-- `hooks/antigravity/rules.md` → `plugins/rtk/hooks/antigravity/rules.md`
-
-The full Apache-2.0 LICENSE is preserved at `plugins/rtk/LICENSE`. The `rtk`
-binary itself is consumed unmodified from nixpkgs (`pkgs.rtk`).
-
 ## temporal hook
 
 The `agent-skills-temporal` plugin vendors `temporal.py` from

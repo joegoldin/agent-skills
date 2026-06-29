@@ -113,9 +113,9 @@
             ];
           };
 
-          # ── Cross-agent plugins (rtk, temporal, code-notify) ──
+          # ── Cross-agent plugins (temporal, code-notify) ──
           # Discovered from ./plugins; built per target. Exposed as
-          # "<name>-<target>" packages (e.g. rtk-claude, temporal-codex).
+          # "<name>-<target>" packages (e.g. temporal-claude, temporal-codex).
           targetLibs = {
             claude = claudeLib;
             antigravity = agyLib;
