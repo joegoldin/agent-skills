@@ -2,8 +2,8 @@
 
 ## Superpowers Skills
 
-The following skills are derived from [obra/superpowers](https://github.com/obra/superpowers),
-licensed under the MIT License:
+The following skills are derived from [obra/superpowers](https://github.com/obra/superpowers)
+(vendored at upstream **v6.1.1**), licensed under the MIT License:
 
 - brainstorming
 - dispatching-parallel-agents
@@ -20,7 +20,27 @@ licensed under the MIT License:
 - writing-plans
 - writing-skills
 
-These skills have been copied and may be modified from their originals.
+These skills have been copied and modified from their originals. Local changes are
+kept minimal and are limited to:
+
+- **Genericization** — the `Superpowers` project name and its filesystem
+  conventions are renamed for this plugin: cross-skill references drop the
+  `superpowers:` namespace prefix, `~/.config/superpowers/` → `~/.config/agent-skills/`,
+  `.superpowers/brainstorm/` → `.agent-skills/brainstorm/`, `docs/superpowers/{plans,specs}/`
+  → `docs/plans/`, `using-superpowers` → `using-agent-skills`, and visible
+  "Superpowers" UI branding is dropped. Frontmatter is moved into each skill's
+  `skill.nix` (the Nix build regenerates it).
+- **Worktree conventions** — `using-git-worktrees` / `finishing-a-development-branch`
+  default new worktrees to `~/.worktrees/$project/$BRANCH_NAME` and recognize the
+  legacy `~/.config/agent-skills/worktrees/` path.
+- **`brainstorming` visual companion** — `scripts/server.cjs` `brandMarkup()` is
+  neutralized to render nothing, which drops the Superpowers brand footer and
+  avoids the remote `primeradiant.com` brand-image request (a version-tagged
+  beacon) so the companion never phones home.
+- **`using-agent-skills` harness references** — scoped to this plugin's build
+  targets: `references/codex-tools.md` (Codex) and `references/antigravity-tools.md`
+  (Antigravity). Upstream's `copilot`/`gemini`/`pi` reference files are not vendored.
+
 See the superpowers repository for the original versions.
 
 ## Other Skills
