@@ -20,6 +20,44 @@ let
     else
       raw;
 
+  # ── Target-neutral agent spec → per-target agent derivation ──
+  # Skills declare subagents once as a spec so the same definition lands in
+  # every target's native format:
+  #   { name; description; prompt; tools ? [ ]; model ? null; }
+  # Claude/Antigravity take (attrs: body); Codex takes a single attrs with the
+  # prompt as `developer_instructions` and has no tool-restriction field.
+  mkClaudeAgentFromSpec =
+    a:
+    claudeLib.mkAgent (
+      {
+        inherit (a) name description;
+        tools = a.tools or [ ];
+      }
+      // lib.optionalAttrs (a ? model) { inherit (a) model; }
+    ) a.prompt;
+
+  mkCodexAgentFromSpec =
+    a:
+    assert codexLib != null;
+    codexLib.mkAgent (
+      {
+        inherit (a) name description;
+        developer_instructions = a.prompt;
+      }
+      // lib.optionalAttrs (a ? model) { inherit (a) model; }
+    );
+
+  mkAgyAgentFromSpec =
+    a:
+    assert agyLib != null;
+    agyLib.mkAgent (
+      {
+        inherit (a) name description;
+        tools = a.tools or [ ];
+      }
+      // lib.optionalAttrs (a ? model) { inherit (a) model; }
+    ) a.prompt;
+
   buildSkillDrv =
     name: meta: skillDir:
     let
@@ -239,6 +277,11 @@ let
     let
       allCommands = lib.concatMap (s: s.meta.commands or [ ]) skills;
       allAgents = lib.concatMap (s: s.meta.agents or [ ]) skills;
+      # Target-neutral agent specs → Claude agents. Skills declare agents once
+      # as `{ name; description; prompt; tools?; model?; }` so the same spec can
+      # be re-targeted to Codex/Antigravity by the other build functions.
+      allAgentSpecs = lib.concatMap (s: s.meta.agentSpecs or [ ]) skills;
+      claudeSpecAgents = map (a: mkClaudeAgentFromSpec a) allAgentSpecs;
       allMcpServers = lib.foldl' (acc: s: acc // (s.meta.mcpServers or { })) { } skills;
       allLspServers = lib.foldl' (acc: s: acc // (s.meta.lspServers or { })) { } skills;
 
@@ -246,7 +289,7 @@ let
         inherit name description;
         skills = map (s: s.drv) skills;
         commands = allCommands;
-        agents = allAgents;
+        agents = allAgents ++ claudeSpecAgents;
         mcpServers = allMcpServers;
         lspServers = allLspServers;
       };
@@ -300,13 +343,23 @@ let
     let
       agySkills = map (buildSkillForTarget agyLib.mkSkill) skills;
 
+      agyAgents = map mkAgyAgentFromSpec (lib.concatMap (s: s.meta.agentSpecs or [ ]) skills);
+
+      # Skill-scoped MCP servers → Antigravity per-plugin mcp_config.json.
+      # stdio (command/args/env) passes through verbatim (identical across
+      # targets); remote servers would need serverUrl/header conversion.
+      skillMcpServers = lib.foldl' (acc: s: acc // (s.meta.mcpServers or { })) { } skills;
+      agyMcpServers = lib.mapAttrsToList (n: c: agyLib.mkMcpServer ({ name = n; } // c)) skillMcpServers;
+
       sessionStartHooks =
         if hooksDir != null then buildAntigravityHooks { inherit name skills hooksDir; } else [ ];
 
       plugin = agyLib.mkPlugin {
-        inherit name description mcpServers;
+        inherit name description;
         skills = agySkills;
+        agents = agyAgents;
         hooks = hooks ++ sessionStartHooks;
+        mcpServers = mcpServers ++ agyMcpServers;
       };
 
       attributionDrv = lib.optional (attributionFile != null) (
@@ -339,6 +392,8 @@ let
 
       allMcpServers = lib.foldl' (acc: s: acc // (s.meta.mcpServers or { })) { } skills;
 
+      codexAgents = map mkCodexAgentFromSpec (lib.concatMap (s: s.meta.agentSpecs or [ ]) skills);
+
       sessionStartHooks =
         if hooksDir != null then buildCodexHooks { inherit name skills hooksDir; } else [ ];
 
@@ -348,6 +403,7 @@ let
         skills = codexSkills;
         hooks = hooks ++ sessionStartHooks;
         mcpServers = allMcpServers;
+        agents = codexAgents;
       };
 
       attributionDrv = lib.optional (attributionFile != null) (

@@ -125,19 +125,20 @@
     )
   ];
 
-  agents = [
-    (claudeLib.mkAgent
-      {
-        name = "nix-analyzer";
-        description = "Specialized agent for analyzing Nix code";
-        tools = [
-          "Read"
-          "Glob"
-          "Grep"
-          "Bash(${pkgs.statix}/bin/statix)"
-        ];
-      }
-      ''
+  # Target-neutral agent spec: the build system re-targets this to Claude
+  # (agents/*.md), Codex ([agents.*] + config layer TOML), and Antigravity
+  # (agents/*.md) so the subagent exists in every tool.
+  agentSpecs = [
+    {
+      name = "nix-analyzer";
+      description = "Specialized agent for analyzing Nix code";
+      tools = [
+        "Read"
+        "Glob"
+        "Grep"
+        "Bash(${pkgs.statix}/bin/statix)"
+      ];
+      prompt = ''
         You are an expert Nix code analyzer. When asked to analyze Nix code:
 
         1. Search for all .nix files in the project
@@ -147,8 +148,8 @@
         5. Explain any complex Nix patterns found
 
         Be thorough and educational in your analysis.
-      ''
-    )
+      '';
+    }
   ];
 
   mcpServers = {

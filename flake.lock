@@ -7,11 +7,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1781027062,
-        "narHash": "sha256-HCp/ULLJFzqptXaMTNqyQe6BWxrJNE6bT6V0dKGHvv8=",
+        "lastModified": 1783622948,
+        "narHash": "sha256-V+jDE+lm/yWBQ+7/b4ms/uMmnKxaTZF++iv4FbqxIc0=",
         "owner": "joegoldin",
         "repo": "antigravity-cli-nix",
-        "rev": "f61704e74b5b32237b12c4e05a8bd442477094c3",
+        "rev": "7275089162f5c093d993e5b7cf1a9108b616ae80",
         "type": "github"
       },
       "original": {
@@ -48,11 +48,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1781027062,
-        "narHash": "sha256-ItTRHUXqzsigIikbqWxpF0ixGz1BiSwF1ou5pN6yyRg=",
+        "lastModified": 1783622841,
+        "narHash": "sha256-fnVClMw0u0BfOCJsQGOXRSCzAFU4Nj5yPCMy5Aji7Uk=",
         "ref": "refs/heads/main",
-        "rev": "d702bdd5476ee3e548fa6252fd074c4438d45a6c",
-        "revCount": 4,
+        "rev": "ee2693cd637dd860579c25b59762a21d201a1b84",
+        "revCount": 5,
         "type": "git",
         "url": "ssh://git@github.com/joegoldin/codex-nix.git"
       },
