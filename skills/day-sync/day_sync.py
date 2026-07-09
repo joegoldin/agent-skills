@@ -49,6 +49,12 @@ GWS_BIN = _cfg("gws_bin", "gws", env="GWS_BIN")
 GH_BIN = _cfg("gh_bin", "gh", env="GH_BIN")
 GH_ORG = _cfg("gh_org")  # PR section is skipped entirely when unset
 WORK_TAG = _cfg("work_tag", "#work")
+# Optional sprint awareness: tasks that belong to the sprint whose date range
+# contains today get flagged, sorted first, and preselected for insertion.
+# Leave notion_sprint_data_source_id unset to skip sprint handling entirely.
+NOTION_SPRINT_DATA_SOURCE_ID = _cfg("notion_sprint_data_source_id")
+SPRINT_RELATION_PROP = _cfg("notion_sprint_relation_prop", "Sprint")
+SPRINT_DATES_PROP = _cfg("notion_sprint_dates_prop", "Dates")
 
 # Statuses treated as "done" client-side (plate + sync-back baseline)…
 PLATE_EXCLUDE = {s.lower() for s in _cfg("done_statuses", ["done", "complete", "released", "archived"])}
@@ -178,40 +184,43 @@ def parse_notion_page(page: dict) -> dict:
 
     title = ""
     due = None
+    sprints: list[str] = []
     for name, val in props.items():
         if (val or {}).get("type") == "title":
             title = plain(val.get("title"))
         if "due" in name.lower() and (val or {}).get("type") == "date":
             start = (val.get("date") or {}).get("start")
             due = start[:10] if start else None
+        if name == SPRINT_RELATION_PROP and (val or {}).get("type") == "relation":
+            sprints = [bare_id(r.get("id", "")) for r in (val.get("relation") or [])]
     status = (((props.get("Status") or {}).get("status")) or {}).get("name", "")
     pid = page.get("id", "")
     return {"id": pid, "bare": bare_id(pid), "url": page.get("url", ""),
-            "title": title, "status": status, "due": due}
+            "title": title, "status": status, "due": due,
+            "sprints": sprints, "in_sprint": False}
 
 
 def notion_sort_key(t: dict):
     s = t["status"].lower()
-    return (STATUS_ORDER.get(s, 3), s, t["due"] or "9999-99-99", t["title"].lower())
+    return (0 if t.get("in_sprint") else 1,
+            STATUS_ORDER.get(s, 3), s, t["due"] or "9999-99-99", t["title"].lower())
 
 
-def fetch_notion_tasks() -> list[dict]:
+def _notion_headers() -> dict:
+    token = NOTION_TOKEN_FILE.read_text().strip()
+    return {"Authorization": f"Bearer {token}", "Notion-Version": NOTION_VERSION,
+            "Content-Type": "application/json"}
+
+
+def _notion_query(data_source_id: str, body: dict) -> list[dict]:
     import requests
 
-    if not NOTION_USER_ID or not NOTION_DATA_SOURCE_ID:
-        raise RuntimeError(f"set notion_user_id + notion_data_source_id in {CONFIG_FILE}")
-    token = NOTION_TOKEN_FILE.read_text().strip()
-    headers = {"Authorization": f"Bearer {token}", "Notion-Version": NOTION_VERSION,
-               "Content-Type": "application/json"}
-    conds = [{"property": "Assignee", "people": {"contains": NOTION_USER_ID}}]
-    for s in QUERY_EXCLUDE_STATUSES:
-        conds.append({"property": "Status", "status": {"does_not_equal": s}})
-    body = {"filter": {"and": conds} if len(conds) > 1 else conds[0], "page_size": 100}
+    headers = _notion_headers()
     results, cursor = [], None
     while True:
         if cursor:
             body["start_cursor"] = cursor
-        r = requests.post(f"{NOTION_BASE}/data_sources/{NOTION_DATA_SOURCE_ID}/query",
+        r = requests.post(f"{NOTION_BASE}/data_sources/{data_source_id}/query",
                           headers=headers, json=body, timeout=30)
         r.raise_for_status()
         data = r.json()
@@ -219,10 +228,54 @@ def fetch_notion_tasks() -> list[dict]:
         if not data.get("has_more"):
             break
         cursor = data.get("next_cursor")
+    return results
+
+
+def fetch_notion_tasks() -> list[dict]:
+    if not NOTION_USER_ID or not NOTION_DATA_SOURCE_ID:
+        raise RuntimeError(f"set notion_user_id + notion_data_source_id in {CONFIG_FILE}")
+    conds = [{"property": "Assignee", "people": {"contains": NOTION_USER_ID}}]
+    for s in QUERY_EXCLUDE_STATUSES:
+        conds.append({"property": "Status", "status": {"does_not_equal": s}})
+    body = {"filter": {"and": conds} if len(conds) > 1 else conds[0], "page_size": 100}
+    results = _notion_query(NOTION_DATA_SOURCE_ID, body)
     tasks = [parse_notion_page(p) for p in results]
     tasks = [t for t in tasks if t["status"].lower() not in PLATE_EXCLUDE]
     tasks.sort(key=notion_sort_key)
     return tasks
+
+
+def parse_sprint_page(page: dict) -> dict:
+    props = page.get("properties", {})
+    title = ""
+    start = end = None
+    for name, val in props.items():
+        if (val or {}).get("type") == "title":
+            title = "".join(t.get("plain_text", "") for t in (val.get("title") or []))
+        elif name == SPRINT_DATES_PROP and (val or {}).get("type") == "date" \
+                and (val.get("date") or {}).get("start"):
+            d = val["date"]
+            start = d["start"][:10]
+            end = (d.get("end") or d["start"])[:10]
+    pid = page.get("id", "")
+    return {"id": pid, "bare": bare_id(pid), "title": title, "start": start, "end": end}
+
+
+def pick_current_sprint(sprints: list[dict], today: date) -> dict | None:
+    """The sprint whose date range contains `today`. Dates are authoritative
+    (the Status field lags). On overlap the latest-starting sprint wins."""
+    td = today.isoformat()
+    active = sorted((s for s in sprints if s["start"] and s["end"] and s["start"] <= td <= s["end"]),
+                    key=lambda s: s["start"])
+    return active[-1] if active else None
+
+
+def fetch_current_sprint(today: date) -> dict | None:
+    if not NOTION_SPRINT_DATA_SOURCE_ID:
+        return None
+    sprints = [parse_sprint_page(p)
+               for p in _notion_query(NOTION_SPRINT_DATA_SOURCE_ID, {"page_size": 100})]
+    return pick_current_sprint(sprints, today)
 
 
 def parse_gcal_events(items: list[dict]) -> list[dict]:
@@ -371,11 +424,20 @@ def correlate(prs: list[dict], notion: list[dict], todos: list[str]) -> dict:
 def gather(week: bool = False) -> dict:
     today = datetime.now(TZ).date()
     data = {"date": today.isoformat(), "events": [], "notion": [], "note": {},
-            "sync_back": [], "warnings": []}
+            "sync_back": [], "warnings": [], "sprint": None}
     try:
         data["notion"] = fetch_notion_tasks()
     except Exception as e:  # noqa: BLE001 — degrade, don't die
         data["warnings"].append(f"notion: {e}")
+    try:
+        sprint = fetch_current_sprint(today)
+        data["sprint"] = sprint
+        if sprint and data["notion"]:
+            for t in data["notion"]:
+                t["in_sprint"] = sprint["bare"] in t.get("sprints", [])
+            data["notion"].sort(key=notion_sort_key)
+    except Exception as e:  # noqa: BLE001 — sprint down ≠ brief down
+        data["warnings"].append(f"sprint: {e}")
     end = today + timedelta(days=6) if week else today
     try:
         data["events"] = fetch_events(today, end)
@@ -426,19 +488,35 @@ def render_text(data: dict, week: bool = False) -> str:
             out.append(f"  ◦ gap {s}–{e_} ({mins}m)")
         out.append("")
     if data["notion"]:
-        out.append("## Notion plate (assigned, not done)")
-        cur = None
-        for t in data["notion"]:
-            if t["status"] != cur:
-                out.append(f"### {t['status'] or 'No status'}")
-                cur = t["status"]
-            flag = ""
-            if t["due"]:
-                flag = " ‼️ OVERDUE" if t["due"] < data["date"] else (
-                    " ⏰ due today" if t["due"] == data["date"] else f" (due {t['due']})")
-            mark = " ✓tracked" if t["bare"] in set(data.get("tracked_ids", [])) else ""
-            out.append(f"- {t['title']}{flag}{mark}\n  {t['url']}")
-        out.append("")
+        tracked = set(data.get("tracked_ids", []))
+
+        def due_flag(t: dict) -> str:
+            if not t["due"]:
+                return ""
+            return " ‼️ OVERDUE" if t["due"] < data["date"] else (
+                " ⏰ due today" if t["due"] == data["date"] else f" (due {t['due']})")
+
+        def tracked_mark(t: dict) -> str:
+            return " ✓tracked" if t["bare"] in tracked else ""
+
+        sprint = data.get("sprint")
+        in_sprint = [t for t in data["notion"] if t.get("in_sprint")]
+        if sprint and in_sprint:
+            out.append(f"## Current sprint — {sprint['title']} ({sprint['start']} → {sprint['end']})")
+            for t in in_sprint:
+                out.append(f"- {t['title']} [{t['status'] or 'No status'}]"
+                           f"{due_flag(t)}{tracked_mark(t)}\n  {t['url']}")
+            out.append("")
+        rest = [t for t in data["notion"] if not t.get("in_sprint")]
+        if rest:
+            out.append("## Notion plate (assigned, not done)")
+            cur = None
+            for t in rest:
+                if t["status"] != cur:
+                    out.append(f"### {t['status'] or 'No status'}")
+                    cur = t["status"]
+                out.append(f"- {t['title']}{due_flag(t)}{tracked_mark(t)}\n  {t['url']}")
+            out.append("")
     if data.get("prs"):
         out.append("## Pull requests")
         corr = data.get("pr_correlation", {})
@@ -495,8 +573,9 @@ def build_candidates(data: dict, note_text: str) -> list[dict]:
     for t in data["notion"]:
         if t["bare"] in tracked:
             continue
+        preselected = bool(t.get("in_sprint")) or t["status"].lower() == "in progress"
         cands.append({"kind": "notion", "label": f"{t['title']} ({t['status']})",
-                      "line": task_line(t), "preselected": t["status"].lower() == "in progress"})
+                      "line": task_line(t), "preselected": preselected})
     for pr in data.get("prs", []):
         if pr["kind"] != "review" or pr["draft"] or pr_in_note(pr, note_text):
             continue

@@ -148,6 +148,82 @@ def test_notion_sort_key():
     assert [t["title"] for t in tasks] == ["due-soon", "no-due", "z-later"]
 
 
+def test_notion_sort_key_sprint_first():
+    blocked_in_sprint = ds.parse_notion_page(_page("sprint-blocked", "Blocked"))
+    blocked_in_sprint["in_sprint"] = True
+    in_progress_off = ds.parse_notion_page(_page("off-sprint-active", "In progress"))
+    tasks = [in_progress_off, blocked_in_sprint]
+    tasks.sort(key=ds.notion_sort_key)
+    assert [t["title"] for t in tasks] == ["sprint-blocked", "off-sprint-active"]
+
+
+def test_parse_notion_page_sprint_relation():
+    page = _page("Fix seats", "In progress")
+    page["properties"]["Sprint"] = {
+        "type": "relation",
+        "relation": [{"id": "3971452d-b6a5-80b1-8ca6-e1bc7cb30947"}],
+    }
+    t = ds.parse_notion_page(page)
+    assert t["sprints"] == ["3971452db6a580b18ca6e1bc7cb30947"]
+    assert t["in_sprint"] is False
+
+
+def _sprint_page(title, start, end):
+    return {"id": "3971452d-b6a5-80b1-8ca6-e1bc7cb30947", "url": "x",
+            "properties": {
+                "Name": {"type": "title", "title": [{"plain_text": title}]},
+                "Dates": {"type": "date", "date": {"start": start, "end": end}},
+                "Status": {"type": "status", "status": {"name": "Not started"}},
+            }}
+
+
+def test_parse_sprint_page():
+    s = ds.parse_sprint_page(_sprint_page("H2 Kick Off", "2026-07-09", "2026-07-22"))
+    assert s["title"] == "H2 Kick Off"
+    assert s["start"] == "2026-07-09"
+    assert s["end"] == "2026-07-22"
+    assert s["bare"] == "3971452db6a580b18ca6e1bc7cb30947"
+
+
+def test_parse_sprint_page_single_day():
+    # a Dates value with no end falls back to the start date
+    s = ds.parse_sprint_page({"id": "abc", "properties": {
+        "Dates": {"type": "date", "date": {"start": "2026-07-09"}}}})
+    assert s["start"] == "2026-07-09"
+    assert s["end"] == "2026-07-09"
+
+
+def test_pick_current_sprint():
+    from datetime import date as _date
+    sprints = [
+        {"title": "Feature Delivery 2x", "start": "2026-06-24", "end": "2026-07-01", "bare": "c"},
+        {"title": "PC Mag Focus", "start": "2026-07-01", "end": "2026-07-08", "bare": "a"},
+        {"title": "H2 Kick Off", "start": "2026-07-09", "end": "2026-07-22", "bare": "b"},
+    ]
+    assert ds.pick_current_sprint(sprints, _date(2026, 7, 9))["title"] == "H2 Kick Off"
+    assert ds.pick_current_sprint(sprints, _date(2026, 7, 8))["title"] == "PC Mag Focus"
+    # overlapping boundary (7/1 ends Feature Delivery, starts PC Mag) → latest start wins
+    assert ds.pick_current_sprint(sprints, _date(2026, 7, 1))["title"] == "PC Mag Focus"
+    assert ds.pick_current_sprint(sprints, _date(2026, 8, 1)) is None
+
+
+def test_build_candidates_sprint_preselected():
+    data = {
+        "date": "2026-07-08", "events": [], "tracked_ids": [], "prs": [],
+        "notion": [
+            {"title": "Sprint task", "bare": "s1", "due": None, "status": "Scoping",
+             "url": "u", "in_sprint": True},
+            {"title": "Off-sprint task", "bare": "o1", "due": None, "status": "Scoping",
+             "url": "u", "in_sprint": False},
+        ],
+    }
+    note = "## Today\n\n\n## Thoughts\n"
+    cands = ds.build_candidates(data, note)
+    by_label = {c["label"]: c for c in cands}
+    assert by_label["Sprint task (Scoping)"]["preselected"] is True
+    assert by_label["Off-sprint task (Scoping)"]["preselected"] is False
+
+
 def test_conflicts_and_gaps():
     events = [
         {"title": "one", "start": dt(9), "end": dt(10), "all_day": False},

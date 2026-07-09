@@ -18,6 +18,9 @@ the daily note.
   "notion_user_id": "<notion user uuid>",
   "notion_data_source_id": "<tasks db data-source uuid>",
   "notion_token_file": "/path/to/notion-api-token",
+  "notion_sprint_data_source_id": "<sprints db data-source uuid, omit to skip>",
+  "notion_sprint_relation_prop": "Sprint",
+  "notion_sprint_dates_prop": "Dates",
   "gh_org": "<github org to watch, omit to skip PRs>",
   "work_tag": "#work",
   "query_exclude_statuses": ["Archived", "Released"],
@@ -29,6 +32,14 @@ the daily note.
 `query_exclude_statuses` filters server-side and MUST name real status
 options from the Notion DB (Notion 400s on unknown names); leave it out to
 filter client-side only via `done_statuses`.
+
+Sprint awareness is optional. When `notion_sprint_data_source_id` is set,
+day-sync finds the **current sprint** — the one whose `notion_sprint_dates_prop`
+range contains today (dates are authoritative; the sprint's Status field
+lags) — and flags each task whose `notion_sprint_relation_prop` relation
+points at it. In-sprint tasks sort to the top of the plate, render under a
+dedicated `## Current sprint` heading, and are preselected for insertion by
+`add`. Omit the key to skip sprint handling entirely.
 
 ## How to run
 
@@ -51,6 +62,9 @@ google-workspace-cli skill). PRs need an authenticated `gh`.
 1. Run `brief --json` (add `--week` if they asked about the week).
 2. TLDR in this order, skipping empty sections:
    - Schedule: time-ordered events; call out conflicts and usable gaps.
+   - Current sprint (`data["sprint"]` + tasks with `in_sprint: true`): lead
+     with these — they're the active commitment for the week. Name the sprint
+     and its dates.
    - Due/overdue Notion work: OVERDUE first, then due-today, then the rest
      grouped by status. Link titles to their Notion URLs.
    - Pull requests: authored PRs with review state, PRs awaiting their
