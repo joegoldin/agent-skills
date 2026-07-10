@@ -48,11 +48,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1783622841,
-        "narHash": "sha256-fnVClMw0u0BfOCJsQGOXRSCzAFU4Nj5yPCMy5Aji7Uk=",
+        "lastModified": 1783664711,
+        "narHash": "sha256-BLFCULC/0OnIJnCZ74KD0aNCwi3/bsOtTKBZMTvBMFo=",
         "ref": "refs/heads/main",
-        "rev": "ee2693cd637dd860579c25b59762a21d201a1b84",
-        "revCount": 5,
+        "rev": "b7ba57f107b688e9b79501b340026d07ef7667be",
+        "revCount": 6,
         "type": "git",
         "url": "ssh://git@github.com/joegoldin/codex-nix.git"
       },
