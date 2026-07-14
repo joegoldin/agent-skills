@@ -214,10 +214,87 @@ Common failure signatures:
 | Frontend white page / `/_next` 404 | Caddy must serve `/_next/*` from `${frontendPkg}/public`; the standalone server doesn't. |
 | Jobs stuck "Pending" | Orphaned by a `garnixServer` restart (deploy) mid-build. Cancel them. |
 
+## Multiple servers & hash subdomains (hosting)
+
+garnix hosting gives **each version of each server its own unique URL**, derived
+from the hash of its NixOS configuration (`<hash>.<hosting domain>`). Pushing a
+new config spins up the new version at a *new* URL while the old one keeps
+serving — zero-downtime deploys, easy rollback, and you can smoke-test the new
+version before pointing anything at it.
+
+Consequence: **never reference another garnix-hosted server by a fixed
+hostname** — reference it by its hash URL. `garnix-lib` provides
+`lib.getHashSubdomain` for exactly this (use the zero-deps fork
+`github:joegoldin/garnix-lib`; upstream is `garnix-io/garnix-lib`):
+
+```nix
+{
+  inputs.garnix-lib.url = "github:joegoldin/garnix-lib";
+
+  outputs = { self, nixpkgs, garnix-lib, ... }: {
+    nixosConfigurations.machine1 = nixpkgs.lib.nixosSystem { ... };
+    nixosConfigurations.machine2 = nixpkgs.lib.nixosSystem {
+      modules = [{
+        # machine2 -> machine1, pinned to machine1's exact deployed version:
+        myservice.otherServiceURL =
+          "http://"
+          + garnix-lib.lib.getHashSubdomain self.nixosConfigurations.machine1
+          + "/somepath";
+      }];
+    };
+  };
+}
+```
+
+Because the URL is a function of machine1's config hash, machine2's config
+changes (and redeploys) exactly when machine1's does — the reference can never
+dangle. A stable "current version" entrypoint (user-facing domain) should be a
+CNAME/proxy the operator points at the hash subdomain they consider live.
+
 ## Backups
 
-The garnix state (Postgres + the cache buckets) is backed up to Backblaze B2/S3
-via a restic aspect. Verify with a periodic restore drill before trusting it.
+Restic → Backblaze B2 (S3 API), defined in the erdtree `backups.nix` aspect
+(`services.restic.backups.b2`). First backup infra in the repo — reuse this
+shape for other hosts.
+
+**What's backed up** (and what deliberately isn't):
+
+| Data | How | In backup? |
+|---|---|---|
+| Postgres (`garnix` DB — builds, users, repo_config, cache index) | `services.postgresqlBackup` dumps every 6h to `/var/backup/postgresql` | ✅ (the dumps) |
+| Raw build logs | `/var/lib/garnix/logs` | ✅ |
+| OpenSearch indices | rebuildable from raw logs | ❌ skipped |
+| Cache NARs | already durable in the B2 cache buckets | ❌ (not double-stored) |
+| Secrets | agenix `.age` files live in the dotfiles-secrets git repo | ❌ (git is the backup) |
+
+**How it works:**
+
+- Repo: `s3:https://<b2-endpoint>/<backup-bucket>/erdtree`, credentials via an
+  agenix env file (B2 key pair) + a separate agenix restic encryption password.
+  `initialize = true` — the repo self-creates on first run.
+- Nightly at **03:30** (+15m jitter, `Persistent` so missed runs catch up).
+- Retention: `--keep-daily 7 --keep-weekly 4 --keep-monthly 6`, pruned by the
+  same unit.
+- **Weekly integrity check** (Sun 05:00): a second `services.restic.backups`
+  entry with `runCheck = true` and `checkOpts = ["--read-data-subset=5%"]` —
+  actually re-reads 5% of pack data from B2, not just metadata.
+
+**Operating it** (the NixOS module generates a wrapped CLI with repo/env/password
+preloaded):
+
+```bash
+ssh erdtree
+sudo systemctl start restic-backups-b2.service   # manual backup now
+sudo restic-b2 snapshots                          # list snapshots
+sudo restic-b2 check                              # integrity check now
+# Restore drill (do this periodically — a backup you haven't restored is a hope):
+sudo restic-b2 restore latest --target /tmp/restic-drill
+sudo zstd -t /tmp/restic-drill/var/backup/postgresql/garnix.sql.zstd  # dumps are zstd
+sudo sh -c 'zstdcat /tmp/restic-drill/var/backup/postgresql/garnix.sql.zstd | head'
+# Full DB restore path: stop garnixServer, then
+#   zstdcat garnix.sql.zstd | sudo -u postgres psql -p 9178 -d garnix
+sudo rm -rf /tmp/restic-drill
+```
 
 ## Reference links
 
