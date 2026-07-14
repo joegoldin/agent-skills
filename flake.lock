@@ -50,15 +50,15 @@
       "locked": {
         "lastModified": 1783664711,
         "narHash": "sha256-BLFCULC/0OnIJnCZ74KD0aNCwi3/bsOtTKBZMTvBMFo=",
-        "ref": "refs/heads/main",
+        "owner": "joegoldin",
+        "repo": "codex-nix",
         "rev": "b7ba57f107b688e9b79501b340026d07ef7667be",
-        "revCount": 6,
-        "type": "git",
-        "url": "ssh://git@github.com/joegoldin/codex-nix.git"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "ssh://git@github.com/joegoldin/codex-nix.git"
+        "owner": "joegoldin",
+        "repo": "codex-nix",
+        "type": "github"
       }
     },
     "flake-utils": {

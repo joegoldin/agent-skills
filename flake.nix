@@ -12,7 +12,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     codex-nix = {
-      url = "git+ssh://git@github.com/joegoldin/codex-nix.git";
+      # github: (not git+ssh) so CI — garnix injects its app token for github:
+      # refs but has no SSH key — and tokenized local nix can fetch it.
+      url = "github:joegoldin/codex-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
