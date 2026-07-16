@@ -8,8 +8,16 @@ CI + hosting: on every push it evaluates a repo's flake, builds the requested
 attributes in a sandbox, and uploads the results to its own S3/B2-backed binary
 cache so other machines pull pre-built closures instead of rebuilding.
 
-- **Fork:** `github.com/joegoldin/garnix-ci`, branch **`self-hosting`**. Checked
-  out locally at `~/Development/garnix-ci`.
+- **Fork:** `github.com/joegoldin/garnix-ci-selfhosted` (GitHub repo renamed from
+  `garnix-ci`). Dev happens on branch **`self-hosting`**, squash-merged into
+  **`main`** for releases; the deployed flake input tracks `main`. Checked out
+  locally at `~/Development/garnix-ci`.
+- **Self-hosting-only.** Stripe/billing, product-plan limits/entitlements, and
+  Hetzner Cloud are *removed* (not merely bypassed): the sole provisioner is the
+  local microVM daemon, `getPlan` always returns one synthetic unlimited
+  "Self-Hosted" plan, and the `products` / `repo_owner_has_product` /
+  `repo_owner_usage_limits` tables plus all stripe columns were dropped. Usage
+  tracking (CI minutes / deploy time / hosts) is kept, just uncapped.
 - **Deployment:** a set of `den` aspects in the dotfiles repo (see below), built
   and pushed to erdtree with `just build-to-erdtree`.
 - **Real domains, issuer URLs, keys, and B2 regions live in the private
@@ -72,7 +80,7 @@ token)"` so the private flake inputs fetch.
 4. Commit + push the fork; then in dotfiles bump the input and deploy:
    ```
    set -x NIX_CONFIG "access-tokens = github.com=$(gh auth token)"
-   nix flake update garnix-ci     # input is github:joegoldin/garnix-ci/self-hosting
+   nix flake update garnix-ci     # input is github:joegoldin/garnix-ci-selfhosted (main)
    just build-to-erdtree --local
    ```
 
@@ -91,6 +99,21 @@ nix build .#frontend_default            --no-link                       # fronte
 Check the exit status directly — do **not** pipe through `tail`, which masks
 nix's non-zero exit. On failure, read the real error with
 `nix log /nix/store/<hash>-garnix-0.1.0.0.drv`.
+
+**Faster inner loop** (seconds, not a full nix build): point `postgresql-typed`
+at an already-running dev Postgres and `cabal build lib:garnix` inside the dev
+shell. The dev-shell Postgres socket lives under `/tmp/garnix-specs.*/pg-tmp/test`
+(session-random suffix; migrations must be applied to it):
+
+```
+nix develop -c bash -c '
+  export TPG_HOST=/tmp/garnix-specs.XXXX/pg-tmp/test \
+         TPG_SOCK=/tmp/garnix-specs.XXXX/pg-tmp/test/.s.PGSQL.9178 \
+         TPG_PORT=9178 TPG_USER=garnix TPG_PASS=garnix TPG_DB=garnix
+  cd backend && cabal build lib:garnix'          # or: cabal build test:spec
+```
+
+Use this while iterating; run the authoritative `nix build` gate before deploying.
 
 ## Secrets & agenix
 
@@ -210,7 +233,7 @@ Common failure signatures:
 | "Build failed with **no output**" | Eval/authorization failed before any build. `grep <sha>` in `journalctl -u garnixServer`. |
 | `Public repository has private dependencies, which is not allowed` | The private-inputs guard. In self-host mode it auto-allows + routes to the private cache; if seen, the deployed backend predates that fix, or `selfHostMode` is off. |
 | `Header Authorization has newlines` on `s3-cache-upload` | Trailing `\n` in a B2 secret. Re-save via stdin. |
-| Account page 500 / CI builds not persisting | Unseeded `products` table; self-host mode no-ops `addProduct` and returns a synthetic plan. |
+| Account page shows the plan wrong / usage odd | `getPlan` always returns the synthetic unlimited "Self-Hosted" plan now — there is no `products` table (dropped). If code references it, the deployed backend predates the self-host-only rip-out. |
 | Frontend white page / `/_next` 404 | Caddy must serve `/_next/*` from `${frontendPkg}/public`; the standalone server doesn't. |
 | Jobs stuck "Pending" | Orphaned by a `garnixServer` restart (deploy) mid-build. Cancel them. |
 
@@ -250,6 +273,136 @@ Because the URL is a function of machine1's config hash, machine2's config
 changes (and redeploys) exactly when machine1's does — the reference can never
 dangle. A stable "current version" entrypoint (user-facing domain) should be a
 CNAME/proxy the operator points at the hash subdomain they consider live.
+
+## Server hosting on erdtree (microVMs)
+
+Upstream deployed servers as Hetzner Cloud VMs; this fork provisions **local
+[microvm.nix](https://github.com/microvm-nix/microvm.nix) guests** on erdtree.
+The `garnix.local-provisioner` aspect (`modules/hosts/erdtree/garnix.nix`) runs
+`garnix-provisionerd` (a root daemon speaking newline-JSON over
+`/run/garnix-provisioner/provisioner.sock`), which creates/destroys guests on
+the `garnixbr0` bridge (`10.111.0.0/24`, dnsmasq DHCP, NAT out `eno1`). The
+backend selects it whenever `services.garnixServer.provisionerSocket` is set;
+Traefik (polling `/api/hosts/traefik`) routes app domains to guest IPs and Caddy
+issues per-SNI on-demand certs gated by `/api/hosts/on-demand-check`.
+
+- **Routing:** `<pkg>.<branch>.<repo>.<owner>.<appsDomain>` (primary deploys also
+  at `<repo>.<owner>.<appsDomain>`). A wildcard `*.<appsDomain>` DNS record
+  (DNS-only) points at erdtree.
+- **Configurable size:** each `garnix.yaml` `servers[].deployment.machine` picks a
+  tier, `i1x1` (default, 1 vCPU / 1 GiB) … `i16x32` — the name encodes
+  `<vCPU>x<GiB>` (`i1x1 i1x2 i2x2 i2x3 i2x4 i4x2 i4x4 i4x8 i8x8 i8x16 i16x16
+  i16x32`); 20 GiB root + 20 GiB writable-store overlay for every tier.
+  `provisionServerPool = true` pre-warms the pool (default one `i1x1`); override
+  the pooled set with `GARNIX_SERVER_POOL` (`i1x1:1,i4x4:0`).
+- **Guest contract:** every deployed `nixosConfiguration` MUST import
+  `microvm.nixosModules.microvm` and `garnix-ci.nixosModules.garnix-guest`, and
+  set `garnix.guest.sshPublicKey` to erdtree's hosting pubkey
+  (`/var/lib/garnix-provisioner/hosting.pub`) — otherwise a redeploy locks the
+  backend out of the guest. See `examples/hello-server/flake.nix` in the fork.
+
+### SSH into deployed guests
+
+`garnix.yaml` `servers[]` networking fields (all optional). Reachability and
+login are independent:
+
+```yaml
+servers:
+  - configuration: myServer
+    deployment: { branch: main, machine: i2x2 }
+    exposeSSH: true                    # open a public DNAT port -> guest :22
+    authorizeDeployerGithubKeys: true  # authorize your github.com/<user>.keys
+    authorizedSSHKeys: [ "ssh-ed25519 AAAA... me@laptop" ]
+    ports:
+      - { name: api, port: 8080, type: http }   # -> <name>.<server-domain>
+      - { name: db,  port: 5432, type: tcp }     # -> host:port via DNAT
+```
+
+The guest's `garnix` user is **login-closed and password-auth-off by default**
+(it's the deploy identity, not a login account); it only becomes loginable when
+you set `authorizeDeployerGithubKeys` and/or `authorizedSSHKeys`. `exposeSSH`
+only opens network reachability — it grants no login by itself. Or bring your
+own login user in the guest config (declare `users.users.<name>` with
+`openssh.authorizedKeys.keys`, the [user-module](https://github.com/garnix-io/user-module)
+pattern) and use `exposeSSH`/tailscale purely for reach. The **Servers** page
+shows copyable `ssh` commands per method (Tailscale / ProxyJump / DNAT);
+`services.garnixServer.sshHost` supplies the host for ProxyJump + DNAT.
+
+## Gating a deployed server behind Authentik (guest auth boilerplate)
+
+`garnix-ci.nixosModules.garnix-authentik` locks a deployed server behind an OIDC
+login with one import: it runs `oauth2-proxy` + an nginx forward-auth gate on
+`:80` (the port Traefik hits), so every request needs a valid session before it
+reaches your service on `garnix.authentik.upstream`. Three modes:
+
+- **`mode = "default"` (fastest, dev):** put `authentik: default` on the server's
+  `garnix.yaml` entry — garnix drops its **own** OIDC client creds + this
+  deploy's redirect URL onto the guest at deploy time
+  (`/var/garnix/keys/default-authentik.env`). No provider setup, no secret in the
+  repo; whoever can log into garnix can reach the app. Requires
+  `services.garnixServer.defaultAuthentik = { issuerUrl, clientId,
+  clientSecretFile }` on erdtree (already set in the aspect) and the deploy
+  callback URLs allowed on that Authentik provider (use a regex redirect URI).
+
+  ```yaml
+  servers:
+    - configuration: hello
+      deployment: { type: on-branch, branch: main }
+      authentik: default
+  ```
+  ```nix
+  garnix.authentik = { enable = true; mode = "default"; upstream = "127.0.0.1:8080"; };
+  ```
+
+- **`mode = "dedicated"` (default) / `"shared"`:** the app gets its own Authentik
+  provider (or shares one gated by group claims). Deliver the OIDC client secret
+  the garnix-native way — encrypt it to the **repo key**
+  (`GET /api/keys/<owner>/<repo>/repo-key.public`, or the `authentik-provision`
+  helper) and reference the `.age` ciphertext by path (`clientSecretFile`) or
+  inline (`clientSecretAge`); the guest decrypts at runtime with the repo private
+  key garnix drops at `/var/garnix/keys/repo-key`. No plaintext secret ever
+  reaches the world-readable nix store. Full worked recipes (dedicated vs shared,
+  the provision helper, regex redirect URIs) are in
+  `docs/authentik-cookbook.md` in the fork.
+
+  ```nix
+  modules = [
+    microvm.nixosModules.microvm
+    garnix-ci.nixosModules.garnix-guest
+    garnix-ci.nixosModules.garnix-authentik
+    {
+      garnix.guest.sshPublicKey = "<hosting pubkey>";
+      garnix.authentik = {
+        enable = true;
+        publicUrl = "https://hello.main.<repo>.<owner>.<appsDomain>";
+        issuerUrl = "https://<authentik>/application/o/<app>/";
+        clientId = "<oidc client id>";
+        clientSecretFile = ./client-secret.age;   # committed, repo-key-encrypted
+        allowedGroups = [ "app-users" ];           # omit to gate on entitlements
+        upstream = "127.0.0.1:8080";               # your service (NOT on :80)
+      };
+      services.myApp.port = 8080;
+    }
+  ];
+  ```
+
+The public-key endpoints (`/api/keys/*`), status badges (`/api/badges/*`), and
+webhooks (`/api/events/*`) bypass the Authentik gate in Caddy — the provision
+helper and guests fetch repo public keys unauthenticated (they can encrypt, not
+decrypt).
+
+## Monitoring
+
+The self-host **Monitoring** page (`<garnixDomain>/monitoring`, sidebar) reads
+`GET /api/monitoring`:
+
+- **Instance** — garnix's own Prometheus at
+  `services.garnixServer.metricsScrapeUrl` (default `127.0.0.1:<metricsPort>/` —
+  metrics serve at the **root** path, not `/metrics`; scraping `/metrics` 404s).
+- **Host** — node-exporter at `nodeExporterUrl` (`127.0.0.1:9100/metrics`); the
+  aspect runs `services.prometheus.exporters.node` on loopback.
+- **Jobs** — running/pending builds + actions/deploys, recent build durations.
+- **Deployments** — live hosted servers (from `/api/hosts`).
 
 ## Backups
 
@@ -301,4 +454,4 @@ sudo rm -rf /tmp/restic-drill
 - Re-hosted docs: `<garnixDomain>/docs` (mirror of `garnix.io/docs`)
 - Upstream docs: https://garnix.io/docs — CI, caching, hosting, modules, private inputs
 - Upstream source: https://github.com/garnix-io/garnix-ci
-- The fork: https://github.com/joegoldin/garnix-ci (branch `self-hosting`)
+- The fork: https://github.com/joegoldin/garnix-ci-selfhosted (dev on `self-hosting`, released to `main`)
