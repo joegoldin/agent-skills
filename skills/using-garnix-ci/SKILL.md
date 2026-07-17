@@ -421,6 +421,40 @@ group-readable key). If actions hang Pending, check
 works as the garnix user. (A failed action's `/run/<id>` page 404s if it's for
 a repo whose GitHub name no longer resolves — e.g. after a repo rename.)
 
+### `githubToken` — ephemeral scoped GitHub token for an action
+
+A per-action opt-in (default **off**) that mints a short-lived, scoped GitHub
+**App installation access token** per run and injects it into the action as both
+`GITHUB_TOKEN` (env, like GitHub Actions) **and** nix `access-tokens =
+github.com=…` (so `nix`/flake-input fetches authenticate). Its main use on
+self-host: authenticate `github:` fetches (e.g. `github:NixOS/nixpkgs`) so
+fetch-heavy actions don't hit GitHub's 60-req/hr **anonymous** rate limit — that
+limit is why the `backend_specs` action's nixpkgs fetches (FOD-real-nixpkgs, the
+`Garnix.Action` suite, incremental, external-input module tests) otherwise fail.
+GitHub-only (a no-op for Gitea repos, which have no App installation). The token
+is ephemeral (1 h), never logged (`ghs_` matches `obfuscateGithubToken`).
+
+```yaml
+actions:
+  backend_specs:
+    run: backend_specs
+    githubToken: descoped          # ← what backend_specs uses
+```
+
+Modes (`Garnix.YamlConfig.GithubTokenMode`, minted in
+`GithubInterface._githubInterfaceMintScopedActionToken`):
+- `none` (default) — no token.
+- `descoped` — `permissions:{}`: authenticates public fetches (lifts the anon
+  rate limit), **no** repo access. Enough for public nixpkgs.
+- `repo` / `repo-write` — token scoped to the current repo with
+  `contents:read` / `contents:write` (like GHA's `GITHUB_TOKEN`).
+- a bare **list** of repo names (`githubToken: [nixpkgs, my-lib]`) →
+  `contents:read` on exactly those.
+- an **object** `{ repositories: [...], permission: read|write }` for full control.
+
+`repo-write`/`permission: write` is a real privilege surface (the action can
+push to the repo) — only enable it for actions you trust.
+
 ## Artifacts (`garnix.yaml` artifacts)
 
 `artifacts:` publishes a declared package's build output as a downloadable
