@@ -1,0 +1,3 @@
+artifacts:
+  - package: web-skills-zips
+    name: claude-skills

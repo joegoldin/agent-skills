@@ -421,6 +421,43 @@ group-readable key). If actions hang Pending, check
 works as the garnix user. (A failed action's `/run/<id>` page 404s if it's for
 a repo whose GitHub name no longer resolves — e.g. after a repo rename.)
 
+## Artifacts (`garnix.yaml` artifacts)
+
+`artifacts:` publishes a declared package's build output as a downloadable
+artifact (file browser + `all.zip` on the build page) — the fork's GitHub
+Actions artifacts replacement. Declared packages are auto-included in builds:
+
+```yaml
+artifacts:
+  - package: web-skills-zips   # packages.<arch>.web-skills-zips
+    name: claude-skills        # optional; defaults to the package name
+```
+
+- **Stable latest URL** (newest published artifact per repo/branch/name):
+  `https://<garnixDomain>/api/artifacts/<owner>/<repo>/<branch>/<name>/latest.zip`
+  (also `.../latest/manifest`, `.../latest/files/<path>`; per-build URLs under
+  `/api/artifacts/build/<buildId>/...`). Storage is content-addressed in two
+  dedicated B2 buckets, routed public/private by the same rules as the cache.
+- **Retention/locking** on the Configure page: global default 30 days +
+  per-repo overrides; optional keep-latest exemption (default off, global +
+  per-repo); per-build locks (never reaped). Unreferenced objects are GC'd.
+- **SSO bypass:** downloads authenticate with garnix access tokens (`api`
+  scope; `curl -L -u user:<token>`) or anonymously for public repos, so Caddy
+  must bypass the Authentik gate for `/api/artifacts/*` (like `/api/badges/*`,
+  wired in the erdtree aspect); the backend enforces auth + repo access itself.
+- agent-skills' own claude-skills bundle is published this way
+  (`web-skills-zips` → `claude-skills`), replacing the old
+  `build-web-skills.yml` GitHub workflow.
+- **Endpoints** (branch segments URL-encode slashes): downloads
+  `GET /api/artifacts/build/<buildId>/<name>/{all.zip,manifest,files/<path>}`
+  and `GET /api/artifacts/<owner>/<repo>/<branch>/<name>/latest{.zip,/manifest,/files/<path>}`;
+  listings `GET /api/artifacts/{repo/<owner>/<repo>,build/<buildId>}`; admin
+  `POST|DELETE /api/artifacts/build/<buildId>/lock`,
+  `DELETE /api/artifacts/<artifactId>`. Retention config rides
+  `/api/configure` (`artifact_*` fields; `PUT …/artifacts/default`,
+  `PUT|DELETE …/artifacts/repo/<owner>/<repo>`). The `garnix.yaml` schema incl.
+  `artifacts:` is served at `/api/config-schema` (generated from the codec).
+
 ## Backups
 
 Restic → Backblaze B2 (S3 API), defined in the erdtree `backups.nix` aspect

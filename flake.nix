@@ -154,12 +154,26 @@
             inherit skills;
             avoidAiDetectSrc = ./packages/avoid-ai-detect;
           };
+
+          # One zip per skill (zip root = exactly one folder + one SKILL.md), the layout
+          # the Claude web "Customize > Skills" upload UI requires. Published as a
+          # garnix artifact (garnix.yaml `artifacts:`), replacing the GitHub workflow.
+          web-skills-zips = pkgs.runCommand "web-skills-zips" { nativeBuildInputs = [ pkgs.zip ]; } ''
+            mkdir -p $out staging
+            cp -rL ${web-skills}/. staging/
+            chmod -R u+w staging
+            cd staging
+            for name in */; do
+              name="''${name%/}"
+              zip -q -r -X "$out/$name.zip" "$name"
+            done
+          '';
         in
         perSkillPackages
         // crossPlugins
         // {
           default = claude-plugin;
-          inherit web-skills;
+          inherit web-skills web-skills-zips;
           avoid-ai-detect = avoidAiDetect;
           inherit
             claude-plugin
