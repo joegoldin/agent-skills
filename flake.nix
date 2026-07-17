@@ -281,6 +281,11 @@
                 map (p: p.passthru.claudeHooks or { }) claudePlugins
               );
               programs.claude-nix.statusLine.enable = true;
+              # Fall through to Sonnet if the primary model is unavailable.
+              # Additive + rebuild-safe (unlike a declared `model`/`effortLevel`,
+              # which would re-assert on every rebuild and clobber an in-session
+              # /model or /effort switch — those are intentionally left unset).
+              programs.claude-nix.fallbackModel = [ "claude-sonnet-5" ];
             };
 
           antigravity =
