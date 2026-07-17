@@ -9,9 +9,9 @@ attributes in a sandbox, and uploads the results to its own S3/B2-backed binary
 cache so other machines pull pre-built closures instead of rebuilding.
 
 - **Fork:** `github.com/joegoldin/garnix-ci-selfhosted` (GitHub repo renamed from
-  `garnix-ci`). Dev happens on branch **`self-hosting`**, squash-merged into
-  **`main`** for releases; the deployed flake input tracks `main`. Checked out
-  locally at `~/Development/garnix-ci`.
+  `garnix-ci`). Development happens directly on **`main`** (the old
+  `self-hosting` dev branch was merged in and deleted); the deployed flake input
+  tracks `main`. Checked out locally at `~/Development/garnix-ci`.
 - **Self-hosting-only.** Stripe/billing, product-plan limits/entitlements, and
   Hetzner Cloud are *removed* (not merely bypassed): the sole provisioner is the
   local microVM daemon, `getPlan` always returns one synthetic unlimited
@@ -72,7 +72,7 @@ token)"` so the private flake inputs fetch.
 
 ### Fork (backend/frontend) code changes
 
-1. Edit in `~/Development/garnix-ci` on branch `self-hosting`.
+1. Edit in `~/Development/garnix-ci` on branch `main`.
 2. **`git add` any NEW files** — a git-repo flake excludes untracked files from
    its source, so nix builds fail with `can't find source for …`. Modified
    tracked files are picked up from the working tree without staging.
@@ -454,4 +454,4 @@ sudo rm -rf /tmp/restic-drill
 - Re-hosted docs: `<garnixDomain>/docs` (mirror of `garnix.io/docs`)
 - Upstream docs: https://garnix.io/docs — CI, caching, hosting, modules, private inputs
 - Upstream source: https://github.com/garnix-io/garnix-ci
-- The fork: https://github.com/joegoldin/garnix-ci-selfhosted (dev on `self-hosting`, released to `main`)
+- The fork: https://github.com/joegoldin/garnix-ci-selfhosted (default branch `main`)
