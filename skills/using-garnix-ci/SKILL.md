@@ -404,6 +404,23 @@ The self-host **Monitoring** page (`<garnixDomain>/monitoring`, sidebar) reads
 - **Jobs** — running/pending builds + actions/deploys, recent build durations.
 - **Deployments** — live hosted servers (from `/api/hosts`).
 
+## Actions (`garnix.yaml` actions)
+
+Actions run a nix app as a CI step. The backend `nix copy`s the closure to
+`action-runner@<GARNIX_ACTION_HOST>` and SSHes in to run it — upstream points
+that at its own runner fleet, so **on self-host actions stay Pending forever
+unless a local runner is set up**. The `garnix.actionRunner` module
+(`nix/modules/action-runner.nix`, enabled in erdtree's `garnix.nix`) creates a
+nix-trusted `action-runner` user and runs each action in a bubblewrap +
+slirp4netns sandbox; `services.garnixServer.actionHost = "127.0.0.1"` makes the
+backend target it locally. The runner authorizes the pubkey derived at boot
+from `garnix_action_runner_ssh` (which must be **0400** — OpenSSH rejects a
+group-readable key). If actions hang Pending, check
+`systemctl status garnix-action-runner-authorized-key` and that
+`ssh -i /run/secrets/garnix_action_runner_ssh action-runner@127.0.0.1 true`
+works as the garnix user. (A failed action's `/run/<id>` page 404s if it's for
+a repo whose GitHub name no longer resolves — e.g. after a repo rename.)
+
 ## Backups
 
 Restic → Backblaze B2 (S3 API), defined in the erdtree `backups.nix` aspect
