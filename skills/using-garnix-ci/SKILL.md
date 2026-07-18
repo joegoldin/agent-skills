@@ -328,6 +328,24 @@ pattern) and use `exposeSSH`/tailscale purely for reach. The **Servers** page
 shows copyable `ssh` commands per method (Tailscale / ProxyJump / DNAT);
 `services.garnixServer.sshHost` supplies the host for ProxyJump + DNAT.
 
+### Hosting custom/vanity domains
+
+`garnix.yaml` `servers[].domains:` declares extra hostnames a server answers
+on. Each is checked against known **hosting bases** — the default
+`appsDomain`, operator `extraHostingDomains` (`services.garnixServer`, e.g.
+the wildcard vanity domains in `dotfiles-secrets/domains.nix`), and any
+admin-verified **connected domain**. Under a base → wildcard-covered, no DNS
+action needed. Not under any base → bare custom domain, needs an `A` record
+(→ erdtree's `hostingPublicIp`) or a `CNAME` (→ a garnix domain).
+
+- **Operator wildcard bases:** each `extraHostingDomains` entry needs its own
+  manual `*.<domain>` → erdtree DNS record, same as `appsDomain`'s.
+- **Connected domains** (Configure page, admin-only): add a domain, point its
+  DNS at garnix, click **Verify** — a DNS-points-here lookup (does it resolve
+  to erdtree?), not a TXT token/ownership challenge.
+- **Servers page (i) menu:** per-domain DNS records to set (`A`/`CNAME`) with
+  a live "resolves here yet?" status, using the same check as Verify.
+
 ## Gating a deployed server behind Authentik (guest auth boilerplate)
 
 `garnix-ci.nixosModules.garnix-authentik` locks a deployed server behind an OIDC
