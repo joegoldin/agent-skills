@@ -328,6 +328,23 @@ pattern) and use `exposeSSH`/tailscale purely for reach. The **Servers** page
 shows copyable `ssh` commands per method (Tailscale / ProxyJump / DNAT);
 `services.garnixServer.sshHost` supplies the host for ProxyJump + DNAT.
 
+**Redeploy & in-browser terminal (Servers page):**
+
+- **Redeploy** re-runs the whole pipeline for the server's current commit
+  (`POST /api/hosts/<id>/redeploy` → `Orchestrator.restartCommit`), rebuilding
+  and redeploying — branch or PR.
+- **Open Terminal** opens an in-app xterm.js shell (`/servers/<id>/terminal`)
+  over a websocket PTY (`/api/terminal/<id>`) running `ssh garnix@<guest-ip>`
+  (guest IP from the DB, never the client). Auth + ownership-gated like `/stats`,
+  `Online`-only, fixed command, no port/agent/X11 forwarding, `Origin`
+  allowlist, 10-min idle / 60-min max, per-user cap, no content logging.
+  **Keep `/api/terminal` behind the auth gate — never bypass-list it** (unlike
+  `/api/artifacts`); the fork's `docs/web-terminal.md` has the gate block. The
+  "Login as" picker defaults to `garnix` and suggests the guest's real accounts,
+  captured at deploy via `getent passwd` (stored in `servers.ssh_users`);
+  free-text is allowed but regex-validated (`^[a-z_][a-z0-9_-]{0,31}$`) and
+  access is still enforced by the guest sshd.
+
 ### Hosting custom/vanity domains
 
 `garnix.yaml` `servers[].domains:` declares extra hostnames a server answers
@@ -509,6 +526,14 @@ artifacts:
   `/api/configure` (`artifact_*` fields; `PUT …/artifacts/default`,
   `PUT|DELETE …/artifacts/repo/<owner>/<repo>`). The `garnix.yaml` schema incl.
   `artifacts:` is served at `/api/config-schema` (generated from the codec).
+- **Web UI:** a **View Artifacts** button (left of *Trigger Builds*) opens a
+  per-repo artifacts list with sizes/file-counts + one-click zip/manifest/browse
+  downloads; build-list rows show an artifact icon+count per commit, and
+  commit-page package/check lines get an artifact icon linking to that build's
+  downloads. Backed by two commit-scoped endpoints —
+  `GET /api/artifacts/repo/<owner>/<repo>/commit-counts` (per-commit publish
+  counts) and `GET /api/artifacts/commit/<owner>/<repo>/<commit>` — and hides
+  itself when the store is unconfigured.
 
 ## Backups
 
