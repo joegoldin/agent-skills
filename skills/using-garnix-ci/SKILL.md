@@ -115,6 +115,50 @@ nix develop -c bash -c '
 
 Use this while iterating; run the authoritative `nix build` gate before deploying.
 
+### Running the backend spec suite (it passes now)
+
+`backend_specs` (the `garnix.yaml` action on the fork) runs the full 774-test
+suite on every push, ~35–40 min end to end (≈25 min `-O0` compile + the rest
+tests). It was chronically broken (0-for-80, always hitting the 2h10m action
+timeout) until 2026-07-19; treat a red run as a real regression now. Tests
+tagged `@skip-ci` in their name are skipped in CI (currently one: the terminal
+close-handshake test, which loses a websocket teardown race only inside the
+action sandbox).
+
+To iterate on specs locally (on erdtree or any linux checkout), give each run a
+**hermetic throwaway DB dir** — reusing the shellHook's `<repo>/pg-tmp` across
+runs leaves zombie postgreses that break the next run:
+
+```
+nix develop --command bash -c '
+  set -e
+  DB_DIR=$(mktemp -d /tmp/specdb.XXXXXX)
+  export DB_DIR PGDATA=$DB_DIR/test PGHOST=$DB_DIR/test \
+         TPG_HOST=$DB_DIR/test TPG_SOCK=$DB_DIR/test/.s.PGSQL.9178
+  db new
+  cd backend
+  cabal run spec -- --match "<test or describe substring>" --skip @skip-ci
+  db clear; rm -rf $DB_DIR'
+```
+
+Facts that bite:
+
+- Every hspec failure prints its exact `--match` rerun line — use those to run
+  only the failed tests. Multiple `--match` flags union. Order is randomized
+  per run (`--seed` reprints it).
+- `SpecHook` chmods `dev-action-runner-ssh-key` **and** `ssh-key-for-tests` to
+  0600 at suite start (git can't store file modes, so fresh checkouts are 0644
+  and ssh refuses them — the historic cause of every deploy spec timing out).
+- The deploy specs boot **real qemu VMs** via the provisioner mock (pool config
+  `TestHelpers.ServerPool.testPoolConfig`, `[(I1x1, 2)]` — I1x1 because that's
+  the default `deployment.machine` tier and `claimServerDB` matches tiers
+  exactly). The Action specs boot `nixosConfigurations.action-runner2`
+  (`nix/tests/action-runner-vm.nix`) — a headless VM running the self-host
+  runner module with the dev key authorized.
+- `pgrep`/`pkill` on qemu: the wrapped binary's comm is `.qemu-system-x8`
+  (leading dot, 15-char truncation) — match with `-f`, and beware `-f`
+  self-matching your own compound command line.
+
 ## Secrets & agenix
 
 Two tiers, deliberately separated:
@@ -226,6 +270,25 @@ WHERE repo_name='<repo>' AND git_commit='<sha>' AND status IS NULL AND end_time 
 SELECT * FROM repo_config WHERE repo_user='<owner>' AND repo_name='<repo>';
 ```
 
+Scheduling & timeouts (post-2026-07-19 backend):
+
+- **Queue**: eval/build/upload pools schedule **round-robin across repos, FIFO
+  within a repo** (keyed `(owner, repo)`), so one repo's big fan-out can't
+  monopolize the 16 build slots. The `garnix_server_*_queue_len` gauges are the
+  waiter count (0 when slots are free — older backends reported free slots as a
+  *negative* count).
+- **Pre-build nix commands are timeout-capped**: the garnix-config eval, attr
+  discovery, and flake-metadata calls honor the Configure-page build/eval
+  timeout (per-repo override > global default > 1 h; 0 = no limit). A wedged
+  nix-daemon now fails the push with a visible `NixCommandTimeout` instead of
+  leaving it at "Build starting" forever.
+- On startup the backend cancels builds/runs orphaned by its previous restart.
+- **Manual re-trigger**: `POST /api/commits/repo/<owner>/<repo>/trigger`
+  (browser JWT/cookie auth only — the `/api/commits/*` routes reject forged
+  `X-Auth-Request-*` headers, unlike e.g. `/api/run/<hashid>/logs`, which you
+  *can* curl on erdtree with `-H 'X-Auth-Request-User: …' -H
+  'X-Auth-Request-Groups: garnix-admins'` for scripted log fetches).
+
 Common failure signatures:
 
 | Symptom | Cause / fix |
@@ -235,7 +298,9 @@ Common failure signatures:
 | `Header Authorization has newlines` on `s3-cache-upload` | Trailing `\n` in a B2 secret. Re-save via stdin. |
 | Account page shows the plan wrong / usage odd | `getPlan` always returns the synthetic unlimited "Self-Hosted" plan now — there is no `products` table (dropped). If code references it, the deployed backend predates the self-host-only rip-out. |
 | Frontend white page / `/_next` 404 | Caddy must serve `/_next/*` from `${frontendPkg}/public`; the standalone server doesn't. |
-| Jobs stuck "Pending" | Orphaned by a `garnixServer` restart (deploy) mid-build. Cancel them. |
+| Jobs stuck "Pending" | Orphaned by a `garnixServer` restart (deploy) mid-build — newer backends cancel these on startup. If pushes sit at "Build starting" *without* a restart, suspect a wedged nix-daemon (below); the eval will fail with `NixCommandTimeout` once the configured timeout fires. |
+| Every eval hangs; `nix` commands block; `grep -c -- '->' /proc/locks` > 0 on erdtree | nix-daemon deadlock — historically the min-free auto-GC deadlocking on `gc.lock` vs a concurrent `addToStore` path lock (2026-07-18). Auto-GC is now removed from erdtree's config (`nix-store-maintenance` daily job is the only GC); if it recurs, find the fork holding the `gc.lock` flock in `/proc/locks` and kill it. |
+| erdtree load/RAM climbing, dozens of qemu processes | Leaked pool guests: pool provisioning that fails must destroy the guest, not just the DB row (fixed 2026-07-19 — the refill loop otherwise boots a replacement every 15 s, a VM storm). Sweep leftovers with `pkill -f` (comm is `.qemu-system-x8`); production guests run as the `microvm` user — don't touch those. |
 
 ## Multiple servers & hash subdomains (hosting)
 
@@ -455,6 +520,19 @@ group-readable key). If actions hang Pending, check
 `ssh -i /run/secrets/garnix_action_runner_ssh action-runner@127.0.0.1 true`
 works as the garnix user. (A failed action's `/run/<id>` page 404s if it's for
 a repo whose GitHub name no longer resolves — e.g. after a repo rename.)
+
+Runner behavior worth knowing (all fixed/added 2026-07-19):
+
+- **`withRepoContents: true` actions run inside the repo**: the repo is rsynced
+  to the runner and bind-mounted at `/tmp/base`, which is also the action's
+  cwd. (Older runners bound it but left cwd at the scratch home, so actions
+  saw an empty directory.) The rsync's ssh skips host-key verification like
+  every other runner connection — required for fresh runner hosts.
+- **Timeouts report properly**: the runner wraps every sandbox type in
+  coreutils `timeout`; exit 124 maps to "The action took too long to complete
+  and it was cancelled." for all sandbox types, not just shared-resources.
+- The sandbox pins `LC_ALL=C.UTF-8` so action output ordering (e.g. `ls`
+  collation) doesn't depend on the host locale.
 
 ### `githubToken` — ephemeral scoped GitHub token for an action
 
