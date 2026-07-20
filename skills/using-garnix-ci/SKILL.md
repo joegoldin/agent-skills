@@ -38,7 +38,7 @@ itself — for that, read the re-hosted docs at `<garnixDomain>/docs` (mirror of
 | PostgreSQL 18 | `postgresql.service` | 9178 | db `garnix`, user `garnix`, TLS `verify-full` |
 | OpenSearch | (opensearch) | 9200 | build-log storage; fluent-bit ships logs into it |
 | Caddy | reverse proxy | 443 | vhosts for the web UI, the cache, and `/docs` |
-| oauth2-proxy | (oauth2-proxy) | — | Authentik OIDC; injects `X-Auth-Request-*` headers |
+| oauth2-proxy | (oauth2-proxy) | — | Authentik OIDC; Caddy forwards its `X-Auth-Request-*` headers with a private proxy marker |
 
 The dotfiles aspects that define all of this:
 
@@ -194,9 +194,12 @@ Gotchas:
 Registration is disabled; access is gated by **Authentik application
 entitlements** (like the Gitea setup), not raw groups:
 
-- oauth2-proxy authenticates via Authentik OIDC and injects
-  `X-Auth-Request-Groups` on every browser request. Because the backend listens
-  only on 127.0.0.1 behind the gateway, that header is trusted.
+- oauth2-proxy authenticates via Authentik OIDC and returns
+  `X-Auth-Request-Groups` to Caddy. Caddy strips every client-supplied
+  `X-Auth-Request-*` / `X-Garnix-Proxy-Auth` header, then injects
+  `X-Garnix-Proxy-Auth` from `/run/secrets/garnix_proxy_shared_secret` only on
+  the forward-authenticated backend proxy. The backend trusts auth-request
+  headers only when that marker matches; loopback source alone is not trusted.
 - A scope mapping turns entitlements into a synthesized `groups` claim:
   `garnixadmin → garnix-admins`, `garnixuser → garnix-users`.
 - oauth2-proxy's `allowed-group` is the hard gate. Membership of the admin group
@@ -206,9 +209,10 @@ entitlements** (like the Gitea setup), not raw groups:
   = true` and a `whitelist-domain`, because Authentik may send
   `email_verified=false`.
 
-> **Security invariant:** the cache vhost must strip inbound `X-Auth-Request-*`
-> headers and only proxy `/api/cache`. Never proxy the whole backend at the
-> cache hostname — that would let anyone forge the group header and become admin.
+> **Security invariant:** every vhost must strip inbound `X-Auth-Request-*` and
+> `X-Garnix-Proxy-Auth`. Only the forward-authenticated app API proxy injects
+> the marker; public bypasses and the cache vhost do not. The cache hostname
+> proxies only `/api/cache`.
 
 Admin UI: `<garnixDomain>/garnix-admin` (visible only to admins) — create the
 GitHub App, and set **per-repo config** (see below).
@@ -233,14 +237,13 @@ The default (no `garnix.yaml`) builds `*.x86_64-linux.*`, `defaultPackage`,
 substitutes from attic while building. So a push builds once and every machine
 downloads the result.
 
-**Private flake inputs on a public repo:** garnix normally refuses to build a
-*public* repo that has *private* flake inputs (its closures would leak to the
-unauthenticated public cache). In **self-host mode this is handled
-automatically**: `checkAuthorization` allows it and persists `private_cache` for
-that repo, so `S3Cache` routes the closures to the **authenticated** bucket. No
-per-repo setup is needed on a fresh install. To override manually, use the admin
-page's "Per-repo config" (`skip_private_inputs_check` + `private_cache`) or the
-`repo_config` table.
+**Private flake inputs on a public repo:** garnix refuses this by default because
+the dependency closures could leak to the unauthenticated public cache. Grant a
+deliberate per-repo exemption in the admin page's **Per-repo config** (the DB
+column is `skip_private_inputs_check_for_collaborators`) only when required, and
+keep `private_cache = true` so those closures use the authenticated bucket.
+Self-host mode does not auto-grant new exemptions; legacy auto-set flags were
+cleared during the hosting-hardening migration.
 
 **Local `nix build` outside `just`:** the private inputs are `github:` refs that
 need a token. `just` recipes inject `gh auth token`; a bare `nix build` does not.
@@ -283,11 +286,13 @@ Scheduling & timeouts (post-2026-07-19 backend):
   nix-daemon now fails the push with a visible `NixCommandTimeout` instead of
   leaving it at "Build starting" forever.
 - On startup the backend cancels builds/runs orphaned by its previous restart.
-- **Manual re-trigger**: `POST /api/commits/repo/<owner>/<repo>/trigger`
-  (browser JWT/cookie auth only — the `/api/commits/*` routes reject forged
-  `X-Auth-Request-*` headers, unlike e.g. `/api/run/<hashid>/logs`, which you
-  *can* curl on erdtree with `-H 'X-Auth-Request-User: …' -H
-  'X-Auth-Request-Groups: garnix-admins'` for scripted log fetches).
+- **Manual re-trigger**: `POST /api/commits/repo/<owner>/<repo>/trigger`.
+  Browser requests use the JWT cookie. For an operator curl directly against
+  `127.0.0.1:8321`, forged `X-Auth-Request-*` headers are accepted only with the
+  proxy marker: add `-H "X-Garnix-Proxy-Auth: $(sudo cat
+  /run/secrets/garnix_proxy_shared_secret)"` alongside
+  `-H 'X-Auth-Request-User: …' -H 'X-Auth-Request-Groups: garnix-admins'`.
+  Keep the marker on erdtree; never send it over the network or paste its value.
 
 Common failure signatures:
 
@@ -364,7 +369,18 @@ issues per-SNI on-demand certs gated by `/api/hosts/on-demand-check`.
   `microvm.nixosModules.microvm` and `garnix-ci.nixosModules.garnix-guest`, and
   set `garnix.guest.sshPublicKey` to erdtree's hosting pubkey
   (`/var/lib/garnix-provisioner/hosting.pub`) — otherwise a redeploy locks the
-  backend out of the guest. See `examples/hello-server/flake.nix` in the fork.
+  backend out of the guest. `garnix.guest.terminalCaPublicKey` defaults to
+  `sshPublicKey` for compatibility; the local provisioner injects the dedicated
+  terminal-CA public key derived from `/run/secrets/garnix_terminal_ca`.
+  Existing guests must be recreated after a terminal-CA cutover or the web
+  terminal will stop authenticating. See `examples/hello-server/flake.nix` in
+  the fork.
+- **Guest network boundary:** guest taps are L2-isolated bridge ports; guest
+  firewalls permit inbound SSH but deny undeclared ports; guests are IPv4-only
+  and refuse router advertisements. The host egress chain blocks other guests,
+  RFC1918/LAN, link-local, CGNAT, and the remote builder
+  (`<internal-builder-cidr>`). A deployed workload can reach the public internet and
+  required gateway services, but not the host LAN or remote builder.
 
 ### SSH into deployed guests
 
