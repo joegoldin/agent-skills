@@ -71,6 +71,7 @@
           codeNotify = pkgs.callPackage ./packages/code-notify { };
           vibecad = pkgs.callPackage ./packages/vibecad { };
           pxd = pkgs.callPackage ./packages/pxd { };
+          figr = pkgs.callPackage ./packages/figr { };
           avoidAiDetect = pkgs.callPackage ./packages/avoid-ai-detect { };
 
           # ── Claude plugin ──
@@ -83,6 +84,7 @@
             extraPackages = [
               vibecad
               pxd
+              figr
               avoidAiDetect
             ];
           };
@@ -97,6 +99,7 @@
             extraPackages = [
               vibecad
               pxd
+              figr
               avoidAiDetect
             ];
           };
@@ -111,6 +114,7 @@
             extraPackages = [
               vibecad
               pxd
+              figr
               avoidAiDetect
             ];
           };
@@ -182,6 +186,7 @@
             codeNotify
             vibecad
             pxd
+            figr
             ;
         }
       );
