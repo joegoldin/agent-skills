@@ -419,11 +419,14 @@ servers:
       - { name: db,  port: 5432, type: tcp }     # -> host:port via DNAT
 ```
 
-The guest's `garnix` user is **login-closed and password-auth-off by default**
-(it's the deploy identity, not a login account); it only becomes loginable when
-you set `authorizeDeployerGithubKeys` and/or `authorizedSSHKeys`. `exposeSSH`
-only opens network reachability — it grants no login by itself. Or bring your
-own login user in the guest config (declare `users.users.<name>` with
+Password auth is off. The `garnix` user always authorizes the operator-owned
+hosting key so the backend can deploy, redeploy, and discover login users after
+activation, but it has no **human** direct-SSH keys by default; add those with
+`authorizeDeployerGithubKeys` and/or `authorizedSSHKeys`. `exposeSSH` only opens
+network reachability — it grants no human login by itself. The authenticated
+browser terminal is separate and may log in as `garnix` or any real guest user
+captured after activation via a short-lived terminal-CA certificate. Or bring
+your own login user in the guest config (declare `users.users.<name>` with
 `openssh.authorizedKeys.keys`, the [user-module](https://github.com/garnix-io/user-module)
 pattern) and use `exposeSSH`/tailscale purely for reach. The **Servers** page
 shows copyable `ssh` commands per method (Tailscale / ProxyJump / DNAT);
