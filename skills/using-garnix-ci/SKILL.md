@@ -295,11 +295,14 @@ Scheduling & timeouts (post-2026-07-19 backend):
   timeout (per-repo override > global default > 1 h; 0 = no limit). A wedged
   nix-daemon now fails the push with a visible `NixCommandTimeout` instead of
   leaving it at "Build starting" forever.
-- On startup the backend recovers every unfinished package build in the same
-  row. Pre-checkpoint work repeats evaluation; checkpointed work reattaches to
-  or cache-hits Nix. The commit then resumes its idempotent tail. Synthetic
-  overall rows and external action/deploy runs that cannot be reattached are
-  cancelled.
+- On startup, first check the commit state. A fully evaluated commit has a
+  complete package/action manifest, so its unfinished package rows resume in
+  place: pre-checkpoint work repeats attribute evaluation and checkpointed work
+  reattaches to or cache-hits Nix. A commit still marked `Evaluating` has only a
+  partial manifest; cancel those partial pending rows and restart the whole
+  commit setup so omitted attributes are recreated. Explicit user cancellation
+  marks the commit terminal and must not be recovered. Synthetic overall rows
+  and external action/deploy runs that cannot be reattached are cancelled.
 - **FOD verification** prepares a baseline and then strict-rebuilds in the same
   checker store. Preparation, source, Nix, and builder errors all fail closed;
   builder-controlled stderr is never trusted as a fetch exemption. Direct
@@ -325,7 +328,7 @@ Common failure signatures:
 | Account page shows the plan wrong / usage odd | `getPlan` always returns the synthetic unlimited "Self-Hosted" plan now — there is no `products` table (dropped). If code references it, the deployed backend predates the self-host-only rip-out. |
 | Frontend white page / `/_next` 404 | Caddy must serve `/_next/*` from `${frontendPkg}/public`; the standalone server doesn't. |
 | Deployment activation fails at `logrotate-checkconf.service` with `stat of /var/log/nginx/*.log failed: Permission denied` | The validator raced nginx's `LogsDirectory` ownership setup. Bump the repository's `garnix-ci` input: the composite guest module orders the check after nginx. For another service, create its log directory with explicit ownership and order its validator after the preparing unit. |
-| Jobs interrupted by a `garnixServer` restart | Every package row resumes in place: pre-checkpoint work repeats evaluation, checkpointed work reattaches/cache-hits Nix, and the commit continues its idempotent tail. Synthetic overall rows and non-idempotent external action/deploy runs are marked Cancelled. A push sitting at "Build starting" without a restart points to a wedged nix command; it fails with `NixCommandTimeout` at the configured limit. |
+| Jobs interrupted by a `garnixServer` restart | Inspect `commits.status`: `evaluated` means the manifest is complete and pending package rows resume in place; `evaluating` means setup was interrupted, so partial pending rows are cancelled and the whole commit restarts. Checkpointed rows in a complete manifest reattach/cache-hit Nix; pre-checkpoint rows repeat attribute evaluation. Explicitly cancelled commits stay terminal. Synthetic overall rows and non-idempotent external action/deploy runs are marked Cancelled. A push sitting at "Build starting" without a restart points to a wedged nix command; it fails with `NixCommandTimeout` at the configured limit. |
 | Every eval hangs; `nix` commands block; `grep -c -- '->' /proc/locks` > 0 on erdtree | nix-daemon deadlock — historically the min-free auto-GC deadlocking on `gc.lock` vs a concurrent `addToStore` path lock (2026-07-18). Auto-GC is now removed from erdtree's config (`nix-store-maintenance` daily job is the only GC); if it recurs, find the fork holding the `gc.lock` flock in `/proc/locks` and kill it. |
 | erdtree load/RAM climbing, dozens of qemu processes | Leaked pool guests: pool provisioning that fails must destroy the guest, not just the DB row (fixed 2026-07-19 — the refill loop otherwise boots a replacement every 15 s, a VM storm). Sweep leftovers with `pkill -f` (comm is `.qemu-system-x8`); production guests run as the `microvm` user — don't touch those. |
 
