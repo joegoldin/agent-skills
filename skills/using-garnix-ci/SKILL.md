@@ -324,6 +324,7 @@ Common failure signatures:
 | `Header Authorization has newlines` on `s3-cache-upload` | Trailing `\n` in a B2 secret. Re-save via stdin. |
 | Account page shows the plan wrong / usage odd | `getPlan` always returns the synthetic unlimited "Self-Hosted" plan now — there is no `products` table (dropped). If code references it, the deployed backend predates the self-host-only rip-out. |
 | Frontend white page / `/_next` 404 | Caddy must serve `/_next/*` from `${frontendPkg}/public`; the standalone server doesn't. |
+| Deployment activation fails at `logrotate-checkconf.service` with `stat of /var/log/nginx/*.log failed: Permission denied` | The validator raced nginx's `LogsDirectory` ownership setup. Bump the repository's `garnix-ci` input: the composite guest module orders the check after nginx. For another service, create its log directory with explicit ownership and order its validator after the preparing unit. |
 | Jobs interrupted by a `garnixServer` restart | Every package row resumes in place: pre-checkpoint work repeats evaluation, checkpointed work reattaches/cache-hits Nix, and the commit continues its idempotent tail. Synthetic overall rows and non-idempotent external action/deploy runs are marked Cancelled. A push sitting at "Build starting" without a restart points to a wedged nix command; it fails with `NixCommandTimeout` at the configured limit. |
 | Every eval hangs; `nix` commands block; `grep -c -- '->' /proc/locks` > 0 on erdtree | nix-daemon deadlock — historically the min-free auto-GC deadlocking on `gc.lock` vs a concurrent `addToStore` path lock (2026-07-18). Auto-GC is now removed from erdtree's config (`nix-store-maintenance` daily job is the only GC); if it recurs, find the fork holding the `gc.lock` flock in `/proc/locks` and kill it. |
 | erdtree load/RAM climbing, dozens of qemu processes | Leaked pool guests: pool provisioning that fails must destroy the guest, not just the DB row (fixed 2026-07-19 — the refill loop otherwise boots a replacement every 15 s, a VM storm). Sweep leftovers with `pkill -f` (comm is `.qemu-system-x8`); production guests run as the `microvm` user — don't touch those. |
@@ -389,13 +390,15 @@ issues per-SNI on-demand certs gated by `/api/hosts/on-demand-check`.
   example `{ i2x4 = 1; }`. A deployment can only claim a matching pooled tier.
   Erdtree intentionally keeps one `i2x4` guest warm because a repository NixOS
   activation can exhaust `i1x1` and make virtio-fs return `ENOMEM`.
-- **Guest contract:** every deployed `nixosConfiguration` MUST import
-  `microvm.nixosModules.microvm` and `garnix-ci.nixosModules.garnix-guest`, and
-  set `garnix.guest.sshPublicKey` to erdtree's hosting pubkey
-  (`/var/lib/garnix-provisioner/hosting.pub`) — otherwise a redeploy locks the
-  backend out of the guest. `garnix.guest.terminalCaPublicKey` defaults to
-  `sshPublicKey` for compatibility; the local provisioner injects the dedicated
-  terminal-CA public key derived from `/run/secrets/garnix_terminal_ca`.
+- **Guest contract:** every deployed `nixosConfiguration` MUST import only
+  `garnix-ci.nixosModules.garnix-guest`; it includes the pinned microvm.nix
+  module plus Garnix's volume/share/network/deploy profile. The fork's neutral
+  hosting public key is the `garnix.guest.sshPublicKey` default. Operators of a
+  different instance must override it with their host's
+  `/var/lib/garnix-provisioner/hosting.pub` or the wrong deploy key remains
+  trusted. `garnix.guest.terminalCaPublicKey` defaults to `sshPublicKey` for
+  compatibility; the local provisioner injects the dedicated terminal-CA
+  public key derived from `/run/secrets/garnix_terminal_ca`.
   Existing guests must be recreated after a terminal-CA cutover or the web
   terminal will stop authenticating. See `examples/hello-server/flake.nix` in
   the fork.
@@ -455,29 +458,39 @@ shows copyable `ssh` commands per method (Tailscale / ProxyJump / DNAT);
 
 **Live application logs (Servers page):**
 
-Set an optional absolute guest path on a server entry:
+Application logging is disabled by default. Enable it on a server entry; the
+optional path defaults to `/var/log/nginx/hello-access.log`:
 
 ```yaml
 servers:
   - configuration: myServer
     deployment: { branch: main }
-    logFile: /var/log/my-service.log
+    applicationLog:
+      enable: true
+      path: /var/log/my-service.log
 ```
 
 The server row's **Logs** modal is split horizontally into immutable deployment
 output and the live service log. The backend runs only a fixed `tail -n 10000
 -F -- <validated-path>` over its existing private hosting-key SSH channel; it
-does not open a guest port or accept a configurable command. `logFile` must be
-absolute and cannot contain `..`, NUL, or newline path components. The endpoint
-uses the same owner/installed-organization visibility check as server stats.
+does not open a guest port or accept a configurable command.
+`applicationLog.path` must be absolute and cannot contain `..`, NUL, or newline
+path components. The endpoint uses the same owner/installed-organization
+visibility check as server stats.
 
 Scrollback is process-local and bounded per server to the newest **10,000
 lines** and **10 MiB**, with each line capped at 16,384 characters. After a
 backend restart, each live configured server reconnects and seeds a fresh
 buffer from the newest 10,000 file lines. A persistent redeploy replaces the
-old collector and buffer; removing `logFile` disables it. Deleting a server
-stops its collector while leaving recent bounded scrollback available until
-the backend process exits.
+old collector and buffer; setting `applicationLog.enable` false disables it.
+Deleting a server stops its collector while leaving recent bounded scrollback
+available until the backend process exits.
+
+The application must create and write the configured file. When nginx is
+enabled, the composite guest module orders `logrotate-checkconf` after nginx so
+systemd has created and chowned `/var/log/nginx` before logrotate switches to
+the nginx UID. For another service, declare equivalent directory ownership and
+activation ordering in that service's NixOS module.
 
 ### Hosting custom/vanity domains
 
@@ -536,11 +549,9 @@ reaches your service on `garnix.authentik.upstream`. Three modes:
 
   ```nix
   modules = [
-    microvm.nixosModules.microvm
     garnix-ci.nixosModules.garnix-guest
     garnix-ci.nixosModules.garnix-authentik
     {
-      garnix.guest.sshPublicKey = "<hosting pubkey>";
       garnix.authentik = {
         enable = true;
         publicUrl = "https://hello.main.<repo>.<owner>.<appsDomain>";
