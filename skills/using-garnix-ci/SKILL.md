@@ -303,12 +303,15 @@ Scheduling & timeouts (post-2026-07-19 backend):
   commit setup so omitted attributes are recreated. Explicit user cancellation
   marks the commit terminal and must not be recovered. Synthetic overall rows
   and external action/deploy runs that cannot be reattached are cancelled.
-- **FOD verification** prepares a baseline and then strict-rebuilds in the same
-  checker store. Preparation, source, Nix, and builder errors all fail closed;
-  builder-controlled stderr is never trusted as a fetch exemption. Direct
-  aarch64-store work is independently capped by
-  `services.garnixServer.maxRemoteFodJobs = 1`; farum-azula's ordinary Nix
-  scheduler entry also has `maxJobs = 1` for the 2-core/12-GiB box.
+- **FOD verification** prepares a baseline and then strict-rebuilds the
+  original derivation unchanged through erdtree's canonical Nix daemon store.
+  Preparation sees paths already hydrated on erdtree and configured
+  substituters (including Attic). The daemon may dispatch a matching build to
+  farum-azula, whose ordinary `buildMachines[*].maxJobs = 1` setting caps work
+  on the 2-core/12-GiB box and copies the result back. Never target farum with
+  `nix --store`, rewrite a FOD builder, or treat cache presence as verification.
+  Preparation, source, Nix, and builder errors all fail closed;
+  builder-controlled stderr is never trusted as a fetch exemption.
 - **Manual re-trigger**: `POST /api/commits/repo/<owner>/<repo>/trigger`.
   Browser requests use the JWT cookie. For an operator curl directly against
   `127.0.0.1:8321`, forged `X-Auth-Request-*` headers are accepted only with the
@@ -328,6 +331,8 @@ Common failure signatures:
 | Account page shows the plan wrong / usage odd | `getPlan` always returns the synthetic unlimited "Self-Hosted" plan now — there is no `products` table (dropped). If code references it, the deployed backend predates the self-host-only rip-out. |
 | Frontend white page / `/_next` 404 | Caddy must serve `/_next/*` from `${frontendPkg}/public`; the standalone server doesn't. |
 | Deployment activation fails at `logrotate-checkconf.service` with `stat of /var/log/nginx/*.log failed: Permission denied` | The validator raced nginx's `LogsDirectory` ownership setup. Bump the repository's `garnix-ci` input: the composite guest module orders the check after nginx. For another service, create its log directory with explicit ownership and order its validator after the preparing unit. |
+| A hydrated DisplayLink/`requireFile` FOD still fails its strict check | Expected fail-closed behavior: `requireFile`'s original builder prints manual-download instructions and exits unsuccessfully. The cached output satisfies preparation but does not prove builder/hash agreement. |
+| A FOD fails on crates.io, a dead source URL, bootstrap seed, or Go vendor generation | This is a failure of the original derivation being checked. Repair/update the source derivation or pinned dependency; never add a checker-side compatibility derivation. |
 | Jobs interrupted by a `garnixServer` restart | Inspect `commits.status`: `evaluated` means the manifest is complete and pending package rows resume in place; `evaluating` means setup was interrupted, so partial pending rows are cancelled and the whole commit restarts. Checkpointed rows in a complete manifest reattach/cache-hit Nix; pre-checkpoint rows repeat attribute evaluation. Explicitly cancelled commits stay terminal. Synthetic overall rows and non-idempotent external action/deploy runs are marked Cancelled. A push sitting at "Build starting" without a restart points to a wedged nix command; it fails with `NixCommandTimeout` at the configured limit. |
 | Every eval hangs; `nix` commands block; `grep -c -- '->' /proc/locks` > 0 on erdtree | nix-daemon deadlock — historically the min-free auto-GC deadlocking on `gc.lock` vs a concurrent `addToStore` path lock (2026-07-18). Auto-GC is now removed from erdtree's config (`nix-store-maintenance` daily job is the only GC); if it recurs, find the fork holding the `gc.lock` flock in `/proc/locks` and kill it. |
 | erdtree load/RAM climbing, dozens of qemu processes | Leaked pool guests: pool provisioning that fails must destroy the guest, not just the DB row (fixed 2026-07-19 — the refill loop otherwise boots a replacement every 15 s, a VM storm). Sweep leftovers with `pkill -f` (comm is `.qemu-system-x8`); production guests run as the `microvm` user — don't touch those. |
