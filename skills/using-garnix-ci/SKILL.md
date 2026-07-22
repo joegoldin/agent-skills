@@ -65,10 +65,12 @@ Use `--local` when you have already built the exact garnix store paths locally
 backend. The recipe injects `NIX_CONFIG="access-tokens = github.com=$(gh auth
 token)"` so the private flake inputs fetch.
 
-> **Deploying restarts `garnixServer`, which kills any in-flight builds.** They
-> are left orphaned (status NULL, no end_time) and show "Pending" forever in the
-> UI. Cancel them from the build page ("Cancel build") or in the DB. Avoid
-> deploying while a long build (the fork's own `backend_garnix*`) is running.
+> **Deploying restarts `garnixServer`.** Package builds checkpoint their
+> derivation immediately after evaluation; startup resumes checkpointed FOD/
+> realization work in the same build row. Work interrupted before that point,
+> plus action/deployment processes that cannot be reattached, is marked
+> Cancelled instead of hanging. Avoid deploying during important actions or
+> deployments; ordinary checkpointed package builds are restart-safe.
 
 ### Fork (backend/frontend) code changes
 
@@ -117,13 +119,14 @@ Use this while iterating; run the authoritative `nix build` gate before deployin
 
 ### Running the backend spec suite (it passes now)
 
-`backend_specs` (the `garnix.yaml` action on the fork) runs the full 774-test
+`backend_specs` (the `garnix.yaml` action on the fork) runs the full backend
 suite on every push, ~35–40 min end to end (≈25 min `-O0` compile + the rest
 tests). It was chronically broken (0-for-80, always hitting the 2h10m action
-timeout) until 2026-07-19; treat a red run as a real regression now. Tests
-tagged `@skip-ci` in their name are skipped in CI (currently one: the terminal
-close-handshake test, which loses a websocket teardown race only inside the
-action sandbox).
+timeout) until 2026-07-19; treat a red run as a real regression now. The real
+terminal websocket close path runs in CI. The remaining `@skip-ci` group is the
+live `Integration.FlakesSpec`, which mutates known Nix store paths and uses
+external GitHub/private-input fixtures; run it deliberately, not as a hermetic
+action test.
 
 To iterate on specs locally (on erdtree or any linux checkout), give each run a
 **hermetic throwaway DB dir** — reusing the shellHook's `<repo>/pg-tmp` across
@@ -215,7 +218,8 @@ entitlements** (like the Gitea setup), not raw groups:
 > proxies only `/api/cache`.
 
 Admin UI: `<garnixDomain>/garnix-admin` (visible only to admins) — create the
-GitHub App, and set **per-repo config** (see below).
+GitHub App and review external-fork private-input requests. Ordinary repos do
+not need or show a per-repo exemption form.
 
 ## Using garnix to build your repos
 
@@ -237,13 +241,21 @@ The default (no `garnix.yaml`) builds `*.x86_64-linux.*`, `defaultPackage`,
 substitutes from attic while building. So a push builds once and every machine
 downloads the result.
 
-**Private flake inputs on a public repo:** garnix refuses this by default because
-the dependency closures could leak to the unauthenticated public cache. Grant a
-deliberate per-repo exemption in the admin page's **Per-repo config** (the DB
-column is `skip_private_inputs_check_for_collaborators`) only when required, and
-keep `private_cache = true` so those closures use the authenticated bucket.
-Self-host mode does not auto-grant new exemptions; legacy auto-set flags were
-cleared during the hosting-hardening migration.
+**Private flake inputs:** trusted self-host pushes, branches, and same-owner
+forks use readable private `github:` inputs automatically. Garnix sets
+`private_cache = true` before upload, so the resulting closure is served only
+to a cache-token user who is a GitHub collaborator on the base repo. If the
+GitHub App installation cannot fetch an input, the build fails with that real
+fetch error.
+
+An external fork is blocked on its first private-input attempt: otherwise fork
+code could name any private repo visible to a broadly installed GitHub App and
+print its contents. That block records the base repo, which then appears under
+`/garnix-admin` → **External-fork private inputs**. Allow it and retry the
+build, or revoke it later. Repos that never hit this restriction do not appear
+in the approval inbox. The legacy DB flag is reused as the approval bit, but
+must be changed through this recorded-request flow; private-cache routing stays
+enabled whether the request is allowed or blocked.
 
 **Local `nix build` outside `just`:** the private inputs are `github:` refs that
 need a token. `just` recipes inject `gh auth token`; a bare `nix build` does not.
@@ -266,10 +278,7 @@ SELECT package, status, start_time, end_time FROM builds
 WHERE repo_name = '<repo>' ORDER BY start_time DESC LIMIT 40;
 -- valid statuses
 SELECT unnest(enum_range(NULL::build_status));   -- success | failure | timeout | cancelled
--- cancel builds orphaned by a redeploy
-UPDATE builds SET status='cancelled', end_time=now()
-WHERE repo_name='<repo>' AND git_commit='<sha>' AND status IS NULL AND end_time IS NULL;
--- per-repo config (private-inputs / private-cache overrides)
+-- private-input routing + recorded external-fork approval requests
 SELECT * FROM repo_config WHERE repo_user='<owner>' AND repo_name='<repo>';
 ```
 
@@ -285,7 +294,14 @@ Scheduling & timeouts (post-2026-07-19 backend):
   timeout (per-repo override > global default > 1 h; 0 = no limit). A wedged
   nix-daemon now fails the push with a visible `NixCommandTimeout` instead of
   leaving it at "Build starting" forever.
-- On startup the backend cancels builds/runs orphaned by its previous restart.
+- On startup the backend resumes package builds that have a derivation
+  checkpoint. It cancels only pre-checkpoint builds and external action/deploy
+  runs that cannot be reattached.
+- **FOD verification** prepares a baseline and then strict-rebuilds in the same
+  checker store. Only recognized fetch/source failures are skipped; unknown Nix
+  or builder errors fail. Direct aarch64-store work is independently capped by
+  `services.garnixServer.maxRemoteFodJobs = 1`; farum-azula's ordinary Nix
+  scheduler entry also has `maxJobs = 1` for the 2-core/12-GiB box.
 - **Manual re-trigger**: `POST /api/commits/repo/<owner>/<repo>/trigger`.
   Browser requests use the JWT cookie. For an operator curl directly against
   `127.0.0.1:8321`, forged `X-Auth-Request-*` headers are accepted only with the
@@ -299,11 +315,12 @@ Common failure signatures:
 | Symptom | Cause / fix |
 |---|---|
 | "Build failed with **no output**" | Eval/authorization failed before any build. `grep <sha>` in `journalctl -u garnixServer`. |
-| `Public repository has private dependencies, which is not allowed` | The private-inputs guard. In self-host mode it auto-allows + routes to the private cache; if seen, the deployed backend predates that fix, or `selfHostMode` is off. |
+| `This external fork requested private flake inputs` | Expected first-block behavior. Open `/garnix-admin`, allow the recorded base repo under **External-fork private inputs**, then retry; do not approve an untrusted fork whose code you have not reviewed. |
+| `Public repository has private dependencies, which is not allowed` | Managed-mode policy, or a backend that predates automatic trusted self-host inputs. Confirm `selfHostMode` and the deployed revision. |
 | `Header Authorization has newlines` on `s3-cache-upload` | Trailing `\n` in a B2 secret. Re-save via stdin. |
 | Account page shows the plan wrong / usage odd | `getPlan` always returns the synthetic unlimited "Self-Hosted" plan now — there is no `products` table (dropped). If code references it, the deployed backend predates the self-host-only rip-out. |
 | Frontend white page / `/_next` 404 | Caddy must serve `/_next/*` from `${frontendPkg}/public`; the standalone server doesn't. |
-| Jobs stuck "Pending" | Orphaned by a `garnixServer` restart (deploy) mid-build — newer backends cancel these on startup. If pushes sit at "Build starting" *without* a restart, suspect a wedged nix-daemon (below); the eval will fail with `NixCommandTimeout` once the configured timeout fires. |
+| Jobs interrupted by a `garnixServer` restart | Checkpointed package builds resume in the same row. Pre-checkpoint builds and action/deploy runs are marked Cancelled because their processes cannot be reattached. A push sitting at "Build starting" without a restart points to a wedged nix command; it fails with `NixCommandTimeout` at the configured limit. |
 | Every eval hangs; `nix` commands block; `grep -c -- '->' /proc/locks` > 0 on erdtree | nix-daemon deadlock — historically the min-free auto-GC deadlocking on `gc.lock` vs a concurrent `addToStore` path lock (2026-07-18). Auto-GC is now removed from erdtree's config (`nix-store-maintenance` daily job is the only GC); if it recurs, find the fork holding the `gc.lock` flock in `/proc/locks` and kill it. |
 | erdtree load/RAM climbing, dozens of qemu processes | Leaked pool guests: pool provisioning that fails must destroy the guest, not just the DB row (fixed 2026-07-19 — the refill loop otherwise boots a replacement every 15 s, a VM storm). Sweep leftovers with `pkill -f` (comm is `.qemu-system-x8`); production guests run as the `microvm` user — don't touch those. |
 
@@ -363,8 +380,11 @@ issues per-SNI on-demand certs gated by `/api/hosts/on-demand-check`.
   tier, `i1x1` (default, 1 vCPU / 1 GiB) … `i16x32` — the name encodes
   `<vCPU>x<GiB>` (`i1x1 i1x2 i2x2 i2x3 i2x4 i4x2 i4x4 i4x8 i8x8 i8x16 i16x16
   i16x32`); 20 GiB root + 20 GiB writable-store overlay for every tier.
-  `provisionServerPool = true` pre-warms the pool (default one `i1x1`); override
-  the pooled set with `GARNIX_SERVER_POOL` (`i1x1:1,i4x4:0`).
+  `provisionServerPool = true` enables pre-warming; configure exact available
+  tiers with the typed NixOS option `services.garnixServer.serverPool`, for
+  example `{ i2x4 = 1; }`. A deployment can only claim a matching pooled tier.
+  Erdtree intentionally keeps one `i2x4` guest warm because a repository NixOS
+  activation can exhaust `i1x1` and make virtio-fs return `ENOMEM`.
 - **Guest contract:** every deployed `nixosConfiguration` MUST import
   `microvm.nixosModules.microvm` and `garnix-ci.nixosModules.garnix-guest`, and
   set `garnix.guest.sshPublicKey` to erdtree's hosting pubkey
