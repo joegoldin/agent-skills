@@ -65,12 +65,13 @@ Use `--local` when you have already built the exact garnix store paths locally
 backend. The recipe injects `NIX_CONFIG="access-tokens = github.com=$(gh auth
 token)"` so the private flake inputs fetch.
 
-> **Deploying restarts `garnixServer`.** Package builds checkpoint their
-> derivation immediately after evaluation; startup resumes checkpointed FOD/
-> realization work in the same build row. Work interrupted before that point,
-> plus action/deployment processes that cannot be reattached, is marked
-> Cancelled instead of hanging. Avoid deploying during important actions or
-> deployments; ordinary checkpointed package builds are restart-safe.
+> **Deploying restarts `garnixServer`.** Startup recovers every unfinished
+> package row: pre-checkpoint rows repeat evaluation, while checkpointed rows
+> reattach to or cache-hit the surviving Nix daemon. The commit then continues
+> its idempotent artifact/module/deploy tail. Synthetic overall rows and
+> non-idempotent external action/deployment processes that cannot be reattached
+> are marked Cancelled instead of hanging. Avoid deploying during important
+> actions or deployments; ordinary package builds are restart-safe.
 
 ### Fork (backend/frontend) code changes
 
@@ -294,12 +295,15 @@ Scheduling & timeouts (post-2026-07-19 backend):
   timeout (per-repo override > global default > 1 h; 0 = no limit). A wedged
   nix-daemon now fails the push with a visible `NixCommandTimeout` instead of
   leaving it at "Build starting" forever.
-- On startup the backend resumes package builds that have a derivation
-  checkpoint. It cancels only pre-checkpoint builds and external action/deploy
-  runs that cannot be reattached.
+- On startup the backend recovers every unfinished package build in the same
+  row. Pre-checkpoint work repeats evaluation; checkpointed work reattaches to
+  or cache-hits Nix. The commit then resumes its idempotent tail. Synthetic
+  overall rows and external action/deploy runs that cannot be reattached are
+  cancelled.
 - **FOD verification** prepares a baseline and then strict-rebuilds in the same
-  checker store. Only recognized fetch/source failures are skipped; unknown Nix
-  or builder errors fail. Direct aarch64-store work is independently capped by
+  checker store. Preparation, source, Nix, and builder errors all fail closed;
+  builder-controlled stderr is never trusted as a fetch exemption. Direct
+  aarch64-store work is independently capped by
   `services.garnixServer.maxRemoteFodJobs = 1`; farum-azula's ordinary Nix
   scheduler entry also has `maxJobs = 1` for the 2-core/12-GiB box.
 - **Manual re-trigger**: `POST /api/commits/repo/<owner>/<repo>/trigger`.
@@ -320,7 +324,7 @@ Common failure signatures:
 | `Header Authorization has newlines` on `s3-cache-upload` | Trailing `\n` in a B2 secret. Re-save via stdin. |
 | Account page shows the plan wrong / usage odd | `getPlan` always returns the synthetic unlimited "Self-Hosted" plan now — there is no `products` table (dropped). If code references it, the deployed backend predates the self-host-only rip-out. |
 | Frontend white page / `/_next` 404 | Caddy must serve `/_next/*` from `${frontendPkg}/public`; the standalone server doesn't. |
-| Jobs interrupted by a `garnixServer` restart | Checkpointed package builds resume in the same row. Pre-checkpoint builds and action/deploy runs are marked Cancelled because their processes cannot be reattached. A push sitting at "Build starting" without a restart points to a wedged nix command; it fails with `NixCommandTimeout` at the configured limit. |
+| Jobs interrupted by a `garnixServer` restart | Every package row resumes in place: pre-checkpoint work repeats evaluation, checkpointed work reattaches/cache-hits Nix, and the commit continues its idempotent tail. Synthetic overall rows and non-idempotent external action/deploy runs are marked Cancelled. A push sitting at "Build starting" without a restart points to a wedged nix command; it fails with `NixCommandTimeout` at the configured limit. |
 | Every eval hangs; `nix` commands block; `grep -c -- '->' /proc/locks` > 0 on erdtree | nix-daemon deadlock — historically the min-free auto-GC deadlocking on `gc.lock` vs a concurrent `addToStore` path lock (2026-07-18). Auto-GC is now removed from erdtree's config (`nix-store-maintenance` daily job is the only GC); if it recurs, find the fork holding the `gc.lock` flock in `/proc/locks` and kill it. |
 | erdtree load/RAM climbing, dozens of qemu processes | Leaked pool guests: pool provisioning that fails must destroy the guest, not just the DB row (fixed 2026-07-19 — the refill loop otherwise boots a replacement every 15 s, a VM storm). Sweep leftovers with `pkill -f` (comm is `.qemu-system-x8`); production guests run as the `microvm` user — don't touch those. |
 
@@ -448,6 +452,32 @@ shows copyable `ssh` commands per method (Tailscale / ProxyJump / DNAT);
   captured at deploy via `getent passwd` (stored in `servers.ssh_users`);
   free-text is allowed but regex-validated (`^[a-z_][a-z0-9_-]{0,31}$`) and
   access is still enforced by the guest sshd.
+
+**Live application logs (Servers page):**
+
+Set an optional absolute guest path on a server entry:
+
+```yaml
+servers:
+  - configuration: myServer
+    deployment: { branch: main }
+    logFile: /var/log/my-service.log
+```
+
+The server row's **Logs** modal is split horizontally into immutable deployment
+output and the live service log. The backend runs only a fixed `tail -n 10000
+-F -- <validated-path>` over its existing private hosting-key SSH channel; it
+does not open a guest port or accept a configurable command. `logFile` must be
+absolute and cannot contain `..`, NUL, or newline path components. The endpoint
+uses the same owner/installed-organization visibility check as server stats.
+
+Scrollback is process-local and bounded per server to the newest **10,000
+lines** and **10 MiB**, with each line capped at 16,384 characters. After a
+backend restart, each live configured server reconnects and seeds a fresh
+buffer from the newest 10,000 file lines. A persistent redeploy replaces the
+old collector and buffer; removing `logFile` disables it. Deleting a server
+stops its collector while leaving recent bounded scrollback available until
+the backend process exits.
 
 ### Hosting custom/vanity domains
 
