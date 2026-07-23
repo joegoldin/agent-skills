@@ -413,9 +413,9 @@ issues per-SNI on-demand certs gated by `/api/hosts/on-demand-check`.
 - **Guest network boundary:** guest taps are L2-isolated bridge ports; guest
   firewalls permit inbound SSH but deny undeclared ports; guests are IPv4-only
   and refuse router advertisements. The host egress chain blocks other guests,
-  RFC1918/LAN, link-local, CGNAT, and the remote builder
-  (`<internal-builder-cidr>`). A deployed workload can reach the public internet and
-  required gateway services, but not the host LAN or remote builder.
+  RFC1918/LAN, link-local, CGNAT, and any operator-configured internal builder
+  CIDRs. A deployed workload can reach the public internet and required gateway
+  services, but not the host LAN or remote builders.
 
 ### SSH into deployed guests
 
