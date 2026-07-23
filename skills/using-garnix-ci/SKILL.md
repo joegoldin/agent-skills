@@ -70,8 +70,12 @@ token)"` so the private flake inputs fetch.
 > reattach to or cache-hit the surviving Nix daemon. The commit then continues
 > its idempotent artifact/module/deploy tail. Synthetic overall rows and
 > non-idempotent external action/deployment processes that cannot be reattached
-> are marked Cancelled instead of hanging. Avoid deploying during important
-> actions or deployments; ordinary package builds are restart-safe.
+> are marked Cancelled instead of hanging. Any cancellation — recovery, an
+> explicit user cancel, or cancelling a commit/build/run — is reported to the
+> forge (GitHub check-run → `cancelled`, Gitea commit status → error), so
+> cancelled work no longer hangs `in_progress`/pending on the forge. Avoid
+> deploying during important actions or deployments; ordinary package builds
+> are restart-safe.
 
 ### Fork (backend/frontend) code changes
 
@@ -243,20 +247,25 @@ substitutes from attic while building. So a push builds once and every machine
 downloads the result.
 
 **Private flake inputs:** trusted self-host pushes, branches, and same-owner
-forks use readable private `github:` inputs automatically. Garnix sets
-`private_cache = true` before upload, so the resulting closure is served only
-to a cache-token user who is a GitHub collaborator on the base repo. If the
-GitHub App installation cannot fetch an input, the build fails with that real
-fetch error.
+forks may use readable private `github:` inputs automatically — but only when
+every collaborator of the base repo can also access the input repo (a
+collaborator-parity check; a build is blocked with "some collaborators … don't
+have access to a required private dependency" otherwise). A repo can waive that
+parity check with the explicit repo-wide `skip_private_inputs_check_for_collaborators`
+opt-in. Garnix sets `private_cache = true` before upload, so the resulting
+closure is served only to a cache-token user who is a GitHub collaborator on the
+base repo. If the GitHub App installation cannot fetch an input, the build fails
+with that real fetch error.
 
-An external fork is blocked on its first private-input attempt: otherwise fork
-code could name any private repo visible to a broadly installed GitHub App and
-print its contents. That block records the base repo, which then appears under
-`/garnix-admin` → **External-fork private inputs**. Allow it and retry the
-build, or revoke it later. Repos that never hit this restriction do not appear
-in the approval inbox. The legacy DB flag is reused as the approval bit, but
-must be changed through this recorded-request flow; private-cache routing stays
-enabled whether the request is allowed or blocked.
+An **external fork** is blocked on its first private-input attempt: otherwise
+fork code could name any private repo visible to a broadly installed GitHub App
+and print its contents. The block is recorded **per fork** in the
+`private_input_fork_requests` table, and that specific fork appears under
+`/garnix-admin` → **External-fork private inputs**. Allow it and retry, or
+revoke later — **approving one fork does not trust any other fork** of the same
+repo (approval sets that fork's `approved_at`, not a repo-wide flag). Repos that
+never hit this restriction do not appear in the approval inbox; private-cache
+routing stays enabled whether a fork request is allowed or blocked.
 
 **Local `nix build` outside `just`:** the private inputs are `github:` refs that
 need a token. `just` recipes inject `gh auth token`; a bare `nix build` does not.
@@ -279,8 +288,10 @@ SELECT package, status, start_time, end_time FROM builds
 WHERE repo_name = '<repo>' ORDER BY start_time DESC LIMIT 40;
 -- valid statuses
 SELECT unnest(enum_range(NULL::build_status));   -- success | failure | timeout | cancelled
--- private-input routing + recorded external-fork approval requests
+-- private-input cache routing (per repo)
 SELECT * FROM repo_config WHERE repo_user='<owner>' AND repo_name='<repo>';
+-- recorded external-fork approval requests (per fork; approved_at set = allowed)
+SELECT * FROM private_input_fork_requests WHERE repo_user='<owner>' AND repo_name='<repo>';
 ```
 
 Scheduling & timeouts (post-2026-07-19 backend):
@@ -325,7 +336,8 @@ Common failure signatures:
 | Symptom | Cause / fix |
 |---|---|
 | "Build failed with **no output**" | Eval/authorization failed before any build. `grep <sha>` in `journalctl -u garnixServer`. |
-| `This external fork requested private flake inputs` | Expected first-block behavior. Open `/garnix-admin`, allow the recorded base repo under **External-fork private inputs**, then retry; do not approve an untrusted fork whose code you have not reviewed. |
+| `This external fork requested private flake inputs` | Expected first-block behavior. Open `/garnix-admin`, allow **that specific fork** under **External-fork private inputs** (approval is per fork, not per repo), then retry; do not approve an untrusted fork whose code you have not reviewed. |
+| `some collaborators … don't have access to a required private dependency` | The private-input collaborator-parity check (runs in self-host too): a base-repo collaborator lacks access to the private input repo. Grant them access on the input repo, or set the repo-wide `skip_private_inputs_check_for_collaborators` opt-in if the parity requirement is intentionally waived. |
 | `Public repository has private dependencies, which is not allowed` | Managed-mode policy, or a backend that predates automatic trusted self-host inputs. Confirm `selfHostMode` and the deployed revision. |
 | `Header Authorization has newlines` on `s3-cache-upload` | Trailing `\n` in a B2 secret. Re-save via stdin. |
 | Account page shows the plan wrong / usage odd | `getPlan` always returns the synthetic unlimited "Self-Hosted" plan now — there is no `products` table (dropped). If code references it, the deployed backend predates the self-host-only rip-out. |
@@ -462,7 +474,11 @@ shows copyable `ssh` commands per method (Tailscale / ProxyJump / DNAT);
   "Login as" picker defaults to `garnix` and suggests the guest's real accounts,
   captured at deploy via `getent passwd` (stored in `servers.ssh_users`);
   free-text is allowed but regex-validated (`^[a-z_][a-z0-9_-]{0,31}$`) and
-  access is still enforced by the guest sshd.
+  access is still enforced by the guest sshd. Repo access is re-checked **live**
+  on each connect (a repo turned private closes the terminal), and each session
+  cert is pinned to its server by a `server-<hash>` principal the guest enforces
+  via `AuthorizedPrincipalsFile` — a cert minted for one server cannot log into
+  another. Recreate existing guests to pick up the principal file.
 
 **Live application logs (Servers page):**
 
