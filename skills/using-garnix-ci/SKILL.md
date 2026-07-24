@@ -158,7 +158,7 @@ Facts that bite:
   0600 at suite start (git can't store file modes, so fresh checkouts are 0644
   and ssh refuses them — the historic cause of every deploy spec timing out).
 - The deploy specs boot **real qemu VMs** via the provisioner mock (pool config
-  `TestHelpers.ServerPool.testPoolConfig`, `[(I1x1, 2)]` — I1x1 because that's
+  `TestHelpers.ServerPool.testPoolConfig`, `[(I1x2, 2)]` — I1x2 because that's
   the default `deployment.machine` tier and `claimServerDB` matches tiers
   exactly). The Action specs boot `nixosConfigurations.action-runner2`
   (`nix/tests/action-runner-vm.nix`) — a headless VM running the self-host
@@ -402,7 +402,7 @@ issues per-SNI on-demand certs gated by `/api/hosts/on-demand-check`.
   at `<repo>.<owner>.<appsDomain>`). A wildcard `*.<appsDomain>` DNS record
   (DNS-only) points at erdtree.
 - **Configurable size:** each `garnix.yaml` `servers[].deployment.machine` picks a
-  tier, `i1x1` (default, 1 vCPU / 1 GiB) … `i16x32` — the name encodes
+  tier, `i1x2` (default, 1 vCPU / 2 GiB) … `i16x32` — the name encodes
   `<vCPU>x<GiB>` (`i1x1 i1x2 i2x2 i2x3 i2x4 i4x2 i4x4 i4x8 i8x8 i8x16 i16x16
   i16x32`); 20 GiB root + 20 GiB writable-store overlay for every tier.
   `provisionServerPool = true` enables pre-warming; configure exact available
@@ -462,8 +462,11 @@ shows copyable `ssh` commands per method (Tailscale / ProxyJump / DNAT);
 **Redeploy & in-browser terminal (Servers page):**
 
 - **Redeploy** re-runs the whole pipeline for the server's current commit
-  (`POST /api/hosts/<id>/redeploy` → `Orchestrator.restartCommit`), rebuilding
-  and redeploying — branch or PR.
+  (`POST /api/hosts/<id>/redeploy` with `{onlyThisServer}` →
+  `Orchestrator.restartCommit`), rebuilding and redeploying — branch or PR. A
+  confirm dialog redeploys all of the repo's deployments by default, or scopes to
+  just this one (persisted per-commit as `manual_deploy_target`; getDeployPlan
+  restricts the rollout and leaves the others running).
 - **Open Terminal** opens an in-app xterm.js shell (`/servers/<id>/terminal`)
   over a websocket PTY (`/api/terminal/<id>`) running `ssh garnix@<guest-ip>`
   (guest IP from the DB, never the client). Auth + ownership-gated like `/stats`,
