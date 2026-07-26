@@ -348,6 +348,16 @@ Common failure signatures:
 | Jobs interrupted by a `garnixServer` restart | Inspect `commits.status`: `evaluated` means the manifest is complete and pending package rows resume in place; `evaluating` means setup was interrupted, so partial pending rows are cancelled and the whole commit restarts. Checkpointed rows in a complete manifest reattach/cache-hit Nix; pre-checkpoint rows repeat attribute evaluation. Explicitly cancelled commits stay terminal. Synthetic overall rows and non-idempotent external action/deploy runs are marked Cancelled. A push sitting at "Build starting" without a restart points to a wedged nix command; it fails with `NixCommandTimeout` at the configured limit. |
 | Every eval hangs; `nix` commands block; `grep -c -- '->' /proc/locks` > 0 on erdtree | nix-daemon deadlock — historically the min-free auto-GC deadlocking on `gc.lock` vs a concurrent `addToStore` path lock (2026-07-18). Auto-GC is now removed from erdtree's config (`nix-store-maintenance` daily job is the only GC); if it recurs, find the fork holding the `gc.lock` flock in `/proc/locks` and kill it. |
 | erdtree load/RAM climbing, dozens of qemu processes | Leaked pool guests: pool provisioning that fails must destroy the guest, not just the DB row (fixed 2026-07-19 — the refill loop otherwise boots a replacement every 15 s, a VM storm). Sweep leftovers with `pkill -f` (comm is `.qemu-system-x8`); production guests run as the `microvm` user — don't touch those. |
+| An `authentik:`-gated deploy fails activation (exit 4) **intermittently**, rolling back the whole generation | `oauth2-proxy` couldn't start. Its cookie secret must be **URL-safe unpadded base64**: oauth2-proxy decodes with Go's `base64.RawURLEncoding` and silently falls back to the literal string, so plain `base64` output is read as a 44-byte key and it exits with `cookie_secret must be 16, 24, or 32 bytes to create an AES cipher, but is 44 bytes`. ~74% of random 32-byte secrets contain a `+` or `/`, which made it look flaky rather than broken. Fixed 2026-07-26 (`tr '+/' '-_' \| tr -d '='` → 43 chars → 32 bytes); the generator now also rewrites an already-persisted bad secret, since the old guard only checked the file was non-empty. |
+| A failed deploy's log shows only `Failed with result 'exit-code'` | Guest diagnostics used to filter to warning-and-above, but systemd records a daemon's stdout/stderr at **info** — so the actual error was exactly what got dropped. Fixed 2026-07-26: the deploy log now carries `systemctl status` plus each failed unit's full journal, with unit names taken from activation's own stderr unioned with `systemctl --failed`. Seeing only the bare exit-code line means the deployed backend predates that fix. |
+
+> **Debugging lesson worth generalizing.** Both rows above are the same trap: a
+> log filter hid the cause, and the *intermittency* was misread as an
+> environmental flake (network, DNS, Authentik being slow) rather than as a
+> clue. An intermittent failure with a stable success rate usually means
+> something is randomly generated and only sometimes valid — chase the
+> generator, not the environment. And when a deploy fails with no usable
+> message, fix the log capture first; guessing costs more than the capture does.
 
 ## Multiple servers & hash subdomains (hosting)
 
@@ -597,6 +607,21 @@ The public-key endpoints (`/api/keys/*`), status badges (`/api/badges/*`), and
 webhooks (`/api/events/*`) bypass the Authentik gate in Caddy — the provision
 helper and guests fetch repo public keys unauthenticated (they can encrypt, not
 decrypt).
+
+The **cookie secret** is generated once per guest and persisted at
+`/var/lib/garnix-authentik/cookie-secret`. It must be **URL-safe unpadded
+base64** (43 chars, decoding to 32 bytes) — oauth2-proxy decodes it with Go's
+`base64.RawURLEncoding` and falls back to the literal string on failure, so
+standard `base64` output is taken as a 44-byte key and the process refuses to
+start. Keep the `tr '+/' '-_' | tr -d '='` in any generator you write, and
+validate rather than merely existence-check a persisted secret. Verifying a
+gated deploy end to end is one curl — a working gate 302s to `/oauth2/start`
+and follows through to the Authentik login flow:
+
+```bash
+curl -sSL -o /dev/null -w '%{http_code} %{url_effective}\n' \
+  https://<pkg>.<branch>.<repo>.<owner>.<appsDomain>/oauth2/start
+```
 
 ## Monitoring
 
