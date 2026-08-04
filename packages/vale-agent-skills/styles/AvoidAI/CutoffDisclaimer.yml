@@ -1,0 +1,13 @@
+# P0, and the single heaviest signal in the scoring model: a model limitation
+# leaking into prose. Never publish a sentence admitting the writer did not
+# look something up.
+extends: existence
+message: "Model-limitation disclaimer ('%s') -- find the information or cut the hedge."
+level: error
+ignorecase: true
+tokens:
+  - 'as\s+of\s+my\s+(?:last\s+update|knowledge\s+cutoff|training)'
+  - 'I\s+don.t\s+have\s+access\s+to\s+real[- ]time'
+  - 'based\s+on\s+(?:the\s+)?available\s+information'
+  - 'while\s+specific\s+details\s+are\s+limited'
+  - 'my\s+training\s+data'

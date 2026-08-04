@@ -1,0 +1,9 @@
+# Tracking parameters an AI tool appended to a URL it generated, surviving
+# copy-paste into published content.
+extends: existence
+message: "AI-tool tracking parameter ('%s') -- strip the parameter, keep the URL."
+level: error
+nonword: true
+scope: raw
+raw:
+  - '(?i)(?:utm_source=(?:chatgpt\.com|openai(?:\.com)?|copilot\.com|claude\.ai|perplexity\.ai|gemini\.google\.com)|referrer=grok\.com)'

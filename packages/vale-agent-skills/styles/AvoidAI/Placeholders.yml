@@ -1,0 +1,9 @@
+# Bracketed slot-fillers that were meant to be replaced before publishing.
+# Humans use placeholders in templates too, but rarely ship them.
+extends: existence
+message: "Unfilled placeholder ('%s') -- fill it in or delete the sentence."
+level: error
+nonword: true
+scope: raw
+raw:
+  - '(?:\[(?:Your|Insert|INSERT|Add|ADD|Enter|Describe|Specify|Choose|TODO|TBD)[^\]]{0,60}\]|\b\d{4}-XX-XX\b|(?i)<!--\s*(?:add|fill\s+in|todo|insert)[^>]{0,80}-->)'

@@ -1,0 +1,14 @@
+# "real utility", "actual sustainability", "genuine adoption" -- an empty
+# intensifier on an abstract noun, implying the rest of the field is fake
+# without naming what makes this one real.
+#
+# Carve-out: when the sentence names the contrast ("real on-chain settlement,
+# not bridged IOUs"), it is honest contrastive writing. The tell is the unsaid
+# contrast, which no regex can see -- check the sentence before cutting.
+extends: existence
+message: "Empty intensifier ('%s') -- name the contrast, or drop the adjective and add the specific claim."
+level: warning
+ignorecase: true
+nonword: true
+raw:
+  - '(?i)\b(?:real|actual|genuine|true)\s+\w+(?:ity|ness|ism|tion|sion|ment|ance|ence|ility)\b'

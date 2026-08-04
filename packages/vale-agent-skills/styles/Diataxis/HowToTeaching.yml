@@ -5,12 +5,12 @@ message: "Teaching voice in a how-to ('%s') -- the reader already knows the basi
 level: warning
 ignorecase: true
 tokens:
-  - 'in this tutorial'
-  - 'you will learn'
-  - 'you.ll learn'
-  - 'by the end of this (?:tutorial|guide|lesson)'
-  - 'let.s (?:start|begin|explore|learn)'
-  - 'first,? we.ll'
-  - 'don.t worry (?:if|about)'
-  - 'we.ll (?:cover|explain|introduce)'
-  - 'no (?:prior )?experience (?:is )?(?:required|needed)'
+  - 'in\s+this\s+tutorial'
+  - 'you\s+will\s+learn'
+  - 'you.ll\s+learn'
+  - 'by\s+the\s+end\s+of\s+this\s+(?:tutorial|guide|lesson)'
+  - 'let.s\s+(?:start|begin|explore|learn)'
+  - 'first,?\s+we.ll'
+  - 'don.t\s+worry\s+(?:if|about)'
+  - 'we.ll\s+(?:cover|explain|introduce)'
+  - 'no\s+(?:prior\s+)?experience\s+(?:is\s+)?(?:required|needed)'

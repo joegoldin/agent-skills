@@ -197,6 +197,7 @@ let
           -e 's#vale-skill simple-english#vale --config=vale/simple-english.ini#g' \
           -e 's#vale-skill diataxis:([a-z-]+)#vale --config=vale/diataxis-\1.ini#g' \
           -e '/vale-skill docs/d' \
+          -e 's|^vale-skill score.*|# the 0-100 score subcommand ships with the Nix plugin, not this bundle|' \
           -e 's#vale-skill#vale#g' \
           "$f"
       done

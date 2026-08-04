@@ -6,4 +6,4 @@ message: "Telegraph style ('%s') -- keep the article and the conjunction 'that' 
 level: suggestion
 nonword: true
 raw:
-  - '(?i)\b(?:make sure|ensure|verify|check|confirm)\s+(?:[a-z]+\s+)?(?:exists|is set|is present|is running|is enabled)\b'
+  - '(?i)\b(?:make\s+sure|ensure|verify|check|confirm)\s+(?:[a-z]+\s+)?(?:exists|is\s+set|is\s+present|is\s+running|is\s+enabled)\b'

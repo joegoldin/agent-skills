@@ -10,4 +10,4 @@ swap:
   'may': 'use "can"'
   'might': 'use "can"'
   'could': 'use "can"'
-  'ought to': 'use "must"'
+  'ought\s+to': 'use "must"'

@@ -5,9 +5,9 @@ scope: heading
 ignorecase: true
 tokens:
   - 'overview'
-  - 'key points'
-  - 'key takeaways'
+  - 'key\s+points'
+  - 'key\s+takeaways'
   - 'summary'
   - 'conclusion'
   - 'introduction'
-  - 'final thoughts'
+  - 'final\s+thoughts'

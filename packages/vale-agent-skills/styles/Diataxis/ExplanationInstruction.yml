@@ -5,12 +5,12 @@ message: "Procedure inside explanation ('%s') -- explanation discusses, it does 
 level: warning
 ignorecase: true
 tokens:
-  - 'step \d+'
-  - 'run the following'
-  - 'type the following'
-  - 'copy (?:and paste|the following)'
-  - 'click (?:on )?(?:the|Save|OK|Next)'
-  - 'open (?:a )?terminal'
-  - 'in this tutorial'
-  - 'follow these steps'
-  - 'you.ll need to install'
+  - 'step\s+\d+'
+  - 'run\s+the\s+following'
+  - 'type\s+the\s+following'
+  - 'copy\s+(?:and\s+paste|the\s+following)'
+  - 'click\s+(?:on\s+)?(?:the|Save|OK|Next)'
+  - 'open\s+(?:a\s+)?terminal'
+  - 'in\s+this\s+tutorial'
+  - 'follow\s+these\s+steps'
+  - 'you.ll\s+need\s+to\s+install'

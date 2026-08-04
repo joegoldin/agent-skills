@@ -4,8 +4,8 @@ level: suggestion
 scope: heading
 ignorecase: true
 tokens:
-  - 'api reference'
-  - 'configuration (?:options|reference)'
-  - 'why \w+'
-  - 'how to \w+'
+  - 'api\s+reference'
+  - 'configuration\s+(?:options|reference)'
+  - 'why\s+\w+'
+  - 'how\s+to\s+\w+'
   - 'troubleshooting'

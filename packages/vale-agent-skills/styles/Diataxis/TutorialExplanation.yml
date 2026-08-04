@@ -5,11 +5,11 @@ message: "Explanation inside a tutorial ('%s') -- link to it instead."
 level: suggestion
 ignorecase: true
 tokens:
-  - 'the reason (?:for this |why )?is'
-  - 'this is because'
-  - 'under the hood'
+  - 'the\s+reason\s+(?:for\s+this\s+|why\s+)?is'
+  - 'this\s+is\s+because'
+  - 'under\s+the\s+hood'
   - 'internally,'
-  - 'it.s worth understanding'
-  - 'to understand why'
+  - 'it.s\s+worth\s+understanding'
+  - 'to\s+understand\s+why'
   - 'historically,'
-  - 'the rationale'
+  - 'the\s+rationale'

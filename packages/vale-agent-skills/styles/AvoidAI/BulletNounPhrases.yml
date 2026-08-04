@@ -1,0 +1,41 @@
+# Five or more consecutive bullets, each a short adjective-plus-noun phrase
+# with no finite verb. The tell is the symmetry: same shape, same length, and
+# nothing checkable. It is the shape LLMs default to when summarizing features.
+#
+# Does NOT apply to genuine list content (changelogs, parameter docs, todo
+# lists) where bare noun phrases are correct -- which is exactly why the rule
+# keys on the absence of a finite verb.
+extends: script
+message: "Bullets"
+level: warning
+scope: raw
+script: |
+  text := import("text")
+  fmt := import("fmt")
+
+  VERBS := "|is|are|was|were|be|been|has|have|had|does|do|did|can|will|must|adds|added|drops|dropped|fixes|fixed|returns|returned|stays|stayed|runs|ran|sends|sent|takes|took|makes|made|shows|showed|uses|used|gives|gave|holds|held|keeps|kept|sets|set|gets|got|goes|went|comes|came|means|meant|needs|needed|works|worked|fails|failed|"
+  matches := []
+  run := 0
+  best := 0
+  for line in text.split(scope, "\n") {
+    m := text.re_find("^\\s*[-*+]\\s+(.+)$", line, 1)
+    if is_undefined(m) {
+      if text.trim_space(line) != "" { run = 0 }
+      continue
+    }
+    item := text.trim_space(m[0][1].text)
+    w := text.re_find("[A-Za-z']+", item, -1)
+    if is_undefined(w) || len(w) > 6 { run = 0; continue }
+    hasVerb := false
+    for t in w {
+      if text.contains(VERBS, "|" + text.to_lower(t[0].text) + "|") { hasVerb = true }
+    }
+    if hasVerb { run = 0; continue }
+    run += 1
+    if run > best { best = run }
+  }
+  if best >= 5 {
+    matches = append(matches, {begin: 0, end: 1, message: fmt.sprintf(
+      "%d consecutive bullets are bare noun phrases with no verb -- convert to prose, or rewrite each as a checkable claim.",
+      best)})
+  }

@@ -6,10 +6,10 @@ level: suggestion
 scope: heading
 ignorecase: true
 tokens:
-  - 'getting started'
-  - 'introduction to'
-  - 'understanding \w+'
-  - 'what is \w+'
-  - 'why \w+ (?:matters|works)'
-  - 'a tour of'
-  - 'overview of'
+  - 'getting\s+started'
+  - 'introduction\s+to'
+  - 'understanding\s+\w+'
+  - 'what\s+is\s+\w+'
+  - 'why\s+\w+\s+(?:matters|works)'
+  - 'a\s+tour\s+of'
+  - 'overview\s+of'

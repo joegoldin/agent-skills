@@ -1,0 +1,28 @@
+# Curly quotes AND an em dash AND an Oxford comma AND zero typing artifacts,
+# all at once. Any one of these alone means nothing -- people write in editors
+# that curl quotes. The co-occurrence is the signature: someone typing into a
+# textarea does not produce all four.
+#
+# Ported from the avoid-ai-detect `smart-punct-signature` detector. Runs on raw
+# markup so the typing artifacts survive.
+extends: script
+message: "Punctuation"
+level: warning
+scope: raw
+script: |
+  text := import("text")
+
+  matches := []
+  words := text.re_find("[^\\s]+", scope, -1)
+  if !is_undefined(words) && len(words) >= 80 {
+    hasCurly := !is_undefined(text.re_find("[“”‘’]", scope, 1))
+    hasEmDash := !is_undefined(text.re_find("—", scope, 1))
+    hasOxford := !is_undefined(text.re_find("[A-Za-z]+,\\s+[A-Za-z]+,\\s+and\\s+[A-Za-z]+", scope, 1))
+    dblSpace := !is_undefined(text.re_find("[^.!?]  +", scope, 1))
+    noApos := !is_undefined(text.re_find("(?i)\\b(?:dont|wont|cant|isnt|wasnt|shouldnt|wouldnt|couldnt|youre|theyre)\\b", scope, 1))
+    clean := !dblSpace && !noApos
+    if hasCurly && hasEmDash && hasOxford && clean {
+      matches = append(matches, {begin: 0, end: 1, message:
+        "Curly quotes, an em dash, an Oxford comma, and zero typing artifacts all together -- the punctuation signature of pasted model output."})
+    }
+  }

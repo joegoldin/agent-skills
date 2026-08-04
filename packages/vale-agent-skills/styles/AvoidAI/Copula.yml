@@ -5,8 +5,8 @@ ignorecase: true
 action:
   name: replace
 swap:
-  'serves? as': 'is'
+  'serves?\s+as': 'is'
   'boasts?': 'has'
-  'features (?:a|an|the)': 'has, includes'
-  'stands as a testament to': 'shows'
-  'represents an? (?:major|significant|important)': 'is'
+  'features\s+(?:a|an|the)': 'has, includes'
+  'stands\s+as\s+a\s+testament\s+to': 'shows'
+  'represents\s+an?\s+(?:major|significant|important)': 'is'

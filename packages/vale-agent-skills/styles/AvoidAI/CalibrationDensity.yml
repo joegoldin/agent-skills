@@ -3,4 +3,4 @@ message: "Stacked emphasis cues in one paragraph -- cut all but one."
 level: warning
 scope: paragraph
 max: 1
-token: '(?i)\b(?:interestingly|surprisingly|importantly|notably|undoubtedly|without a doubt|make no mistake|fundamentally|at its core|the truth is)\b'
+token: '(?i)\b(?:interestingly|surprisingly|importantly|notably|undoubtedly|without\s+a\s+doubt|make\s+no\s+mistake|fundamentally|at\s+its\s+core|the\s+truth\s+is)\b'

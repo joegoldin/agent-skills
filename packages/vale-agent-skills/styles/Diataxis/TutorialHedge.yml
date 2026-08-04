@@ -5,10 +5,10 @@ message: "Hedged outcome in a tutorial ('%s') -- state exactly what the learner 
 level: warning
 ignorecase: true
 tokens:
-  - 'should (?:be able to|see|now|work)'
+  - 'should\s+(?:be\s+able\s+to|see|now|work)'
   - 'hopefully'
-  - '(?:may|might|could) vary'
-  - 'in most cases'
+  - '(?:may|might|could)\s+vary'
+  - 'in\s+most\s+cases'
   - 'usually'
-  - 'more or less'
-  - 'something like'
+  - 'more\s+or\s+less'
+  - 'something\s+like'

@@ -5,12 +5,12 @@ message: "Choice in a tutorial ('%s') -- decide for the learner."
 level: warning
 ignorecase: true
 tokens:
-  - 'you (?:may|might|could) (?:want to|prefer|choose)'
-  - 'if you prefer'
+  - 'you\s+(?:may|might|could)\s+(?:want\s+to|prefer|choose)'
+  - 'if\s+you\s+prefer'
   - 'optionally'
   - 'alternatively'
-  - 'depending on your'
-  - 'feel free to'
-  - 'or you can'
-  - 'either \w+ or'
-  - 'there are (?:several|many|a few) ways'
+  - 'depending\s+on\s+your'
+  - 'feel\s+free\s+to'
+  - 'or\s+you\s+can'
+  - 'either\s+\w+\s+or'
+  - 'there\s+are\s+(?:several|many|a\s+few)\s+ways'

@@ -5,11 +5,11 @@ message: "Tell-don't-show ('%s') -- make the writing earn it."
 level: warning
 ignorecase: true
 tokens:
-  - 'what surprised me most'
-  - 'I was fascinated to (?:discover|learn)'
-  - 'what struck me was'
-  - 'I was excited to learn'
-  - 'the most interesting part'
-  - 'interesting (?:part|thing|aspect)(?: of| here| about)?'
-  - 'here.s where it gets (?:clever|interesting|good)'
-  - '(?:that|this|the last|the third|the second|the fourth) (?:one|move|bullet|point|part|bit|item) is the (?:contrarian|clever|surprising|counterintuitive|interesting|key|important|unusual|smart|brilliant|real|actual)'
+  - 'what\s+surprised\s+me\s+most'
+  - 'I\s+was\s+fascinated\s+to\s+(?:discover|learn)'
+  - 'what\s+struck\s+me\s+was'
+  - 'I\s+was\s+excited\s+to\s+learn'
+  - 'the\s+most\s+interesting\s+part'
+  - 'interesting\s+(?:part|thing|aspect)(?:\s+of|\s+here|\s+about)?'
+  - 'here.s\s+where\s+it\s+gets\s+(?:clever|interesting|good)'
+  - '(?:that|this|the\s+last|the\s+third|the\s+second|the\s+fourth)\s+(?:one|move|bullet|point|part|bit|item)\s+is\s+the\s+(?:contrarian|clever|surprising|counterintuitive|interesting|key|important|unusual|smart|brilliant|real|actual)'

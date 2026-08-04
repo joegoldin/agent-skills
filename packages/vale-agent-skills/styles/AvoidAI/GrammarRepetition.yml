@@ -1,0 +1,59 @@
+# Function-word trigram entropy approximates POS-trigram entropy without a
+# tagger, because function words are the closed-class parts of speech. LLM
+# sampling collapses onto a narrower set of grammatical templates, so entropy
+# runs lower than human prose (roughly 0.85-0.95 human, 0.70-0.82 AI once
+# normalized).
+#
+# Ported from the avoid-ai-detect `fnword-trigram-entropy` detector.
+extends: script
+message: "Grammar"
+level: suggestion
+scope: summary
+script: |
+  text := import("text")
+  fmt := import("fmt")
+  math := import("math")
+
+  matches := []
+  FUNC := "|the|a|an|and|or|but|of|to|in|on|at|by|for|with|from|as|is|was|are|were|be|been|being|have|has|had|do|does|did|will|would|should|could|may|might|must|can|this|that|these|those|it|its|they|them|their|there|here|we|our|us|i|you|your|he|she|his|her|him|not|no|so|if|then|than|when|where|which|who|what|how|why|because|"
+  toks := text.re_find("[A-Za-z']+", scope, -1)
+  if !is_undefined(toks) && len(toks) >= 150 {
+    seq := []
+    prevGap := false
+    for t in toks {
+      w := text.to_lower(t[0].text)
+      if text.contains(FUNC, "|" + w + "|") {
+        seq = append(seq, w)
+        prevGap = false
+      } else if !prevGap {
+        seq = append(seq, "_")
+        prevGap = true
+      }
+    }
+    total := len(seq) - 2
+    if total >= 50 {
+      grams := {}
+      for i := 0; i < total; i++ {
+        g := seq[i] + "|" + seq[i+1] + "|" + seq[i+2]
+        grams[g] = is_undefined(grams[g]) ? 1 : grams[g] + 1
+      }
+      ln2 := math.log(2.0)
+      ent := 0.0
+      for k, c in grams {
+        p := float(c) / float(total)
+        ent -= p * (math.log(p) / ln2)
+      }
+      distinct := len(grams)
+      if distinct == 1 {
+        matches = append(matches, {begin: 0, end: 1, message:
+          "Every clause uses the same function-word skeleton -- the grammatical structure is fully degenerate."})
+      } else {
+        norm := ent / (math.log(float(distinct)) / ln2)
+        if norm < 0.82 {
+          matches = append(matches, {begin: 0, end: 1, message: fmt.sprintf(
+            "Function-word trigram entropy %.2f (human prose usually clears 0.85) -- the grammatical structure repeats itself.",
+            norm)})
+        }
+      }
+    }
+  }

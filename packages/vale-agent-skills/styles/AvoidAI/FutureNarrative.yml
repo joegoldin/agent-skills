@@ -1,0 +1,11 @@
+# Modal + "become" + one of the most [adjective] + narrative/trend/chapter.
+# Grammatically a prediction, containing no testable content. Weighted heavily:
+# it is near-dispositive on short posts.
+extends: existence
+message: "Unfalsifiable closer ('%s') -- make the prediction testable or cut it."
+level: warning
+ignorecase: true
+tokens:
+  - '(?:may|might|could|will|is\s+poised\s+to)\s+become\s+(?:one\s+of\s+)?the\s+(?:most|next|defining)'
+  - 'could\s+become\s+the\s+defining\s+(?:trend|story|theme)'
+  - 'the\s+next\s+(?:major\s+)?chapter\s+in'

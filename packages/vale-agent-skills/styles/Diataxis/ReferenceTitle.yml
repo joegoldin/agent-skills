@@ -4,9 +4,9 @@ level: suggestion
 scope: heading
 ignorecase: true
 tokens:
-  - 'how to \w+'
-  - 'getting started'
-  - 'why \w+'
-  - 'understanding \w+'
+  - 'how\s+to\s+\w+'
+  - 'getting\s+started'
+  - 'why\s+\w+'
+  - 'understanding\s+\w+'
   - 'tutorial'
   - 'walkthrough'

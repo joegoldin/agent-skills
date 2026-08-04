@@ -1,0 +1,36 @@
+# Humans swing between dense and sparse paragraphs; AI holds punctuation
+# density steady. Low variance of per-paragraph punctuation density is the
+# signature. Ported from the avoid-ai-detect `punct-distribution` detector
+# (threshold from arXiv:2507.00838).
+extends: script
+message: "Punctuation"
+level: suggestion
+scope: summary
+script: |
+  text := import("text")
+  fmt := import("fmt")
+  math := import("math")
+
+  matches := []
+  paras := text.re_split("\n\n+", scope, -1)
+  dens := []
+  for p in paras {
+    w := text.re_find("[^\\s]+", p, -1)
+    if is_undefined(w) || len(w) < 5 { continue }
+    pu := text.re_find("[,;:()]", p, -1)
+    n := is_undefined(pu) ? 0 : len(pu)
+    dens = append(dens, float(n) / float(len(w)))
+  }
+  if len(dens) >= 4 {
+    sum := 0.0
+    for d in dens { sum += d }
+    mean := sum / float(len(dens))
+    v := 0.0
+    for d in dens { v += (d - mean) * (d - mean) }
+    cv := mean > 0.0 ? math.sqrt(v / float(len(dens))) / mean : 0.0
+    if cv < 0.25 && mean >= 0.04 {
+      matches = append(matches, {begin: 0, end: 1, message: fmt.sprintf(
+        "Punctuation density is uniform across paragraphs (variation %.2f) -- human writers swing between dense and sparse paragraphs.",
+        cv)})
+    }
+  }

@@ -4,9 +4,9 @@ level: suggestion
 scope: heading
 ignorecase: true
 tokens:
-  - 'how to \w+'
-  - 'getting started'
-  - 'api reference'
-  - 'configuration (?:options|reference)'
+  - 'how\s+to\s+\w+'
+  - 'getting\s+started'
+  - 'api\s+reference'
+  - 'configuration\s+(?:options|reference)'
   - 'quickstart'
   - 'installation'

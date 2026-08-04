@@ -32,7 +32,12 @@ Trigger detect mode when the user says "detect," "flag only," "audit only," "jus
 
 ## The linter: Vale with the `AvoidAI` style
 
-The machine-checkable half of the catalog below ships as a [Vale](https://vale.sh) style, `AvoidAI` — 37 rules covering the tiered word lists, chat artifacts, generation fingerprints, empty closers, engagement hooks, and the formatting tells. Vale is markup-aware, so it skips code blocks and inline code instead of flagging them.
+The catalog below ships as a [Vale](https://vale.sh) style, `AvoidAI` — 62 rules. Vale is markup-aware, so it skips code blocks and inline code instead of flagging them.
+
+The rules come in two kinds:
+
+- **Pattern rules** — the tiered word lists, chat artifacts, sycophancy, reasoning scaffolding, cutoff disclaimers, generation fingerprints, empty closers, engagement hooks, inflation, and the formatting tells.
+- **Document-level rules**, written as Vale `script` rules, for the signals a regex cannot express: sentence-length uniformity, paragraph-length uniformity, cross-paragraph rhythm, punctuation-density distribution, function-word trigram entropy, type-token ratio, synonym cycling, the smart-punctuation signature, the em-dash-per-1,000-words budget, bare-noun-phrase bullet lists, boilerplate clustering across a whole piece, structural excess, and missing first-person voice.
 
 Run it through `vale-skill`, which selects the right config for a context profile:
 
@@ -52,9 +57,32 @@ The six `ai-writing:*` profiles are the context profiles below, compiled: severi
 
 Severity maps to the tiers: `error` is P0, `warning` is P1, `suggestion` is P2.
 
-How to use it: in **detect** mode, run Vale first to catch the machine-detectable hits, then add the judgment-call patterns from the catalog that a regex cannot see. In **rewrite** and **edit** modes, run it before and after; fewer alerts on the second run is a quick objective check that the pass landed. Alert counts are a signal, not a verdict (see "What this skill is and isn't" above).
+### The score
 
-**The catalog in this file is the full spec; Vale implements the subset that survives as a deterministic rule.** Rhythm and uniformity, paragraph-reshuffle immunity, information density, synonym cycling, and vocabulary diversity have no regex form — they stay yours to judge. So does every threshold Vale cannot count: em dashes per 1,000 words, Tier 2 clustering across a whole piece, Tier 3 density.
+```bash
+vale-skill score draft.md                  # 0-100 with a breakdown by rule
+vale-skill score ai-writing:docs README.md # scored under a different profile
+```
+
+```
+AI-writing score: 62/100 - Strong AI signals
+ai-writing profile, 480 words, 190 weighted signals
+
+  points  rule                               hits x weight
+      35  AvoidAI.Tier1                      7 x 5
+      12  AvoidAI.FutureNarrative            1 x 12
+      10  AvoidAI.CutoffDisclaimer           1 x 10
+```
+
+Each rule carries a weight — a cutoff disclaimer counts for ten, a Tier 1 word for five — and the total is normalized by `log2(words/50)` so a long piece does not accumulate a high score at the same pattern density. Bands: 0 clean, ≤15 minimal, ≤35 some, ≤60 moderate, ≤80 strong, above that heavy.
+
+Vale does the detecting; the score only adds up what Vale found, so the number and the alert list can never disagree. It is a triage aid and a before/after check, not a verdict (see "What this skill is and isn't" above).
+
+### How to use it
+
+In **detect** mode, run Vale first to anchor the audit, then add the judgment calls from the catalog. In **rewrite** and **edit** modes, score before and after; a lower score on the second run is an objective check that the pass landed.
+
+**What stays yours.** Two categories in this file are writer-side diagnostics by construction, not thresholds a tool can measure: **paragraph-reshuffle immunity** (can two paragraphs swap without breaking the piece?) and the **treadmill effect** (what does each paragraph actually add?). Both need you to read for argument, not for patterns. Everything else in the catalog has a rule.
 
 If `vale-skill` is not on PATH, the skill still works — audit against the catalog by hand and say you did it without the linter.
 
@@ -309,6 +337,9 @@ These slot-fill constructions signal that a sentence was generated, not written.
 - Default to "is" or "has" unless a more specific verb genuinely adds meaning.
 
 ### Synonym cycling
+
+`AvoidAI.SynonymCycling` fires when three or more members of one concept group land in a single paragraph.
+
 - AI rotates synonyms to avoid repeating a word: "developers… engineers… practitioners… builders" in the same paragraph. Human writers repeat the clearest word.
 - If the same noun or verb appears three times in a paragraph and that's the right word, keep all three. Forced variation reads as thesaurus abuse.
 
@@ -451,11 +482,11 @@ These aren't individual word or phrase problems — they're patterns in how the 
 
 **Structure is the #1 detection signal.** AI detection tools (including Pangram, which trains a classifier on 28M human documents) weight structural regularity higher than vocabulary. Consistent sentence construction, uniform pacing, and symmetrical phrasing patterns are harder to mask than swapping out a few flagged words. If you fix every word on the Tier 1 list but leave the rhythm untouched, the text still reads as AI-generated.
 
-- **Sentence length uniformity**: If most sentences are 15–25 words, the text sounds robotic. Mix short punchy sentences (3–8 words) with longer flowing ones (20+). Fragments work. Questions break the monotony.
-- **Paragraph length uniformity**: If every paragraph is 3–5 sentences and roughly the same size, vary deliberately. Some paragraphs should be one sentence. Some should be longer.
+- **Sentence length uniformity** (`AvoidAI.SentenceUniformity`): If most sentences are 15–25 words, the text sounds robotic. Mix short punchy sentences (3–8 words) with longer flowing ones (20+). Fragments work. Questions break the monotony.
+- **Paragraph length uniformity** (`AvoidAI.ParagraphUniformity`, and `AvoidAI.CrossParagraphRhythm` for the same cadence repeating across paragraphs): If every paragraph is 3–5 sentences and roughly the same size, vary deliberately. Some paragraphs should be one sentence. Some should be longer.
 - **Vocabulary repetition vs. synonym cycling**: AI either repeats the same word mechanically or cycles through synonyms conspicuously. Human writers repeat when the word is right and vary when it's natural — there's no formula.
 - **Read-aloud test**: If the text sounds like it could be read by a text-to-speech engine without sounding weird, it's probably too uniform. Human writing has rhythm that resists robotic delivery.
-- **Missing first-person perspective**: Where appropriate, the writer should have opinions, preferences, and reactions. AI is relentlessly neutral. If the piece is supposed to have a voice, the absence of "I think," "in my experience," or a stated preference is itself an AI tell.
+- **Missing first-person perspective** (`AvoidAI.MissingFirstPerson`, off in `docs` and `technical`): Where appropriate, the writer should have opinions, preferences, and reactions. AI is relentlessly neutral. If the piece is supposed to have a voice, the absence of "I think," "in my experience," or a stated preference is itself an AI tell.
 - **Over-polishing**: Aggressively editing out every irregularity can push human writing *toward* AI statistical profiles. Natural disfluency, idiosyncratic word choices, and uneven pacing are what keep text out of the "AI-generated" classification. Don't sand away all personality in pursuit of clean prose. This skill should make writing sound more human, not less — if you apply every rule at maximum strictness, you risk creating the very uniformity you're trying to avoid.
 
 ### Vocabulary diversity (stylometric)
@@ -464,14 +495,14 @@ In longer pieces (200+ words), look at how much vocabulary the text actually use
 
 A very low TTR is not by itself proof of AI authorship — narrow topics, technical reference material, and second-language writing all legitimately compress vocabulary. But on general prose where you'd expect range (essays, articles, social content over ~200 words), a TTR below 0.40 is worth a second look. The fix is rarely to thesaurus the text; it's to broaden the *what* — name specific things, cite specific cases, replace a re-used abstract noun with the concrete instance behind it.
 
-This is a read-by-eye signal, not a Vale rule: Vale's `metric` formulas expose word, sentence, and syllable counts, not type-token ratio. The same goes for the other stylometric signals worth knowing about — sentence-length burstiness as a continuous measure, function-word z-scores against a human-prose reference, POS-bigram log-odds — which need either a POS tagger or a reference distribution.
+`AvoidAI.VocabularyDiversity` measures this, flagging only at 200+ tokens and TTR below 0.40. It is off in the `technical` and `docs` profiles, where a compressed vocabulary is correct. The related signals that would need a POS tagger or a reference distribution — function-word z-scores, POS-bigram log-odds — are not implemented; `AvoidAI.GrammarRepetition` approximates them with function-word trigram entropy, which needs neither.
 
 ### Paragraph-reshuffle immunity (structure test)
-- A writer-side diagnostic, not a regex: can you swap two body paragraphs without breaking the piece? If the order doesn't matter, you've written a list of points, not an argument that builds. AI prose often fails this — each paragraph is a self-contained module with no load-bearing connection to its neighbors.
+- A writer-side diagnostic with no rule, and one of the two the linter deliberately leaves to you: can you swap two body paragraphs without breaking the piece? If the order doesn't matter, you've written a list of points, not an argument that builds. AI prose often fails this — each paragraph is a self-contained module with no load-bearing connection to its neighbors.
 - The fix is structural, not lexical: establish a through-line where each paragraph depends on the one before it. If the paragraphs are genuinely independent, decide whether the piece should be an explicit list, or whether it's missing a thesis. Adapted from `Aboudjem/humanizer-skill` P38.
 
 ### Treadmill effect / low information density (content test)
-- Another writer-side test: read each paragraph and ask "what's actually new here?" AI prose frequently restates the premise in fresh words instead of advancing it — lots of motion, no distance covered. The tell is that you could cut 40-60% and lose no information.
+- The other writer-side test with no rule: read each paragraph and ask "what's actually new here?" AI prose frequently restates the premise in fresh words instead of advancing it — lots of motion, no distance covered. The tell is that you could cut 40-60% and lose no information.
 - The fix: for each paragraph, name the one fact, claim, or turn it contributes. If there isn't one, cut it. If there is, lead with it and drop the throat-clearing. Adapted from `Aboudjem/humanizer-skill` P43.
 
 ### When to rewrite from scratch vs. patch

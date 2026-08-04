@@ -5,11 +5,11 @@ message: "Novelty inflation ('%s') -- describe what was done with the idea, not 
 level: warning
 ignorecase: true
 tokens:
-  - 'coined the (?:term|phrase)'
-  - 'introduced a (?:term|concept) I'
-  - 'a (?:term|concept|idea) I hadn.t heard'
-  - 'the failure mode nobody'
-  - 'a (?:problem|concept) nobody (?:talks about|.s naming)'
-  - 'the insight everyone.s missing'
-  - 'what nobody tells you about'
-  - 'nobody is talking about'
+  - 'coined\s+the\s+(?:term|phrase)'
+  - 'introduced\s+a\s+(?:term|concept)\s+I'
+  - 'a\s+(?:term|concept|idea)\s+I\s+hadn.t\s+heard'
+  - 'the\s+failure\s+mode\s+nobody'
+  - 'a\s+(?:problem|concept)\s+nobody\s+(?:talks\s+about|.s\s+naming)'
+  - 'the\s+insight\s+everyone.s\s+missing'
+  - 'what\s+nobody\s+tells\s+you\s+about'
+  - 'nobody\s+is\s+talking\s+about'

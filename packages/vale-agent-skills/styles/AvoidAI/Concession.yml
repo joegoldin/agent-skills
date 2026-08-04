@@ -4,4 +4,4 @@ level: suggestion
 scope: sentence
 nonword: true
 raw:
-  - '(?i)^\s*(?:while|although)\s+[^,]{5,70},\s+[^.!?]{0,40}?\b(?:remains?|is still|continues to be|are still)\b'
+  - '(?i)^\s*(?:while|although)\s+[^,]{5,70},\s+[^.!?]{0,40}?\b(?:remains?|is\s+still|continues\s+to\s+be|are\s+still)\b'

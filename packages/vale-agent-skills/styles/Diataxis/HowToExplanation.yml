@@ -3,10 +3,10 @@ message: "Explanation inside a how-to ('%s') -- link to the explanation and keep
 level: suggestion
 ignorecase: true
 tokens:
-  - 'the reason (?:for this |why )?is'
-  - 'this is because'
-  - 'under the hood'
-  - 'to understand (?:why|how) this works'
+  - 'the\s+reason\s+(?:for\s+this\s+|why\s+)?is'
+  - 'this\s+is\s+because'
+  - 'under\s+the\s+hood'
+  - 'to\s+understand\s+(?:why|how)\s+this\s+works'
   - 'historically,'
-  - 'the design (?:rationale|philosophy)'
-  - 'it.s important to understand'
+  - 'the\s+design\s+(?:rationale|philosophy)'
+  - 'it.s\s+important\s+to\s+understand'

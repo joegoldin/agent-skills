@@ -5,13 +5,13 @@ message: "Opinion inside reference ('%s') -- keep reference neutral and factual.
 level: suggestion
 ignorecase: true
 tokens:
-  - 'the best (?:way|option|choice|approach)'
-  - '(?:is|are) recommended'
-  - 'you probably'
+  - 'the\s+best\s+(?:way|option|choice|approach)'
+  - '(?:is|are)\s+recommended'
+  - 'you\s+probably'
   - 'unfortunately'
   - 'simply'
   - 'obviously'
-  - 'of course'
-  - 'note that you'
+  - 'of\s+course'
+  - 'note\s+that\s+you'
   - 'powerful'
-  - 'easy to use'
+  - 'easy\s+to\s+use'

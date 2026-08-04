@@ -6,10 +6,10 @@ level: warning
 ignorecase: true
 tokens:
   - ',\s*(?:symboli[sz]ing|reflecting|showcasing|highlighting|underscoring|emphasi[sz]ing|signaling|cementing|solidifying)'
-  - 'this represents a broader shift'
-  - 'speaks to a larger trend'
-  - 'symboli[sz]es a commitment to'
-  - 'despite (?:the )?challenges'
-  - 'while facing headwinds'
-  - 'remains? resilient'
-  - 'continues to thrive'
+  - 'this\s+represents\s+a\s+broader\s+shift'
+  - 'speaks\s+to\s+a\s+larger\s+trend'
+  - 'symboli[sz]es\s+a\s+commitment\s+to'
+  - 'despite\s+(?:the\s+)?challenges'
+  - 'while\s+facing\s+headwinds'
+  - 'remains?\s+resilient'
+  - 'continues\s+to\s+thrive'

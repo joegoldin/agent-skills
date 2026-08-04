@@ -22,11 +22,19 @@ holds the three styles above plus the nixpkgs-packaged `alex`, `Google`,
 
 ## Styles
 
-**`AvoidAI`** — 37 rules porting the machine-detectable half of the
-`avoid-ai-writing` catalog: the tiered word lists, chat artifacts, generation
-fingerprints, empty closers, engagement hooks, and the formatting tells. The
-rules a regex cannot see (rhythm, paragraph-reshuffle immunity, information
-density) stay in the skill as judgment calls.
+**`AvoidAI`** — 62 rules porting the `avoid-ai-writing` catalog. Pattern rules
+cover the tiered word lists, chat artifacts, sycophancy, reasoning scaffolding,
+cutoff disclaimers, generation fingerprints, empty closers, engagement hooks,
+inflation, and the formatting tells. Vale `script` rules (Tengo) cover the
+document-level signals a regex cannot express: sentence and paragraph
+uniformity, cross-paragraph rhythm, punctuation-density distribution,
+function-word trigram entropy, type-token ratio, synonym cycling, the
+smart-punctuation signature, the em-dash budget, bare-noun-phrase bullet lists,
+boilerplate clustering, structural excess, and missing first-person voice.
+
+Only two catalog entries have no rule, because both are writer-side diagnostics
+rather than measurements: paragraph-reshuffle immunity and the treadmill
+effect.
 
 **`SimpleEnglish`** — 16 rules for the mechanical half of ASD-STE100: sentence
 and paragraph limits, approved modals, simple tenses, contractions, semicolons,
@@ -43,6 +51,18 @@ context tolerance matrix from the skill — `technical` drops the words with a
 legitimate technical sense, `investor` escalates inflation to errors, `casual`
 keeps only the credibility killers.
 
+## Scoring
+
+```bash
+vale-skill score draft.md                   # 0-100 with a per-rule breakdown
+vale-skill score ai-writing:docs README.md  # scored under a different profile
+```
+
+Vale does the detecting; `score` only weights and totals what Vale found, so the
+number can never disagree with the alert list. The weights, the
+`log2(words/50)` length normalization, and the classification bands come from
+the avoid-ai-detect scoring model this package replaced.
+
 ## Using Vale directly
 
 ```bash
@@ -53,8 +73,10 @@ vale-skill --init ai-writing:docs .    # drop the profile into a repo as .vale.i
 ## Tests
 
 `tests/run-tests.sh` runs in `checkPhase`. It asserts that every config profile
-loads, that every rule in each style fires on its fixture (a new rule without
-fixture coverage fails the build), and that the clean fixtures stay silent.
+loads, that every rule in each style fires on a fixture (a new rule without
+fixture coverage fails the build), that the clean fixtures stay silent, that
+phrases split across a hard line wrap are still caught, and that the score comes
+out above zero on the AI fixture and at zero on the human one.
 
 Outside Nix:
 

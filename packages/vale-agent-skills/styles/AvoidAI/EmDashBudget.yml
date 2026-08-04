@@ -1,0 +1,23 @@
+# EmDash flags each one; this enforces the budget the skill actually sets:
+# target zero, hard max one per 1,000 words.
+extends: script
+message: "Em dashes"
+level: warning
+scope: summary
+script: |
+  text := import("text")
+  fmt := import("fmt")
+
+  matches := []
+  words := text.re_find("[A-Za-z0-9'-]+", scope, -1)
+  dashes := text.re_find("—", scope, -1)
+  nw := is_undefined(words) ? 0 : len(words)
+  nd := is_undefined(dashes) ? 0 : len(dashes)
+  if nw >= 200 && nd > 0 {
+    per1k := float(nd) * 1000.0 / float(nw)
+    if per1k > 1.0 {
+      matches = append(matches, {begin: 0, end: 1, message: fmt.sprintf(
+        "%d em dashes in %d words (%.1f per thousand) -- the hard max is one per thousand.",
+        nd, nw, per1k)})
+    }
+  }

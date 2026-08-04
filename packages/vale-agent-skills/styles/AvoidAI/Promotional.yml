@@ -1,0 +1,14 @@
+# Tourism-brochure prose. If you would not say it in conversation, cut it.
+extends: existence
+message: "Brochure prose ('%s') -- replace with plain description."
+level: warning
+ignorecase: true
+tokens:
+  - 'breathtaking'
+  - 'picturesque'
+  - 'world[- ]renowned'
+  - 'hidden\s+gem'
+  - 'must[- ]see'
+  - 'a\s+vibrant\s+hub'
+  - 'stands\s+as\s+a'
+  - 'nestled\s+(?:in|within|among)'

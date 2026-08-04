@@ -1,0 +1,12 @@
+# Broad context before the point. Lead with the news; context can come second.
+# Weighted like the social closers: a strong single-hit tell that the length
+# divisor would otherwise wash out.
+extends: existence
+message: "Formulaic opening ('%s') -- lead with the news or the insight."
+level: warning
+ignorecase: true
+tokens:
+  - 'in\s+the\s+(?:rapidly|ever)[- ]?(?:evolving|changing|growing)\s+(?:world|landscape|field|space)\s+of'
+  - 'in\s+today.s\s+(?:fast[- ]paced|digital|modern|competitive)\s+\w+'
+  - 'in\s+an\s+era\s+where'
+  - 'since\s+the\s+dawn\s+of'

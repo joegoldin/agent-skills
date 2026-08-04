@@ -78,12 +78,17 @@ follow from it.
 
 Upstream also ships a Node detection engine (`detector/patterns.js`, 44
 categories). This repo vendored it as `packages/avoid-ai-detect` through
-v3.10.0 and has since replaced it with Vale: the regex-detectable rules now live
-in the `AvoidAI` Vale style at `packages/vale-agent-skills/styles/AvoidAI/`,
-written from the `SKILL.md` catalog rather than translated from upstream code.
-The stylometric detectors that engine carried (burstiness, function-word entropy,
-type-token ratio) have no Vale equivalent and are documented in the skill as
-read-by-eye signals. See `git log` for the removal.
+v3.10.0 and has since replaced it with Vale. The pattern rules now live in the
+`AvoidAI` Vale style at `packages/vale-agent-skills/styles/AvoidAI/`, written
+from the `SKILL.md` catalog rather than translated from upstream code. The
+document-level detectors that engine carried — sentence and paragraph
+uniformity, cross-paragraph burstiness, punctuation-density distribution,
+function-word trigram entropy, type-token ratio, the smart-punctuation
+signature, bare-noun-phrase bullet lists — are reimplemented as Vale `script`
+rules (Tengo) at the same thresholds. The 0-100 score and its classification
+bands are reimplemented in `vale-skill score`, which weights Vale's own output
+using the weight table and the `log2(words/50)` normalization from upstream's
+scoring model. See `git log` for the removal.
 
 Upstream credits its own pattern research to Pangram Labs, Wikipedia's "Signs of
 AI writing," [blader/humanizer](https://github.com/blader/humanizer),

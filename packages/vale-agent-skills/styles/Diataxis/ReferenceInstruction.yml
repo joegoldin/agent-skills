@@ -5,12 +5,12 @@ message: "Instruction inside reference ('%s') -- reference describes, it does no
 level: warning
 ignorecase: true
 tokens:
-  - 'you (?:should|must|need to|will want to)'
-  - 'you can now'
+  - 'you\s+(?:should|must|need\s+to|will\s+want\s+to)'
+  - 'you\s+can\s+now'
   - 'let.s'
-  - 'we recommend'
-  - 'follow these steps'
-  - 'in this (?:guide|tutorial|section) (?:we|you)'
-  - 'first,? (?:run|open|create|install)'
-  - 'next,? (?:run|open|create|install)'
-  - 'now (?:run|open|create|install)'
+  - 'we\s+recommend'
+  - 'follow\s+these\s+steps'
+  - 'in\s+this\s+(?:guide|tutorial|section)\s+(?:we|you)'
+  - 'first,?\s+(?:run|open|create|install)'
+  - 'next,?\s+(?:run|open|create|install)'
+  - 'now\s+(?:run|open|create|install)'
