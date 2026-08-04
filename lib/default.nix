@@ -190,7 +190,7 @@ let
         sed -E -i \
           -e 's#vale --config="\$\(vale-skill --config ai-writing\)"#vale --config=vale/avoid-ai.ini#g' \
           -e 's#vale-skill --list#ls vale/*.ini#g' \
-          -e 's#vale-skill ai-writing:([a-z-]+)#vale --config=vale/avoid-ai-\1.ini#g' \
+          -e 's|^vale-skill ai-writing --context technical.*|# --context is a vale-skill gate; in this bundle, ignore the HeadingCase and TechnicalExceptions hits on code-adjacent prose|' \
           -e 's#vale-skill ai-writing#vale --config=vale/avoid-ai.ini#g' \
           -e 's#vale-skill simple-english:([a-z-]+)#vale --config=vale/simple-english-\1.ini#g' \
           -e 's#vale-skill simple-english#vale --config=vale/simple-english.ini#g' \

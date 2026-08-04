@@ -14,12 +14,7 @@ CONFIGS=${VALE_SKILL_CONFIGS:-$share/configs}
 
 profiles() {
   cat <<'EOF'
-  ai-writing               strip AI writing patterns (blog defaults)
-  ai-writing:linkedin      short-form social; formatting rules relax
-  ai-writing:technical     code-adjacent prose; technical word senses allowed
-  ai-writing:investor      high-trust audience; inflation escalates to errors
-  ai-writing:docs          documentation; clarity over voice
-  ai-writing:casual        Slack and notes; credibility killers only
+  ai-writing               strip AI writing patterns (the full rule set)
   simple-english           ASD-STE100, descriptive text (25-word sentences)
   simple-english:procedural  ASD-STE100, instructions (20 words, condition first)
   simple-english:strict    ASD-STE100 with vocabulary discipline
@@ -32,8 +27,8 @@ EOF
 
 usage() {
   cat <<EOF
-usage: $self <profile> [vale options] [file...]
-       $self score [profile] <file...>   0-100 AI-writing score
+usage: $self <profile> [--context general|technical] [vale options] [file...]
+       $self score [profile] [--context ...] <file...>   0-100 AI-writing score
        $self --list
        $self --config <profile>      print the .vale.ini path
        $self --init <profile> [dir]  write the profile as <dir>/.vale.ini
@@ -92,6 +87,46 @@ AvoidAI.ExcessiveStructure 3
 EOF
 }
 
+# `--context technical` is the one soft gate the detector this replaced had:
+# code-adjacent prose legitimately uses Title Case headings, and the skill's own
+# technical carve-out lists the words with a real technical sense. Both drop out
+# via a Vale filter; everything else stays on, because which remaining hits
+# matter is a judgment the tolerance matrix in SKILL.md describes and the writer
+# makes. Consumes the flag and leaves the rest of the arguments for vale.
+CONTEXT_FILTER=""
+take_context() {
+  ARGS=()
+  while [ "$#" -gt 0 ]; do
+    case $1 in
+      --context)
+        context=${2-}
+        shift 2 || true
+        ;;
+      --context=*)
+        context=${1#--context=}
+        shift
+        ;;
+      *)
+        ARGS+=("$1")
+        shift
+        continue
+        ;;
+    esac
+    case $context in
+      technical)
+        CONTEXT_FILTER='.Name != "AvoidAI.HeadingCase" && .Name != "AvoidAI.TechnicalExceptions"'
+        ;;
+      general | '')
+        CONTEXT_FILTER=""
+        ;;
+      *)
+        echo "$self: unknown context '$context' (general|technical)" >&2
+        exit 1
+        ;;
+    esac
+  done
+}
+
 config_for() {
   local profile=$1 file
   case $profile in
@@ -130,7 +165,8 @@ score() {
     echo "@@@"
     # One line per alert, deduplicated by (rule, message) the way the original
     # scoring model deduplicated by (type, text), then counted per rule.
-    vale --config="$config" --no-exit --output=line "$@" |
+    vale --config="$config" --no-exit --output=line \
+      ${CONTEXT_FILTER:+--filter="$CONTEXT_FILTER"} "$@" |
       sed -E 's/^.*:[0-9]+:[0-9]+:([A-Za-z0-9_.-]+):(.*)$/\1\t\2/' |
       sort -u |
       cut -f1 |
@@ -197,7 +233,8 @@ case ${1-} in
     ;;
   score)
     shift
-    score "$@"
+    take_context "$@"
+    score "${ARGS[@]}"
     exit 0
     ;;
   --config)
@@ -223,4 +260,5 @@ esac
 
 config=$(config_for "$1")
 shift
-exec vale --config="$config" "$@"
+take_context "$@"
+exec vale --config="$config" ${CONTEXT_FILTER:+--filter="$CONTEXT_FILTER"} "${ARGS[@]}"

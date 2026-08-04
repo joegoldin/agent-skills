@@ -46,11 +46,18 @@ and hedged outcomes while reference is checked for instructions and opinion.
 
 ## Profiles
 
-`vale-skill --list` prints them. Every profile is built on the three styles
-above. The `ai-writing:*` profiles implement the context tolerance matrix from
-the skill — `technical` drops the words with a
-legitimate technical sense, `investor` escalates inflation to errors, `casual`
-keeps only the credibility killers.
+`vale-skill --list` prints them.
+
+`ai-writing` is one config at full strength, matching how the skill is
+structured: the linter reports every hit and the context tolerance matrix in
+`SKILL.md` is the writer's judgment about which to act on. Its one gate,
+`--context technical`, drops Title Case headings and the technical word
+carve-out via a Vale filter.
+
+`simple-english` and `diataxis` do have several profiles, because there the
+modes are different rule sets rather than different tolerances: a procedure
+stops at 20 words and a description at 25, and a tutorial is checked for
+different things than reference.
 
 ## Scoring
 

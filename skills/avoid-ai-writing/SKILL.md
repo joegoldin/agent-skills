@@ -39,29 +39,27 @@ The rules come in two kinds:
 - **Pattern rules** — the tiered word lists, chat artifacts, sycophancy, reasoning scaffolding, cutoff disclaimers, generation fingerprints, empty closers, engagement hooks, inflation, and the formatting tells.
 - **Document-level rules**, written as Vale `script` rules, for the signals a regex cannot express: sentence-length uniformity, paragraph-length uniformity, cross-paragraph rhythm, punctuation-density distribution, function-word trigram entropy, type-token ratio, synonym cycling, the smart-punctuation signature, the em-dash-per-1,000-words budget, bare-noun-phrase bullet lists, boilerplate clustering across a whole piece, structural excess, and missing first-person voice.
 
-Run it through `vale-skill`, which selects the right config for a context profile:
+Run it through `vale-skill`:
 
 ```bash
-vale-skill ai-writing draft.md                    # blog defaults: every rule at full strength
-vale-skill ai-writing:technical draft.md          # code-adjacent prose; technical word senses allowed
-vale-skill ai-writing:linkedin post.md            # short-form social; formatting rules relax
-vale-skill ai-writing:docs README.md              # documentation; clarity over voice
-vale-skill ai-writing --output=JSON draft.md      # machine-readable, for counting or diffing
-vale-skill ai-writing --minAlertLevel=error *.md  # P0 only, for a quick triage pass
-vale-skill --list                                 # every profile
+vale-skill ai-writing draft.md                     # every rule, full strength
+vale-skill ai-writing --context technical draft.md # code-adjacent prose
+cat draft.md | vale-skill ai-writing --ext=.md -   # from stdin
+vale-skill ai-writing --output=JSON draft.md       # machine-readable
+vale-skill ai-writing --minAlertLevel=error *.md   # P0 only, for a quick triage pass
 ```
 
 Everything after the profile goes straight to Vale, so `--output`, `--glob`, and `--minAlertLevel` all work. To drive Vale yourself: `vale --config="$(vale-skill --config ai-writing)" draft.md`.
 
-The six `ai-writing:*` profiles are the context profiles below, compiled: severity per rule, matching the tolerance matrix. Pick the profile that matches the piece and the tolerances come with it.
+**One config, full strength.** The linter reports every machine-detectable hit; deciding which ones to act on is the writer's judgment, and the context profiles below describe how to make it. `--context technical` is the single exception: it drops the two rules that are wrong by construction in code-adjacent prose — Title Case headings, and the word list the technical-blog carve-out exempts.
 
-Severity maps to the tiers: `error` is P0, `warning` is P1, `suggestion` is P2.
+Severity maps to the tiers: `error` is P0, `warning` is P1, `suggestion` is P2. `--minAlertLevel=error` is therefore a P0-only pass, which is what the `casual` context profile below asks for.
 
 ### The score
 
 ```bash
-vale-skill score draft.md                  # 0-100 with a breakdown by rule
-vale-skill score ai-writing:docs README.md # scored under a different profile
+vale-skill score draft.md                     # 0-100 with a breakdown by rule
+vale-skill score --context technical README.md
 ```
 
 ```
@@ -569,20 +567,9 @@ Pass an optional context hint to adjust rule strictness. If no context is specif
 **`docs`** — Documentation, READMEs, guides. Clarity over voice.
 **`casual`** — Slack messages, internal notes, quick replies. Only catch the worst offenders.
 
-Each profile has a matching Vale config, so the tolerances below come with it:
-
-| Context profile | Command |
-|---|---|
-| `linkedin` | `vale-skill ai-writing:linkedin` |
-| `blog` | `vale-skill ai-writing` |
-| `technical-blog` | `vale-skill ai-writing:technical` |
-| `investor-email` | `vale-skill ai-writing:investor` |
-| `docs` | `vale-skill ai-writing:docs` |
-| `casual` | `vale-skill ai-writing:casual` |
-
 ### Tolerance matrix
 
-Rules not listed in the table apply at full strength across all profiles. Vale enforces the machine-checkable rows by setting each rule's severity per profile; the rest are yours to apply.
+Rules not listed in the table apply at full strength across all profiles. The linter does not read this table — it reports everything and you apply the column that matches the piece. The one row the linter can act on is the technical-blog word carve-out, via `--context technical`.
 
 | Rule | linkedin | blog | technical-blog | investor-email | docs | casual |
 |------|----------|------|----------------|----------------|------|--------|
