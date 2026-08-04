@@ -1,0 +1,23 @@
+# Generic conclusions, unfalsifiable future-narrative closers, and the
+# curatorial sign-off on social share posts.
+extends: existence
+message: "Empty closer ('%s') -- make a falsifiable claim or cut the line."
+level: warning
+ignorecase: true
+tokens:
+  - 'the future looks bright'
+  - 'only time will tell'
+  - 'one thing is certain'
+  - 'as we move forward'
+  - '(?:may|might|could|will|is poised to) become (?:one of )?the (?:most|next|defining)'
+  - 'this one is worth your time'
+  - 'this one.s a must[- ]read'
+  - 'a must[- ]read'
+  - 'I highly recommend giving this a read'
+  - 'do yourself a favor and read'
+  - 'you won.t want to miss'
+  - 'save this for later'
+  - 'bookmark this'
+  - 'don.t sleep on this'
+  - 'trust me,? you.ll want to read'
+  - 'thank me later'

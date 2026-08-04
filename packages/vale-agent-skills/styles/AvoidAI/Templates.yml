@@ -1,0 +1,9 @@
+extends: existence
+message: "Slot-fill construction ('%s') -- say what actually changed, or pick the real audience."
+level: warning
+ignorecase: true
+tokens:
+  - 'an? \w+ step (?:towards?|forward for)'
+  - 'whether you.re (?:an?|the)'
+  - 'I recently had the pleasure of \w+ing'
+  - 'in the (?:rapidly|ever)[- ]?(?:evolving|changing) world of'

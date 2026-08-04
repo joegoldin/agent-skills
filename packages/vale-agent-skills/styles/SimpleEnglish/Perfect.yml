@@ -1,0 +1,9 @@
+# Rule 3.4 -- no auxiliary verbs for complex constructions. Use the simple
+# tenses: present, past, future.
+extends: existence
+message: "Perfect tense ('%s') -- use the simple past or simple present (Rule 3.4)."
+level: warning
+ignorecase: true
+nonword: true
+raw:
+  - '(?i)\b(?:has|have|had)\s+(?:been\b|not\s+been\b|already\s+)?\w+(?:ed|en)\b'

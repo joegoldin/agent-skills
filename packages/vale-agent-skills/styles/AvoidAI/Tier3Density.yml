@@ -1,0 +1,6 @@
+extends: occurrence
+message: "Three or more vague-praise adjectives in one paragraph -- add specifics."
+level: warning
+scope: paragraph
+max: 2
+token: '(?i)\b(?:significant|innovat|effective|dynamic|scalab|compelling|unprecedented|exceptional|remarkabl|sophisticated|instrumental|world[- ]class|state[- ]of[- ]the[- ]art|best[- ]in[- ]class)\w*'

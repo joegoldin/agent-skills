@@ -1,0 +1,8 @@
+# Target zero; hard max one per 1,000 words. Vale flags every hit -- the skill
+# applies the budget. Catches the Unicode em dash and the `--` substitute.
+extends: existence
+message: "Em dash ('%s') -- use a comma, a period, or two sentences."
+level: warning
+nonword: true
+raw:
+  - '(?:\x{2014}|(?:^|\s)--(?:\s|$))'

@@ -1,0 +1,8 @@
+# "adjective, adjective, and adjective". The suffix filter keeps this off
+# ordinary three-item noun lists.
+extends: existence
+message: "Compulsive rule of three ('%s') -- use two items, four, or a sentence."
+level: suggestion
+nonword: true
+raw:
+  - '(?i)\b\w+(?:ly|ive|ent|ant|ful|ous|able|ible|ing)\s*,\s*\w+(?:ly|ive|ent|ant|ful|ous|able|ible|ing)\s*,\s*and\s+\w+(?:ly|ive|ent|ant|ful|ous|able|ible|ing)\b'

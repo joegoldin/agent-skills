@@ -1,0 +1,30 @@
+extends: capitalization
+message: "'%s' should use sentence case, not title case."
+level: suggestion
+scope: heading
+match: $sentence
+exceptions:
+  - API
+  - CLI
+  - CI
+  - Claude
+  - Docker
+  - GitHub
+  - HTTP
+  - I
+  - JSON
+  - Kubernetes
+  - Linux
+  - Markdown
+  - Nix
+  - NixOS
+  - Python
+  - README
+  - REST
+  - SQL
+  - TypeScript
+  - URL
+  - Vale
+  - Windows
+  - YAML
+  - macOS

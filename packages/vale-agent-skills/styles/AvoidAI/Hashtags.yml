@@ -1,0 +1,8 @@
+# Six or more hashtags on one post. Below that, human launch posts are common;
+# above it, LLM social output dominates.
+extends: occurrence
+message: "%s hashtags -- cut to two or three specific ones, or none."
+level: warning
+scope: raw
+max: 5
+token: '(?:^|[^\w#])#[A-Za-z][A-Za-z0-9_]{2,}'

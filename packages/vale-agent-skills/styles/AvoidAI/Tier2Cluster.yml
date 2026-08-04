@@ -1,0 +1,8 @@
+# The Tier 2 rule that actually carries signal: two or more of these in one
+# paragraph. `max: 1` fires on the second occurrence within the scope.
+extends: occurrence
+message: "Two or more Tier 2 AI-isms in one paragraph -- rewrite the paragraph."
+level: warning
+scope: paragraph
+max: 1
+token: '(?i)\b(?:harness|navigat|foster|elevat|unleash|empower|bolster|spearhead|resonat|revolutioniz|nuance|crucial|multifaceted|myriad|plethora|encompass|catalyz|reimagin|galvaniz|augment|cultivat|illuminat|elucidat|juxtapos|cornerstone|paramount|burgeoning|nascent|quintessential|overarching|transformative|transformational)\w*'

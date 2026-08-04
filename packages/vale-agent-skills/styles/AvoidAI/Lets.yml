@@ -1,0 +1,6 @@
+extends: existence
+message: "False-collaborative opener ('%s') -- start with the point."
+level: warning
+nonword: true
+raw:
+  - "(?i)\\blet'?s\\s+(?:explore|take a look|break (?:this|it) down|examine|dive|discuss|walk through|consider|unpack|talk about|start by)\\b"

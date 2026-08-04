@@ -1,0 +1,16 @@
+# Explanation is discussion, read away from the tool. Steps and commands pull
+# the reader back to the keyboard, which is a different need.
+extends: existence
+message: "Procedure inside explanation ('%s') -- explanation discusses, it does not instruct."
+level: warning
+ignorecase: true
+tokens:
+  - 'step \d+'
+  - 'run the following'
+  - 'type the following'
+  - 'copy (?:and paste|the following)'
+  - 'click (?:on )?(?:the|Save|OK|Next)'
+  - 'open (?:a )?terminal'
+  - 'in this tutorial'
+  - 'follow these steps'
+  - 'you.ll need to install'

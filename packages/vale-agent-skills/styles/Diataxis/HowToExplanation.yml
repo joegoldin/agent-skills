@@ -1,0 +1,12 @@
+extends: existence
+message: "Explanation inside a how-to ('%s') -- link to the explanation and keep the steps moving."
+level: suggestion
+ignorecase: true
+tokens:
+  - 'the reason (?:for this |why )?is'
+  - 'this is because'
+  - 'under the hood'
+  - 'to understand (?:why|how) this works'
+  - 'historically,'
+  - 'the design (?:rationale|philosophy)'
+  - 'it.s important to understand'

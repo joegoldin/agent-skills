@@ -30,18 +30,33 @@ Trigger detect mode when the user says "detect," "flag only," "audit only," "jus
 
 **Iterate to convergence (optional).** Rewrite mode already runs one corrective second pass (see Output format) — that built-in pass *is* pass 2, so `--iterate` does not stack on top of it. When the writer asks to "iterate," "keep going until it's clean," or passes `--iterate N`, repeat the audit→rewrite cycle until no patterns remain or **N passes** are reached. Cap **N at 2**: a rewrite plus one corrective pass clears the flagged patterns, and a third pass costs a full regeneration while rarely finding more. Report how many passes it took ("converged in 2 passes").
 
-## Optional: the `avoid-ai-detect` tool
+## The linter: Vale with the `AvoidAI` style
 
-This repo ships a deterministic companion CLI, `avoid-ai-detect`, that scores text from 0 to 100 and lists the regex-detectable tells with their severity. It is optional (the skill works without it), but it is useful for triage and for confirming a rewrite actually landed.
+The machine-checkable half of the catalog below ships as a [Vale](https://vale.sh) style, `AvoidAI` — 37 rules covering the tiered word lists, chat artifacts, generation fingerprints, empty closers, engagement hooks, and the formatting tells. Vale is markup-aware, so it skips code blocks and inline code instead of flagging them.
+
+Run it through `vale-skill`, which selects the right config for a context profile:
 
 ```bash
-avoid-ai-detect draft.md                       # report: score, classification, flagged issues
-cat draft.md | avoid-ai-detect                 # same, reading from stdin
-avoid-ai-detect --json draft.md                # full result object (score, issues[], stats, class_probabilities)
-avoid-ai-detect --context technical draft.md   # relax flags that are legitimate in code-adjacent prose
+vale-skill ai-writing draft.md                    # blog defaults: every rule at full strength
+vale-skill ai-writing:technical draft.md          # code-adjacent prose; technical word senses allowed
+vale-skill ai-writing:linkedin post.md            # short-form social; formatting rules relax
+vale-skill ai-writing:docs README.md              # documentation; clarity over voice
+vale-skill ai-writing --output=JSON draft.md      # machine-readable, for counting or diffing
+vale-skill ai-writing --minAlertLevel=error *.md  # P0 only, for a quick triage pass
+vale-skill --list                                 # every profile
 ```
 
-How to use it: in **detect** mode, run it first to anchor the audit in a number and catch the machine-detectable hits, then add the judgment-call patterns from the catalog below that a regex cannot see. In **rewrite** and **edit** modes, run it before and after; a lower score on the second run is a quick objective check that the pass worked. The score is a signal, not a verdict (see "What this skill is and isn't" above). The prose rules in this file are the full catalog; the detector implements only the subset that survives as deterministic regex, plus a few stylometric signals it would not make sense to write out as rules.
+Everything after the profile goes straight to Vale, so `--output`, `--glob`, and `--minAlertLevel` all work. To drive Vale yourself: `vale --config="$(vale-skill --config ai-writing)" draft.md`.
+
+The six `ai-writing:*` profiles are the context profiles below, compiled: severity per rule, matching the tolerance matrix. Pick the profile that matches the piece and the tolerances come with it.
+
+Severity maps to the tiers: `error` is P0, `warning` is P1, `suggestion` is P2.
+
+How to use it: in **detect** mode, run Vale first to catch the machine-detectable hits, then add the judgment-call patterns from the catalog that a regex cannot see. In **rewrite** and **edit** modes, run it before and after; fewer alerts on the second run is a quick objective check that the pass landed. Alert counts are a signal, not a verdict (see "What this skill is and isn't" above).
+
+**The catalog in this file is the full spec; Vale implements the subset that survives as a deterministic rule.** Rhythm and uniformity, paragraph-reshuffle immunity, information density, synonym cycling, and vocabulary diversity have no regex form — they stay yours to judge. So does every threshold Vale cannot count: em dashes per 1,000 words, Tier 2 clustering across a whole piece, Tier 3 density.
+
+If `vale-skill` is not on PATH, the skill still works — audit against the catalog by hand and say you did it without the linter.
 
 ---
 
@@ -280,14 +295,14 @@ These slot-fill constructions signal that a sentence was generated, not written.
 
 ### Hashtag stuffing
 - Long trailing hashtag blocks (6+ hashtags on a single short post) are near-universal in LLM-generated social content and rare in thoughtful human posts. The block usually mixes a project-specific tag with broad category tags (#AI #Crypto #Web3 #Innovation #FutureTech #Technology) — the categorical ones do nothing for discoverability and read as bot output.
-- **Why 6?** Empirical floor. LinkedIn and X organic engagement plateaus or declines past 3-5 tags; human posts that exceed 5 are usually launch posts trading reach for engagement, while LLM-generated posts default to 10-15. Six is the threshold where false positives on legitimate human use start dropping below false negatives on AI output. The detector treats 6+ as a hard flag; the spec treats 5+ as a soft tell worth a second look on `linkedin` and `investor-email` profiles.
+- **Why 6?** Empirical floor. LinkedIn and X organic engagement plateaus or declines past 3-5 tags; human posts that exceed 5 are usually launch posts trading reach for engagement, while LLM-generated posts default to 10-15. Six is the threshold where false positives on legitimate human use start dropping below false negatives on AI output. `AvoidAI.Hashtags` fires at 6+; the spec treats 5+ as a soft tell worth a second look on `linkedin` and `investor-email` profiles.
 - Fix: 2-3 specific tags max, or none. If a hashtag wouldn't help a reader find related work, it's filler.
 
 ### Bullet lists of bare noun phrases
 - A list of 5+ consecutive bullet items where each item is a short (≤6 word) adjective-plus-noun phrase with no verb. "Stable mining efficiency / Reliable pool connectivity / Optimized RandomX performance / Low failed share rates / Effective hardware utilization / Consistent thermal stability." Reads as a marketing one-pager because that's the shape LLMs default to when asked to summarize features.
 - The tell is the *symmetry*: every item is the same grammatical shape, every item is parallel in length, none of them assert anything checkable. A genuine list of observations would have varying length, occasional verbs, and at least one item that doesn't fit the pattern.
 - Fix: convert to prose paragraph, or rewrite items as full claims ("Failed shares stayed under 1% across a 12-hour run" beats "Low failed share rates"). If the list is genuinely the right form, vary the items so each carries a different shape of information.
-- This rule does *not* apply to genuine list content (changelog entries, todo lists, parameter docs, ingredient lists) where bare noun phrases are the correct form. The detector keys on absence of finite verbs to separate the two — but in prose audits, ask whether the bullets are summarizing claims (rewrite) or enumerating items (leave).
+- This rule does *not* apply to genuine list content (changelog entries, todo lists, parameter docs, ingredient lists) where bare noun phrases are the correct form. Separating the two needs a finite-verb test, which is why this one has no Vale rule: ask whether the bullets are summarizing claims (rewrite) or enumerating items (leave).
 
 ### Copula avoidance
 - AI text avoids "is" and "has" by substituting fancier verbs: "serves as," "features," "boasts," "presents," "represents." These sound like a press release.
@@ -449,7 +464,7 @@ In longer pieces (200+ words), look at how much vocabulary the text actually use
 
 A very low TTR is not by itself proof of AI authorship — narrow topics, technical reference material, and second-language writing all legitimately compress vocabulary. But on general prose where you'd expect range (essays, articles, social content over ~200 words), a TTR below 0.40 is worth a second look. The fix is rarely to thesaurus the text; it's to broaden the *what* — name specific things, cite specific cases, replace a re-used abstract noun with the concrete instance behind it.
 
-This is the first of four stylometric signals on the roadmap. The others (sentence-length burstiness as a continuous measure, function-word z-scores against a human-prose reference, POS-bigram log-odds) require either a POS tagger or a reference distribution and aren't implemented as detector categories yet.
+This is a read-by-eye signal, not a Vale rule: Vale's `metric` formulas expose word, sentence, and syllable counts, not type-token ratio. The same goes for the other stylometric signals worth knowing about — sentence-length burstiness as a continuous measure, function-word z-scores against a human-prose reference, POS-bigram log-odds — which need either a POS tagger or a reference distribution.
 
 ### Paragraph-reshuffle immunity (structure test)
 - A writer-side diagnostic, not a regex: can you swap two body paragraphs without breaking the piece? If the order doesn't matter, you've written a list of points, not an argument that builds. AI prose often fails this — each paragraph is a self-contained module with no load-bearing connection to its neighbors.
@@ -523,9 +538,20 @@ Pass an optional context hint to adjust rule strictness. If no context is specif
 **`docs`** — Documentation, READMEs, guides. Clarity over voice.
 **`casual`** — Slack messages, internal notes, quick replies. Only catch the worst offenders.
 
+Each profile has a matching Vale config, so the tolerances below come with it:
+
+| Context profile | Command |
+|---|---|
+| `linkedin` | `vale-skill ai-writing:linkedin` |
+| `blog` | `vale-skill ai-writing` |
+| `technical-blog` | `vale-skill ai-writing:technical` |
+| `investor-email` | `vale-skill ai-writing:investor` |
+| `docs` | `vale-skill ai-writing:docs` |
+| `casual` | `vale-skill ai-writing:casual` |
+
 ### Tolerance matrix
 
-Rules not listed in the table apply at full strength across all profiles.
+Rules not listed in the table apply at full strength across all profiles. Vale enforces the machine-checkable rows by setting each rule's severity per profile; the rest are yours to apply.
 
 | Rule | linkedin | blog | technical-blog | investor-email | docs | casual |
 |------|----------|------|----------------|----------------|------|--------|

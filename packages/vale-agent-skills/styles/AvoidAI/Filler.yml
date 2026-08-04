@@ -1,0 +1,18 @@
+extends: substitution
+message: "Filler '%[2]s' -- %[1]s."
+level: warning
+ignorecase: true
+swap:
+  'genuine(?:ly)?': 'cut and state the fact'
+  'truly': 'cut and state the fact'
+  'quite frankly': 'cut'
+  'to be honest': 'cut'
+  'let.s be clear': 'cut'
+  'it.s worth noting that': 'cut and just state it'
+  'it is important to note that': 'cut and just state it'
+  'it.s important to note that': 'cut and just state it'
+  'the reality is that': 'cut and state the claim'
+  'in terms of': 'rewrite the sentence'
+  'could potentially': 'pick one hedge'
+  'to be clear': 'cut and make the point directly'
+  'worth (?:reading|paying attention to|a look|exploring|checking out|your time)': 'say why it matters'

@@ -1,0 +1,6 @@
+extends: occurrence
+message: "Stacked emphasis cues in one paragraph -- cut all but one."
+level: warning
+scope: paragraph
+max: 1
+token: '(?i)\b(?:interestingly|surprisingly|importantly|notably|undoubtedly|without a doubt|make no mistake|fundamentally|at its core|the truth is)\b'

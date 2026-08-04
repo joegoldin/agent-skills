@@ -1,0 +1,29 @@
+# P0. Conversational tics, sycophancy, prompt restatement, chain-of-thought
+# scaffolding, and model-limitation disclaimers leaking into published prose.
+extends: existence
+message: "Chat artifact ('%s') -- delete it."
+level: error
+ignorecase: true
+tokens:
+  - 'I hope this helps'
+  - 'feel free to reach out'
+  - 'let me know if you need anything else'
+  - 'great question'
+  - 'excellent point'
+  - 'you.re absolutely right'
+  - 'that.s a really insightful observation'
+  - 'in this article,? we will (?:explore|look at|discuss|cover)'
+  - 'let.s dive in'
+  - 'you.re asking about'
+  - 'to answer your question'
+  - 'the question of whether'
+  - 'let me think step by step'
+  - 'breaking this down'
+  - 'to approach this systematically'
+  - 'here.s my thought process'
+  - 'first,? let.s consider'
+  - 'working through this logically'
+  - 'as of my (?:last update|knowledge cutoff|training)'
+  - 'I don.t have access to real[- ]time'
+  - 'based on (?:the )?available information'
+  - 'while specific details are limited'

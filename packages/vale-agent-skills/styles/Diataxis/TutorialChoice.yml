@@ -1,0 +1,16 @@
+# A tutorial is a lesson the teacher controls. Choice belongs to how-to guides;
+# in a tutorial it hands the learner a decision they cannot yet make.
+extends: existence
+message: "Choice in a tutorial ('%s') -- decide for the learner."
+level: warning
+ignorecase: true
+tokens:
+  - 'you (?:may|might|could) (?:want to|prefer|choose)'
+  - 'if you prefer'
+  - 'optionally'
+  - 'alternatively'
+  - 'depending on your'
+  - 'feel free to'
+  - 'or you can'
+  - 'either \w+ or'
+  - 'there are (?:several|many|a few) ways'

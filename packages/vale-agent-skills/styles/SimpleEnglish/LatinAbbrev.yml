@@ -1,0 +1,11 @@
+# GR-6 -- Latin abbreviations are false friends for non-native readers.
+extends: substitution
+message: "Latin abbreviation '%[2]s' -- %[1]s (GR-6)."
+level: warning
+ignorecase: true
+nonword: true
+swap:
+  '\be\.g\.': 'write "for example"'
+  '\bi\.e\.': 'write "that is"'
+  '\betc\.': 'name the items, or write "and more"'
+  '\bvia\b': 'write "with" or "through"'

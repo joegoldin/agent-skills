@@ -1,0 +1,21 @@
+# AI-isms that carry a legitimate technical sense. Split out of Tier1/Tier2 so
+# the `technical` and `docs` profiles can drop them wholesale
+# (AvoidAI.TechnicalExceptions = NO) while everything else stays strict.
+extends: substitution
+message: "AI-ism: use '%s' instead of '%s' (unless the technical sense is meant)."
+level: warning
+ignorecase: true
+action:
+  name: replace
+swap:
+  'robust(?:ness)?': 'strong, reliable, solid'
+  'comprehensive(?:ly)?': 'thorough, complete, full'
+  'seamless(?:ly)?': 'smooth, easy, without friction'
+  'leverag(?:e|es|ed|ing)': 'use'
+  'ecosystems?': 'system, community, network, market'
+  'facilitat(?:e|es|ed|ing)': 'enable, help, allow, run'
+  'underpin(?:s|ned|ning|nings)?': 'support, form the basis of'
+  'streamlin(?:e|es|ed|ing)': 'simplify, speed up'
+  'holistic(?:ally)?': 'complete, full, whole'
+  'actionable': 'practical, useful, concrete'
+  'impactful': 'effective, significant (or describe the impact)'

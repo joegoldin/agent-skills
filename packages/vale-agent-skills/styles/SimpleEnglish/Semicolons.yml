@@ -1,0 +1,7 @@
+# Rule 8.1 -- all standard punctuation is allowed except the semicolon.
+extends: existence
+message: "Semicolon -- write two sentences instead (Rule 8.1)."
+level: warning
+nonword: true
+raw:
+  - ';'

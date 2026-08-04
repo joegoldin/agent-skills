@@ -1,0 +1,6 @@
+extends: existence
+message: "Stacked compound modifiers ('%s') -- keep the one that matters."
+level: suggestion
+nonword: true
+raw:
+  - '(?i)\b\w+-\w+\s*,\s*\w+-\w+\s*,\s*(?:and\s+)?\w+-\w+\b'

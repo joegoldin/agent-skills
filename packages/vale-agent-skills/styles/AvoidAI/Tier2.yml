@@ -1,0 +1,42 @@
+# Individually defensible; the tell is the cluster. Flagged at `suggestion` so
+# single hits stay quiet -- Tier2Cluster carries the real signal.
+extends: substitution
+message: "Tier 2 AI-ism: consider '%s' instead of '%s'."
+level: suggestion
+ignorecase: true
+action:
+  name: replace
+swap:
+  'harness(?:es|ed|ing)?': 'use, take advantage of'
+  'navigat(?:e|es|ed|ing)': 'work through, handle, deal with'
+  'foster(?:s|ed|ing)?': 'encourage, support, build'
+  'elevat(?:e|es|ed|ing)': 'improve, raise, strengthen'
+  'unleash(?:es|ed|ing)?': 'release, enable, unlock'
+  'empower(?:s|ed|ing|ment)?': 'enable, let, allow'
+  'bolster(?:s|ed|ing)?': 'support, strengthen, back up'
+  'spearhead(?:s|ed|ing)?': 'lead, drive, run'
+  'resonat(?:e|es|ed|ing)(?: with)?': 'connect with, appeal to, matter to'
+  'revolutioniz(?:e|es|ed|ing)': 'change, transform (or describe what changed)'
+  'nuanced?': 'specific, subtle (or name the actual nuance)'
+  'crucial(?:ly)?': 'important, key, necessary'
+  'multifaceted': 'describe the actual facets'
+  'myriad': 'many (or give a number)'
+  'plethora': 'many, a lot of (or give a number)'
+  'encompass(?:es|ed|ing)?': 'include, cover, span'
+  'catalyz(?:e|es|ed|ing)': 'start, trigger, accelerate'
+  'reimagin(?:e|es|ed|ing)': 'rethink, redesign, rebuild'
+  'galvaniz(?:e|es|ed|ing)': 'motivate, rally, push'
+  'augment(?:s|ed|ing)?': 'add to, expand, supplement'
+  'cultivat(?:e|es|ed|ing)': 'build, develop, grow'
+  'illuminat(?:e|es|ed|ing)': 'clarify, explain, show'
+  'elucidat(?:e|es|ed|ing)': 'explain, clarify, spell out'
+  'juxtapos(?:e|es|ed|ing)': 'compare, contrast, set side by side'
+  'paradigm[- ]shifting': 'describe what actually shifted'
+  'transformative|transformational': 'describe what changed and how'
+  'cornerstone': 'foundation, basis, key part'
+  'paramount': 'most important, top priority'
+  'poised to': 'ready to, about to'
+  'burgeoning': 'growing, emerging (or cite a number)'
+  'nascent': 'new, early-stage, emerging'
+  'quintessential': 'typical, classic, defining'
+  'overarching': 'main, central, broad'

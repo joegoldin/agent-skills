@@ -1,0 +1,18 @@
+# Telling the reader how to feel about a fact instead of letting the fact land.
+# One in a long piece is fine; see CalibrationDensity for the stacking rule.
+extends: existence
+message: "Confidence-calibration cue ('%s') -- let the fact speak for itself."
+level: suggestion
+ignorecase: true
+tokens:
+  - 'interestingly'
+  - 'surprisingly'
+  - 'importantly'
+  - 'notably'
+  - 'undoubtedly'
+  - 'without a doubt'
+  - 'make no mistake'
+  - 'the real question is'
+  - 'at its core'
+  - 'fundamentally'
+  - 'the truth is'

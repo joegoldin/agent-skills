@@ -1,0 +1,13 @@
+# Rule 3.2 -- the approved modals are can, will, and must. Everything else
+# leaves the reader guessing whether an instruction is optional.
+extends: substitution
+message: "Unapproved modal '%[2]s' -- %[1]s (Rule 3.2)."
+level: error
+ignorecase: true
+swap:
+  'should': 'use "must" for a requirement, or state the recommendation as fact'
+  'would': 'restructure the condition'
+  'may': 'use "can"'
+  'might': 'use "can"'
+  'could': 'use "can"'
+  'ought to': 'use "must"'

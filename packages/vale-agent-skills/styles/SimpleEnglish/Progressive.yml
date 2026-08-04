@@ -1,0 +1,7 @@
+# Rules 3.4 and 3.5 -- no progressive or progressive-passive constructions.
+extends: existence
+message: "Progressive form ('%s') -- use an active verb in a simple tense (Rules 3.4, 3.5)."
+level: warning
+nonword: true
+raw:
+  - '(?i)\b(?:is|are|was|were|be|being)\s+(?:being\s+)?\w+ing\b'

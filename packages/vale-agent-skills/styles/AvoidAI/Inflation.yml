@@ -1,0 +1,19 @@
+# Significance inflation, promotional brochure prose, and the "real/actual X"
+# noun-modifier that manufactures an unnamed contrast.
+extends: existence
+message: "Inflation ('%s') -- state what happened and let the reader judge."
+level: warning
+ignorecase: true
+tokens:
+  - 'marking a (?:pivotal|defining|historic) moment'
+  - 'a watershed moment'
+  - 'marks? a turning point in the (?:history|evolution) of'
+  - 'in the (?:evolution|history) of'
+  - 'breathtaking'
+  - 'picturesque'
+  - 'world[- ]renowned'
+  - 'hidden gem'
+  - 'must[- ]see'
+  - 'a vibrant hub'
+  - 'stands as a'
+  - '(?:real|actual|genuine|true) \w+(?:ity|ness|ism|tion|sion|ment|ance|ence|ility)'

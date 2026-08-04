@@ -1,0 +1,12 @@
+extends: existence
+message: "Heading is not reference-shaped ('%s') -- reference answers 'What is ...?'."
+level: suggestion
+scope: heading
+ignorecase: true
+tokens:
+  - 'how to \w+'
+  - 'getting started'
+  - 'why \w+'
+  - 'understanding \w+'
+  - 'tutorial'
+  - 'walkthrough'

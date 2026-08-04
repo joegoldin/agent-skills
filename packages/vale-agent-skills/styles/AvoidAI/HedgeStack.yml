@@ -1,0 +1,7 @@
+# A modal plus a hedge adverb. Either alone is fine; the stack asserts nothing.
+extends: existence
+message: "Hedge stack ('%s') -- pick one hedge, not two."
+level: warning
+nonword: true
+raw:
+  - '(?i)\b(?:may|might|could|would|will|can)\s+(?:potentially|eventually|ultimately|possibly|conceivably|arguably|likely|perhaps)\b'

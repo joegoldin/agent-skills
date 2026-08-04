@@ -1,0 +1,17 @@
+# Reference is austere and neutral. Opinion, apology, and salesmanship all read
+# as noise to someone consulting it mid-task.
+extends: existence
+message: "Opinion inside reference ('%s') -- keep reference neutral and factual."
+level: suggestion
+ignorecase: true
+tokens:
+  - 'the best (?:way|option|choice|approach)'
+  - '(?:is|are) recommended'
+  - 'you probably'
+  - 'unfortunately'
+  - 'simply'
+  - 'obviously'
+  - 'of course'
+  - 'note that you'
+  - 'powerful'
+  - 'easy to use'

@@ -1,0 +1,33 @@
+# Rule 3.6 -- active voice. In descriptive text, passive is allowed only when
+# the agent is genuinely unknown. Shortened irregular list; the full one lives
+# in the Google and Microsoft styles.
+extends: existence
+message: "Passive voice ('%s') -- name the actor (Rule 3.6)."
+level: suggestion
+ignorecase: true
+raw:
+  - '\b(?:am|are|were|being|is|been|was|be)\b\s*'
+tokens:
+  - '[\w]+ed'
+  - 'built'
+  - 'chosen'
+  - 'done'
+  - 'driven'
+  - 'found'
+  - 'given'
+  - 'held'
+  - 'kept'
+  - 'known'
+  - 'made'
+  - 'met'
+  - 'put'
+  - 'read'
+  - 'run'
+  - 'sent'
+  - 'set'
+  - 'shown'
+  - 'sold'
+  - 'taken'
+  - 'thrown'
+  - 'told'
+  - 'written'

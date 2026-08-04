@@ -1,0 +1,21 @@
+# Rules 1.11 and 9.4 -- one item, one name. Synonym rotation is the single most
+# common way agent-written docs break STE.
+extends: consistency
+message: "Synonym rotation: '%s' -- pick one term and use it everywhere (Rules 1.11, 9.4)."
+level: warning
+scope: text
+ignorecase: true
+nonword: false
+either:
+  'verify': 'validate'
+  'confirm': 'ensure'
+  'configuration': 'settings'
+  'config': 'options'
+  'execute': 'invoke'
+  'run': 'launch'
+  'display': 'render'
+  'show': 'present'
+  'delete': 'destroy'
+  'remove': 'drop'
+  'error': 'issue'
+  'problem': 'failure'

@@ -108,15 +108,17 @@ let
   # "Customize > Skills" upload format). Reuses each skill's per-skill drv
   # (SKILL.md with frontmatter + scripts/references/examples already assembled).
   #
-  # avoid-ai-writing is made self-contained for the web/app code sandbox: the
-  # pure-Node detector (cli.js + patterns.js) is vendored into its scripts/ and
-  # the SKILL.md command invocations are rewritten to `node scripts/cli.js`.
-  # No deps are bundled — the engine is Node stdlib only.
+  # The Vale-backed skills (avoid-ai-writing, simple-english, diataxis) each
+  # carry their own style and config profiles, because the web/app sandbox has
+  # no Nix and therefore no `vale-skill` launcher. SKILL.md invocations are
+  # rewritten to plain `vale --config=vale/<profile>.ini`, which works for
+  # anyone who has Vale on PATH and degrades to a by-hand audit for anyone who
+  # does not (each skill says so).
   buildWebBundle =
     {
       name ? "web-skills",
       skills,
-      avoidAiDetectSrc,
+      valeSrc,
     }:
     let
       copyCmds = lib.concatMapStringsSep "\n" (
@@ -152,29 +154,52 @@ let
         fi
       done
 
-      # ── Make avoid-ai-writing self-contained for the web/app sandbox ──
-      aaw=$out/avoid-ai-writing
-      if [ -d "$aaw" ]; then
-        chmod -R u+w "$aaw"
-        mkdir -p "$aaw/scripts"
-        # Only the two files the engine actually needs at runtime; cli.js
-        # resolves patterns.js via __dirname. (CATEGORIES.md is docs-only and
-        # neither loaded nor referenced, so it is deliberately not copied.)
-        cp ${avoidAiDetectSrc}/cli.js "$aaw/scripts/cli.js"
-        cp ${avoidAiDetectSrc}/patterns.js "$aaw/scripts/patterns.js"
+      # ── Vendor the Vale styles + configs into the skills that use them ──
+      # Each skill gets vale/styles/<Style>/ plus its profile .ini files, with
+      # `StylesPath = styles` prepended so Vale resolves the style relative to
+      # the config it was given. Only the profiles built on our own styles are
+      # vendored; the `docs` profile needs the third-party Google, write-good,
+      # and alex styles, which are not ours to redistribute here.
+      vendor_vale() {
+        skill=$1
+        style=$2
+        prefix=$3
+        [ -d "$out/$skill" ] || return 0
+        chmod -R u+w "$out/$skill"
+        mkdir -p "$out/$skill/vale/styles"
+        cp -r ${valeSrc}/styles/"$style" "$out/$skill/vale/styles/$style"
+        for cfg in ${valeSrc}/configs/"$prefix"*.ini; do
+          {
+            echo "StylesPath = styles"
+            cat "$cfg"
+          } > "$out/$skill/vale/$(basename "$cfg")"
+        done
+        chmod -R u+w "$out/$skill/vale"
+      }
+      vendor_vale avoid-ai-writing AvoidAI avoid-ai
+      vendor_vale simple-english SimpleEnglish simple-english
+      vendor_vale diataxis Diataxis diataxis
 
-        # Surgical rewrite: command invocations + allowed-tools only. Prose
-        # mentions of the engine name are intentionally left intact.
-        sed -i \
-          -e 's#^avoid-ai-detect #node scripts/cli.js #' \
-          -e 's#| avoid-ai-detect#| node scripts/cli.js#' \
-          -e 's#Bash(avoid-ai-detect:\*)#Bash(node:*)#' \
-          -e 's#Bash(avoid-ai-detect)#Bash(node)#' \
-          "$aaw/SKILL.md"
-
-        # Declare the runtime dependency (Node stdlib; no npm packages).
-        sed -i '0,/^description:/ s/^description:/dependencies: node>=18\ndescription:/' "$aaw/SKILL.md"
-      fi
+      # ── Rewrite `vale-skill` invocations to plain `vale --config=` ──
+      # The launcher only exists in the Nix plugin. Profile forms first
+      # (longest match wins), then the meta-commands, then any leftover
+      # mention of the launcher in prose.
+      for f in $out/avoid-ai-writing/SKILL.md $out/avoid-ai-writing/references/*.md \
+               $out/simple-english/SKILL.md $out/simple-english/references/*.md \
+               $out/diataxis/SKILL.md $out/diataxis/references/*.md; do
+        [ -f "$f" ] || continue
+        sed -E -i \
+          -e 's#vale --config="\$\(vale-skill --config ai-writing\)"#vale --config=vale/avoid-ai.ini#g' \
+          -e 's#vale-skill --list#ls vale/*.ini#g' \
+          -e 's#vale-skill ai-writing:([a-z-]+)#vale --config=vale/avoid-ai-\1.ini#g' \
+          -e 's#vale-skill ai-writing#vale --config=vale/avoid-ai.ini#g' \
+          -e 's#vale-skill simple-english:([a-z-]+)#vale --config=vale/simple-english-\1.ini#g' \
+          -e 's#vale-skill simple-english#vale --config=vale/simple-english.ini#g' \
+          -e 's#vale-skill diataxis:([a-z-]+)#vale --config=vale/diataxis-\1.ini#g' \
+          -e '/vale-skill docs/d' \
+          -e 's#vale-skill#vale#g' \
+          "$f"
+      done
     '';
 
   # ── Build using-agent-skills content (shared across targets) ──

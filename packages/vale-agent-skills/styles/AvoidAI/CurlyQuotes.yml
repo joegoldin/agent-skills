@@ -1,0 +1,10 @@
+# A weak paste-from-chat signal, and only in plain-text contexts where nothing
+# auto-curls (commit messages, code comments, plaintext drafts). Word, Google
+# Docs, macOS and iOS all curl by default, so most human prose has them too.
+# Curly apostrophes are deliberately not flagged.
+extends: existence
+message: "Curly quotation mark ('%s') -- weak paste-from-chat signal in plain text."
+level: suggestion
+nonword: true
+raw:
+  - '[\x{201C}\x{201D}]'

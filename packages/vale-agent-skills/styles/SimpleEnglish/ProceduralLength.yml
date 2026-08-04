@@ -1,0 +1,8 @@
+# Rule 5.1 -- procedural text: 20 words per sentence, warnings and cautions
+# included. Raised to `warning` by the procedural profile.
+extends: occurrence
+message: "%s words in one sentence -- an instruction stops at 20 (Rule 5.1)."
+level: suggestion
+scope: sentence
+max: 20
+token: '\b\w+\b'

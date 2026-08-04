@@ -1,0 +1,17 @@
+extends: substitution
+message: "Reflexive transition: use '%s' instead of '%s'."
+level: warning
+ignorecase: true
+action:
+  name: replace
+swap:
+  'moreover': 'and, also, on top of that (or restructure)'
+  'furthermore': 'and, also (or restructure)'
+  'additionally': 'and, also (or restructure)'
+  'in an era where': 'state the specific context'
+  'in conclusion': 'cut -- the conclusion should be obvious'
+  'in summary': 'cut -- the summary should be obvious'
+  'to summari[sz]e': 'cut -- the summary should be obvious'
+  'when it comes to': 'talk about the thing directly'
+  'at the end of the day': 'cut'
+  'that (?:said|being said)': 'but, yet, however (or cut)'

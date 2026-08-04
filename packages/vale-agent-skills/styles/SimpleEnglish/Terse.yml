@@ -1,0 +1,9 @@
+# Rule 4.2 -- keep the articles and keep "that". "Ensure file exists before
+# running" is not STE; "Make sure that the file exists before you run the
+# command" is.
+extends: existence
+message: "Telegraph style ('%s') -- keep the article and the conjunction 'that' (Rule 4.2)."
+level: suggestion
+nonword: true
+raw:
+  - '(?i)\b(?:make sure|ensure|verify|check|confirm)\s+(?:[a-z]+\s+)?(?:exists|is set|is present|is running|is enabled)\b'

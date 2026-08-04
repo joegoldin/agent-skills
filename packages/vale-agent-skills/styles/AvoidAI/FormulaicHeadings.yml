@@ -1,0 +1,13 @@
+extends: existence
+message: "Default scaffolding heading ('%s') -- say something specific about what follows."
+level: suggestion
+scope: heading
+ignorecase: true
+tokens:
+  - 'overview'
+  - 'key points'
+  - 'key takeaways'
+  - 'summary'
+  - 'conclusion'
+  - 'introduction'
+  - 'final thoughts'

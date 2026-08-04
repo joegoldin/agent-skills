@@ -1,0 +1,20 @@
+# Tier 3 phrases: multi-word boilerplate that stacks in AI-generated content.
+# Flag the individual hit quietly; three or more distinct phrases in one piece
+# is the real signal (a judgment call the skill makes, not Vale).
+extends: existence
+message: "Boilerplate phrase ('%s') -- name the specific thing instead."
+level: suggestion
+ignorecase: true
+tokens:
+  - 'emerging (?:sector|space|category|landscape)'
+  - 'the integration of'
+  - 'the intersection of'
+  - 'community[- ]driven'
+  - 'long[- ]term sustainability'
+  - 'user engagement'
+  - 'decentralized compute'
+  - 'reward emissions'
+  - 'tokenized incentive structures'
+  - 'designed for long[- ]term'
+  - 'rapidly evolving'
+  - 'in today.s (?:fast[- ]paced |digital |modern )?\w+'

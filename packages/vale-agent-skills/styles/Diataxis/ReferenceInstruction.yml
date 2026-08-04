@@ -1,0 +1,16 @@
+# Reference describes the machinery. Instructions and lesson framing belong in
+# a how-to or a tutorial.
+extends: existence
+message: "Instruction inside reference ('%s') -- reference describes, it does not direct."
+level: warning
+ignorecase: true
+tokens:
+  - 'you (?:should|must|need to|will want to)'
+  - 'you can now'
+  - 'let.s'
+  - 'we recommend'
+  - 'follow these steps'
+  - 'in this (?:guide|tutorial|section) (?:we|you)'
+  - 'first,? (?:run|open|create|install)'
+  - 'next,? (?:run|open|create|install)'
+  - 'now (?:run|open|create|install)'

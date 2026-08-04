@@ -1,0 +1,9 @@
+# P0. Not patterns -- fingerprints. A single hit is near-proof that generated
+# text was pasted without cleanup: chat citation markup, AI-tool tracking
+# parameters, and unfilled template placeholders.
+extends: existence
+message: "Generation fingerprint ('%s') -- strip it before publishing."
+level: error
+nonword: true
+raw:
+  - '(?i)(?:cite(?:turn)?\d+\w+|contentReference\[oaicite:\d+\]\{[^}]*\}|oai_citation|\[attached_file:\d+\]|grok_card|utm_source=(?:chatgpt\.com|openai(?:\.com)?|copilot\.com|claude\.ai|perplexity\.ai|gemini\.google\.com)|referrer=grok\.com|\[(?:Your|Insert|INSERT|Add|ADD|Enter|Describe|Specify|Choose|TODO|TBD)[^\]]{0,60}\]|\b\d{4}-XX-XX\b|<!--\s*(?:add|fill in|todo|insert)[^>]{0,80}-->)'
