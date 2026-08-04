@@ -17,8 +17,8 @@ right profile so a skill can invoke one command instead of assembling a config.
 | `share/vale-agent-skills/configs` | the profile `.vale.ini` files |
 
 The Vale binary is wrapped with `VALE_STYLES_PATH` pointing at a StylesPath that
-holds the three styles above plus the nixpkgs-packaged `alex`, `Google`,
-`Microsoft`, `proselint`, `Readability`, and `write-good`.
+holds exactly the three styles above. None of the third-party styles nixpkgs
+packages are pulled in.
 
 ## Styles
 
@@ -46,8 +46,9 @@ and hedged outcomes while reference is checked for instructions and opinion.
 
 ## Profiles
 
-`vale-skill --list` prints them. The `ai-writing:*` profiles implement the
-context tolerance matrix from the skill — `technical` drops the words with a
+`vale-skill --list` prints them. Every profile is built on the three styles
+above. The `ai-writing:*` profiles implement the context tolerance matrix from
+the skill — `technical` drops the words with a
 legitimate technical sense, `investor` escalates inflation to errors, `casual`
 keeps only the credibility killers.
 

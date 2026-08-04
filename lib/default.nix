@@ -157,9 +157,8 @@ let
       # ── Vendor the Vale styles + configs into the skills that use them ──
       # Each skill gets vale/styles/<Style>/ plus its profile .ini files, with
       # `StylesPath = styles` prepended so Vale resolves the style relative to
-      # the config it was given. Only the profiles built on our own styles are
-      # vendored; the `docs` profile needs the third-party Google, write-good,
-      # and alex styles, which are not ours to redistribute here.
+      # the config it was given. Every profile is vendored: the styles are ours
+      # and the bundle needs nothing else.
       vendor_vale() {
         skill=$1
         style=$2
@@ -196,7 +195,6 @@ let
           -e 's#vale-skill simple-english:([a-z-]+)#vale --config=vale/simple-english-\1.ini#g' \
           -e 's#vale-skill simple-english#vale --config=vale/simple-english.ini#g' \
           -e 's#vale-skill diataxis:([a-z-]+)#vale --config=vale/diataxis-\1.ini#g' \
-          -e '/vale-skill docs/d' \
           -e 's|^vale-skill score.*|# the 0-100 score subcommand ships with the Nix plugin, not this bundle|' \
           -e 's#vale-skill#vale#g' \
           "$f"

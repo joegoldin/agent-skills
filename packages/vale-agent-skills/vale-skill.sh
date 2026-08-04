@@ -27,7 +27,6 @@ profiles() {
   diataxis:how-to          a recipe: goal-shaped, no lesson framing
   diataxis:reference       description of the machinery: neutral, no steps
   diataxis:explanation     discussion: context and alternatives, no procedure
-  docs                     general docs quality (Google, write-good, alex)
 EOF
 }
 

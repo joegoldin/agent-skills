@@ -129,7 +129,6 @@ vale-skill diataxis:tutorial     docs/tutorials/*.md
 vale-skill diataxis:how-to       docs/how-to/*.md
 vale-skill diataxis:reference    docs/reference/*.md
 vale-skill diataxis:explanation  docs/explanation/*.md
-vale-skill docs                  docs/          # general quality: Google, write-good, alex
 ```
 
 What each profile looks for:

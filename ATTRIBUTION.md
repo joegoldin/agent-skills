@@ -130,10 +130,10 @@ license and this attribution.
 ## Vale Package
 
 `packages/vale-agent-skills/` wraps [Vale](https://vale.sh) (MIT License,
-errata-ai) as packaged in nixpkgs, together with the nixpkgs-packaged styles it
-selects — `alex`, `Google`, `Microsoft`, `proselint`, `Readability`, and
-`write-good`, each MIT or BSD-3 licensed and credited in nixpkgs. Vale itself
-and those styles are unmodified.
+errata-ai) as packaged in nixpkgs. Vale itself is unmodified. None of the
+third-party styles nixpkgs packages (`alex`, `Google`, `Microsoft`,
+`proselint`, `Readability`, `write-good`) are included; the only styles on the
+StylesPath are the three written here.
 
 The `AvoidAI`, `SimpleEnglish`, and `Diataxis` styles, the config profiles, the
 `vale-skill` launcher, and the tests are original to this repo, derived from the

@@ -8,25 +8,17 @@
   vale,
 }:
 let
-  # Our own styles, laid out the way nixpkgs' `buildStyle` lays out the
-  # third-party ones, so `vale.withStyles` can symlink them all into one
-  # StylesPath.
+  # Our styles, laid out the way nixpkgs' `buildStyle` lays out the packaged
+  # ones, so `vale.withStyles` can put them on the StylesPath.
   ourStyles = runCommand "vale-styles-agent-skills" { } ''
     mkdir -p $out/share/vale/styles
     cp -R ${./styles}/. $out/share/vale/styles/
   '';
 
-  valeWithStyles = vale.withStyles (
-    s: [
-      s.alex
-      s.google
-      s.microsoft
-      s.proselint
-      s.readability
-      s.write-good
-    ]
-    ++ [ ourStyles ]
-  );
+  # Only AvoidAI, SimpleEnglish, and Diataxis. None of the third-party styles
+  # nixpkgs packages (alex, Google, Microsoft, proselint, Readability,
+  # write-good) are pulled in; the selector ignores them.
+  valeWithStyles = vale.withStyles (_: [ ourStyles ]);
 in
 stdenvNoCC.mkDerivation {
   pname = "vale-agent-skills";
