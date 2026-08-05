@@ -1,0 +1,12 @@
+# Distinct from chat artifacts: sycophancy validates the reader rather than
+# performing helpfulness.
+extends: existence
+message: "Sycophancy ('%s') -- delete it."
+level: error
+ignorecase: true
+tokens:
+  - 'great\s+question'
+  - 'excellent\s+point'
+  - 'you.re\s+absolutely\s+right'
+  - 'that.s\s+a\s+(?:really\s+|very\s+)?(?:insightful|great|excellent)\s+(?:observation|point|question)'
+  - 'what\s+a\s+(?:great|fascinating)\s+question'

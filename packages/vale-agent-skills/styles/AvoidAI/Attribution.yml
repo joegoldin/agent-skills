@@ -1,0 +1,18 @@
+# Attribution with nobody attached, prestige name-dropping, and guesses
+# formatted as background.
+extends: existence
+message: "Unsourced claim ('%s') -- name the source or state the fact directly."
+level: warning
+ignorecase: true
+tokens:
+  - 'experts\s+(?:believe|say|agree|suggest)'
+  - 'studies\s+(?:show|suggest|have\s+shown)'
+  - 'research\s+(?:shows|suggests|indicates)'
+  - 'industry\s+leaders\s+agree'
+  - 'it\s+is\s+widely\s+believed'
+  - 'many\s+believe'
+  - 'is\s+believed\s+to\s+have'
+  - 'appears\s+to\s+have\s+(?:studied|worked|begun)'
+  - 'is\s+thought\s+to\s+have'
+  - 'likely\s+began\s+(?:his|her|their)\s+career'
+  - 'maintains\s+a\s+(?:relatively\s+)?low\s+(?:public\s+)?profile'

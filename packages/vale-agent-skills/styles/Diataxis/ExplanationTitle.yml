@@ -1,0 +1,12 @@
+extends: existence
+message: "Heading is not explanation-shaped ('%s') -- explanation answers 'Why ...?'."
+level: suggestion
+scope: heading
+ignorecase: true
+tokens:
+  - 'how\s+to\s+\w+'
+  - 'getting\s+started'
+  - 'api\s+reference'
+  - 'configuration\s+(?:options|reference)'
+  - 'quickstart'
+  - 'installation'

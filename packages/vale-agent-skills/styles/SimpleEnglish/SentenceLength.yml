@@ -1,0 +1,8 @@
+# Rule 6.3 -- descriptive text: 25 words per sentence. Procedural text is
+# capped at 20 (Rule 5.1); see ProceduralLength.
+extends: occurrence
+message: "%s words in one sentence -- descriptive text stops at 25 (Rule 6.3)."
+level: warning
+scope: sentence
+max: 25
+token: '\b\w+\b'

@@ -1,0 +1,8 @@
+# Rule 3.5 -- an "-ing" form is a technical noun, never a verb. The trailing
+# participial clause is the most common way agents break this.
+extends: existence
+message: "Trailing '-ing' clause ('%s') -- start a new sentence with a real subject (Rule 3.5)."
+level: warning
+nonword: true
+raw:
+  - '(?i),\s*(?:making|allowing|enabling|ensuring|providing|creating|helping|resulting|giving|letting|reducing|improving|preventing)\b'

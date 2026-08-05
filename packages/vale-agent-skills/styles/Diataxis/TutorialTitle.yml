@@ -1,0 +1,11 @@
+extends: existence
+message: "Heading is not tutorial-shaped ('%s') -- a tutorial is a lesson, not a reference or an essay."
+level: suggestion
+scope: heading
+ignorecase: true
+tokens:
+  - 'api\s+reference'
+  - 'configuration\s+(?:options|reference)'
+  - 'why\s+\w+'
+  - 'how\s+to\s+\w+'
+  - 'troubleshooting'

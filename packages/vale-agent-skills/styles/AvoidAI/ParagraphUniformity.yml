@@ -1,0 +1,34 @@
+# Every paragraph the same size is the other half of the rhythm signal.
+# Ported from the avoid-ai-detect `uniformity` paragraph detector.
+extends: script
+message: "Rhythm"
+level: suggestion
+scope: summary
+script: |
+  text := import("text")
+  fmt := import("fmt")
+
+  matches := []
+  paras := text.re_split("\n\n+", scope, -1)
+  counts := []
+  for p in paras {
+    if len(text.trim_space(p)) == 0 { continue }
+    s := text.re_find("[.!?]+", p, -1)
+    counts = append(counts, is_undefined(s) ? 1 : len(s))
+  }
+  if len(counts) >= 4 {
+    sum := 0
+    for c in counts { sum += c }
+    avg := float(sum) / float(len(counts))
+    similar := true
+    for c in counts {
+      d := float(c) - avg
+      if d < 0.0 { d = -d }
+      if d > 1.0 { similar = false }
+    }
+    if similar && avg >= 3.0 {
+      matches = append(matches, {begin: 0, end: 1, message: fmt.sprintf(
+        "All %d paragraphs run about %d sentences -- vary paragraph length deliberately, and let some be one sentence.",
+        len(counts), int(avg + 0.5))})
+    }
+  }

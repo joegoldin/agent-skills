@@ -1,0 +1,10 @@
+extends: existence
+message: "Filler conclusion ('%s') -- cut it, or make the closing thought specific."
+level: warning
+ignorecase: true
+tokens:
+  - 'the\s+future\s+looks\s+bright'
+  - 'only\s+time\s+will\s+tell'
+  - 'one\s+thing\s+is\s+certain'
+  - 'as\s+we\s+move\s+forward'
+  - 'the\s+possibilities\s+are\s+endless'

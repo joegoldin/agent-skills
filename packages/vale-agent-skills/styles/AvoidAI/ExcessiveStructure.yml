@@ -1,0 +1,28 @@
+# Headings and bullets used to look organized. More than three headings in
+# under 300 words, or eight or more list items in under 200, means the content
+# should be prose.
+extends: script
+message: "Structure"
+level: suggestion
+scope: raw
+script: |
+  text := import("text")
+  fmt := import("fmt")
+
+  matches := []
+  words := text.re_find("[A-Za-z0-9'-]+", scope, -1)
+  nw := is_undefined(words) ? 0 : len(words)
+  if nw >= 40 {
+    heads := text.re_find("(?m)^#{1,6}\\s+\\S", scope, -1)
+    items := text.re_find("(?m)^\\s*(?:[-*+]|\\d+\\.)\\s+\\S", scope, -1)
+    nh := is_undefined(heads) ? 0 : len(heads)
+    ni := is_undefined(items) ? 0 : len(items)
+    if nh > 3 && nw < 300 {
+      matches = append(matches, {begin: 0, end: 1, message: fmt.sprintf(
+        "%d headings in %d words -- merge sections or use prose transitions.", nh, nw)})
+    }
+    if ni >= 8 && nw < 200 {
+      matches = append(matches, {begin: 2, end: 3, message: fmt.sprintf(
+        "%d list items in %d words -- this should be a paragraph.", ni, nw)})
+    }
+  }

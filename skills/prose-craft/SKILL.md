@@ -180,7 +180,7 @@ But restraint is the governing rule. Three techniques in a paragraph is rich; te
 The two skills pull against each other on purpose: one adds, one removes. Good prose is what survives both.
 
 1. **Draft with craft** — use these techniques to get vivid, compressed prose down.
-2. **Clean it** — run `avoid-ai-writing`, or `avoid-ai-detect draft.md` for a quick 0–100 score, to strip machine tells (hollow intensifiers, copula avoidance, reflexive transitions, em-dash spray).
+2. **Clean it** — run `avoid-ai-writing`, or `vale-skill ai-writing draft.md` for a quick machine pass, to strip machine tells (hollow intensifiers, copula avoidance, reflexive transitions, em-dash spray).
 3. **Resolve toward restraint** — if the cleanup flags a dash or a metaphor you placed on purpose and it's earning its keep, keep it. If it's just decoration, cut it.
 
 ## Quick reference

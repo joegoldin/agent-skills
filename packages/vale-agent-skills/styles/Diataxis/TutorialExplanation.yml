@@ -1,0 +1,15 @@
+# Explanation in a tutorial breaks the learner's concentration. Link out to the
+# explanation instead.
+extends: existence
+message: "Explanation inside a tutorial ('%s') -- link to it instead."
+level: suggestion
+ignorecase: true
+tokens:
+  - 'the\s+reason\s+(?:for\s+this\s+|why\s+)?is'
+  - 'this\s+is\s+because'
+  - 'under\s+the\s+hood'
+  - 'internally,'
+  - 'it.s\s+worth\s+understanding'
+  - 'to\s+understand\s+why'
+  - 'historically,'
+  - 'the\s+rationale'

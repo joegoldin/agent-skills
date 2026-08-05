@@ -1,0 +1,8 @@
+# One bolded phrase per major section at most. Counted on the raw markup, so
+# the `**` survives to be counted.
+extends: occurrence
+message: "%s bolded spans -- if it matters enough to bold, lead the sentence with it."
+level: suggestion
+scope: raw
+max: 8
+token: '\*\*[^*\n]+\*\*'

@@ -1,0 +1,17 @@
+# Rule 9.3 -- do not build phrasal verbs. Non-native readers cannot look them
+# up as units.
+extends: substitution
+message: "Phrasal verb '%[2]s' -- write %[1]s (Rule 9.3)."
+level: suggestion
+ignorecase: true
+swap:
+  'go(?:es)?\s+down': 'decreases, stops'
+  'set\s+up': 'install, configure'
+  'turn\s+on': 'start, enable'
+  'turn\s+off': 'stop, disable'
+  'carry\s+out': 'do, complete'
+  'find\s+out': 'learn, get'
+  'look\s+into': 'examine'
+  'come\s+up\s+with': 'make, write, choose'
+  'bring\s+up': 'start, show'
+  'take\s+care\s+of': 'do, correct'

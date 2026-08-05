@@ -1,0 +1,34 @@
+# Rhythm, the #1 structural detection signal. AI text is metronomic; human
+# text swings. Coefficient of variation of sentence word-counts below 0.25
+# with a mean above 10 words is the flat signature.
+#
+# Ported from the avoid-ai-detect `uniformity` detector (same thresholds).
+extends: script
+message: "Rhythm"
+level: warning
+scope: summary
+script: |
+  text := import("text")
+  fmt := import("fmt")
+  math := import("math")
+
+  matches := []
+  parts := text.re_split("[.!?]+[\\s]+", scope, -1)
+  lens := []
+  for p in parts {
+    w := text.re_find("[A-Za-z0-9'-]+", p, -1)
+    if !is_undefined(w) && len(w) > 0 { lens = append(lens, len(w)) }
+  }
+  if len(lens) >= 5 {
+    sum := 0.0
+    for l in lens { sum += float(l) }
+    avg := sum / float(len(lens))
+    v := 0.0
+    for l in lens { v += (float(l) - avg) * (float(l) - avg) }
+    cv := avg > 0.0 ? math.sqrt(v / float(len(lens))) / avg : 0.0
+    if cv < 0.25 && avg > 10.0 {
+      matches = append(matches, {begin: 0, end: 1, message: fmt.sprintf(
+        "Sentence lengths cluster around %d words (variation %.2f, human prose usually clears 0.35) -- mix short punchy sentences with longer ones.",
+        int(avg + 0.5), cv)})
+    }
+  }

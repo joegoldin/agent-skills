@@ -1,0 +1,9 @@
+# Not a pattern -- a fingerprint. The literal internal markup of a chat UI,
+# pasted without cleanup. The heaviest single signal there is.
+extends: existence
+message: "Chat citation markup ('%s') -- strip it; replace with a real reference if it meant something."
+level: error
+nonword: true
+scope: raw
+raw:
+  - '(?i)(?:cite(?:turn)?\d+\w+|contentReference\[oaicite:\d+\]\{[^}]*\}|oai_citation|\[attached_file:\d+\]|grok_card)'

@@ -1,0 +1,8 @@
+# Fragment-hooks that fake momentum, reader-steering frames, and rhetorical
+# questions used as section transitions.
+extends: existence
+message: "Engagement hook ('%s') -- delete the hook and state the thing."
+level: warning
+nonword: true
+raw:
+  - '(?i)(?:\bthe\s+catch\?|\bthe\s+kicker\?|\bhere.s\s+the\s+kicker|\bhere.s\s+the\s+thing[.:]|\bthe\s+best\s+part\?|\bplot\s+twist:|\bthe\s+result\?|\bhere.s\s+what.s\s+interesting|\bhere.s\s+the\s+interesting\s+part|\bhere.s\s+what\s+(?:caught\s+my\s+eye|stood\s+out)|\bso\s+why\s+should\s+you\s+care\?|\bbut\s+what\s+does\s+this\s+mean\b[^?]{0,40}\?|\bwhat.s\s+next\?|\bwhy\s+does\s+this\s+matter\?)'

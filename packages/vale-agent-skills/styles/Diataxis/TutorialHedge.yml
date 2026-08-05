@@ -1,0 +1,14 @@
+# A tutorial makes a promise and keeps it. Hedged outcomes break the contract:
+# the learner cannot tell whether they succeeded.
+extends: existence
+message: "Hedged outcome in a tutorial ('%s') -- state exactly what the learner will see."
+level: warning
+ignorecase: true
+tokens:
+  - 'should\s+(?:be\s+able\s+to|see|now|work)'
+  - 'hopefully'
+  - '(?:may|might|could)\s+vary'
+  - 'in\s+most\s+cases'
+  - 'usually'
+  - 'more\s+or\s+less'
+  - 'something\s+like'

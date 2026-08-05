@@ -1,0 +1,15 @@
+# Claiming an emotion or labelling your own point as the clever one, instead of
+# writing so the reader gets there unaided.
+extends: existence
+message: "Tell-don't-show ('%s') -- make the writing earn it."
+level: warning
+ignorecase: true
+tokens:
+  - 'what\s+surprised\s+me\s+most'
+  - 'I\s+was\s+fascinated\s+to\s+(?:discover|learn)'
+  - 'what\s+struck\s+me\s+was'
+  - 'I\s+was\s+excited\s+to\s+learn'
+  - 'the\s+most\s+interesting\s+part'
+  - 'interesting\s+(?:part|thing|aspect)(?:\s+of|\s+here|\s+about)?'
+  - 'here.s\s+where\s+it\s+gets\s+(?:clever|interesting|good)'
+  - '(?:that|this|the\s+last|the\s+third|the\s+second|the\s+fourth)\s+(?:one|move|bullet|point|part|bit|item)\s+is\s+the\s+(?:contrarian|clever|surprising|counterintuitive|interesting|key|important|unusual|smart|brilliant|real|actual)'

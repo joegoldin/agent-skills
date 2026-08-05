@@ -1,0 +1,12 @@
+# config	fixture	assertion
+avoid-ai.ini	ai-isms.md	cover:AvoidAI
+avoid-ai.ini	ai-stylometric.md	cover:AvoidAI
+avoid-ai.ini	ai-structure.md	cover:AvoidAI
+avoid-ai.ini	ai-clean.md	clean
+avoid-ai.ini	ai-wrapped.md	expect:AvoidAI.Tier1,AvoidAI.AcknowledgmentLoop,AvoidAI.Filler,AvoidAI.Copula,AvoidAI.Transitions,AvoidAI.GenericConclusion
+simple-english-strict.ini	ste.md	cover:SimpleEnglish
+simple-english-procedural.ini	ste-clean.md	clean
+diataxis-tutorial.ini	diataxis-tutorial.md	cover:Diataxis.Tutorial
+diataxis-how-to.ini	diataxis-how-to.md	cover:Diataxis.HowTo
+diataxis-reference.ini	diataxis-reference.md	cover:Diataxis.Reference
+diataxis-explanation.ini	diataxis-explanation.md	cover:Diataxis.Explanation

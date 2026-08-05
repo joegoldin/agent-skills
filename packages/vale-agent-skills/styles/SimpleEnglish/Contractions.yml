@@ -1,0 +1,35 @@
+# Rule 4.2 -- do not shorten a sentence by omitting words. STE is short
+# sentences with complete grammar, not telegraph style.
+extends: substitution
+message: "Contraction: write '%s' instead of '%s' (Rule 4.2)."
+level: warning
+ignorecase: true
+action:
+  name: replace
+swap:
+  'aren.t': 'are not'
+  'can.t': 'cannot'
+  'couldn.t': 'could not'
+  'didn.t': 'did not'
+  'doesn.t': 'does not'
+  'don.t': 'do not'
+  'hasn.t': 'has not'
+  'haven.t': 'have not'
+  'isn.t': 'is not'
+  'it.s': 'it is'
+  'let.s': 'let us (or rewrite as an imperative)'
+  'shouldn.t': 'must not'
+  'that.s': 'that is'
+  'there.s': 'there is'
+  'they.re': 'they are'
+  'they.ve': 'they have'
+  'wasn.t': 'was not'
+  'we.ll': 'we will'
+  'we.re': 'we are'
+  'we.ve': 'we have'
+  'weren.t': 'were not'
+  'won.t': 'will not'
+  'wouldn.t': 'would not'
+  'you.ll': 'you will'
+  'you.re': 'you are'
+  'you.ve': 'you have'

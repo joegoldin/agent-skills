@@ -1,0 +1,12 @@
+extends: existence
+message: "Chat artifact ('%s') -- delete it."
+level: error
+ignorecase: true
+tokens:
+  - 'I\s+hope\s+this\s+helps'
+  - 'feel\s+free\s+to\s+reach\s+out'
+  - 'let\s+me\s+know\s+if\s+you\s+need\s+anything\s+else'
+  - 'certainly!'
+  - 'absolutely!'
+  - 'in\s+this\s+article,?\s+we\s+will\s+(?:explore|look\s+at|discuss|cover)'
+  - 'let.s\s+dive\s+in'

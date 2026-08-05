@@ -1,0 +1,28 @@
+# Type-token ratio: distinct word types over total tokens. Human prose at
+# 200+ words usually lands 0.50-0.65 in English; AI trends flatter and can
+# drift under 0.40 when the model locks onto a small vocabulary loop.
+#
+# Conservative on purpose (>=200 tokens AND TTR<0.40): narrow topics,
+# technical reference, and second-language writing all compress vocabulary
+# legitimately. Ported from the avoid-ai-detect `low-ttr` detector.
+extends: script
+message: "Vocabulary"
+level: suggestion
+scope: summary
+script: |
+  text := import("text")
+  fmt := import("fmt")
+
+  matches := []
+  toks := text.re_find("[A-Za-z']+", scope, -1)
+  if !is_undefined(toks) && len(toks) >= 200 {
+    seen := {}
+    for t in toks { seen[text.to_lower(t[0].text)] = true }
+    uniq := len(seen)
+    ttr := float(uniq) / float(len(toks))
+    if ttr < 0.4 {
+      matches = append(matches, {begin: 0, end: 1, message: fmt.sprintf(
+        "Vocabulary diversity %.2f (%d unique of %d tokens; human prose usually 0.50-0.65) -- name specific things instead of reusing abstract nouns.",
+        ttr, uniq, len(toks))})
+    }
+  }

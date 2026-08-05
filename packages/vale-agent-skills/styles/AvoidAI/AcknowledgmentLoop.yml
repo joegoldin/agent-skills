@@ -1,0 +1,10 @@
+# Restating the prompt before answering it. The reader knows what they asked.
+extends: existence
+message: "Acknowledgment loop ('%s') -- just answer."
+level: warning
+ignorecase: true
+tokens:
+  - 'you.re\s+asking\s+about'
+  - 'to\s+answer\s+your\s+question'
+  - 'the\s+question\s+of\s+whether'
+  - 'as\s+(?:you|we)\s+(?:mentioned|discussed)\s+(?:above|earlier)'

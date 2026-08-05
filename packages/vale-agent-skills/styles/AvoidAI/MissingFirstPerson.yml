@@ -1,0 +1,24 @@
+# Where a piece is supposed to carry a voice, the absence of any opinion,
+# preference, or reaction is itself a tell -- AI is relentlessly neutral.
+#
+# Off by default in the `docs` and `technical` profiles, where neutrality is
+# correct.
+extends: script
+message: "Voice"
+level: suggestion
+scope: summary
+script: |
+  text := import("text")
+  fmt := import("fmt")
+
+  matches := []
+  words := text.re_find("[A-Za-z0-9'-]+", scope, -1)
+  nw := is_undefined(words) ? 0 : len(words)
+  if nw >= 300 {
+    first := text.re_find("(?i)\\b(?:I think|I found|I.d|I have|in my experience|my own|we found|we learned|I prefer|I was|I.ve|to me)\\b", scope, 1)
+    if is_undefined(first) {
+      matches = append(matches, {begin: 0, end: 1, message: fmt.sprintf(
+        "%d words with no first-person perspective -- if the piece is meant to have a voice, state a preference or a reaction.",
+        nw)})
+    }
+  }

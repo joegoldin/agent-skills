@@ -1,0 +1,18 @@
+# The curatorial sign-off on a share post: an endorsement with no reason to
+# click. It could sit under any link, which is why an LLM reaches for it.
+extends: existence
+message: "Endorsement closer ('%s') -- say what the thing is and who it is for, then drop the CTA."
+level: warning
+ignorecase: true
+tokens:
+  - 'this\s+one\s+is\s+worth\s+your\s+time'
+  - 'this\s+one.s\s+a\s+must[- ]read'
+  - 'a\s+must[- ]read'
+  - 'I\s+highly\s+recommend\s+giving\s+this\s+a\s+read'
+  - 'do\s+yourself\s+a\s+favor\s+and\s+read'
+  - 'you\s+won.t\s+want\s+to\s+miss'
+  - 'save\s+this\s+for\s+later'
+  - 'bookmark\s+this'
+  - 'don.t\s+sleep\s+on\s+this'
+  - 'trust\s+me,?\s+you.ll\s+want\s+to\s+read'
+  - 'thank\s+me\s+later'

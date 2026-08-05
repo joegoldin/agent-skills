@@ -78,40 +78,80 @@ The skill prose is original; the `vibecad` CLI in `packages/vibecad/` is origina
 to this repo and adapts the upstream's design ideas (numbered revisions,
 parameter JSON files, multi-view rendering) without copying upstream code.
 
-## Avoid AI Writing Skill + Detector
+## Avoid AI Writing Skill
 
-The `avoid-ai-writing` skill and the `avoid-ai-detect` detector CLI are vendored
-from [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing)
+The `avoid-ai-writing` skill is vendored from
+[conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing)
 (MIT License, Copyright (c) 2026 Conor Bronsdon), at upstream commit
 `6e1369dad98e61b165928f3849f225e11855cdaf` (v3.10.0).
 
-**Skill (`skills/avoid-ai-writing/`).** `SKILL.md` is the upstream `SKILL.md`
-body. Per this repo's convention the YAML frontmatter was moved into
-`skills/avoid-ai-writing/skill.nix` (the build regenerates it), and a short local
-section documenting the `avoid-ai-detect` CLI was added. The body is otherwise
-upstream.
+`SKILL.md` is the upstream `SKILL.md` body. Per this repo's convention the YAML
+frontmatter was moved into `skills/avoid-ai-writing/skill.nix` (the build
+regenerates it). The local changes are the linter section and the mentions that
+follow from it.
 
-**Detector (`packages/avoid-ai-detect/`).** The engine and its tests are copied
-byte-for-byte (verifiably unmodified) from upstream `detector/`:
-
-- `patterns.js` → `packages/avoid-ai-detect/patterns.js`
-- `CATEGORIES.md` → `packages/avoid-ai-detect/CATEGORIES.md`
-- `patterns.test.js` → `packages/avoid-ai-detect/patterns.test.js`
-- `categories.test.js` → `packages/avoid-ai-detect/categories.test.js`
-
-The upstream MIT `LICENSE` is preserved at `packages/avoid-ai-detect/LICENSE`.
-`default.nix`, `cli.js`, and `avoid-ai-detect.sh` are original to this repo: a
-Nix package plus a thin CLI (read file or stdin, run `AIDetector.analyzeText`,
-print a report or `--json`) wrapping the unmodified zero-dependency engine with
-`nodejs`. The skill calls the resulting `avoid-ai-detect` binary. Upstream's
-Cursor rules, GitHub workflows, and demo assets are not vendored; this repo
-builds its own multi-agent plugins.
+Upstream also ships a Node detection engine (`detector/patterns.js`, 44
+categories). This repo vendored it as `packages/avoid-ai-detect` through
+v3.10.0 and has since replaced it with Vale. The pattern rules now live in the
+`AvoidAI` Vale style at `packages/vale-agent-skills/styles/AvoidAI/`, written
+from the `SKILL.md` catalog rather than translated from upstream code. The
+document-level detectors that engine carried — sentence and paragraph
+uniformity, cross-paragraph burstiness, punctuation-density distribution,
+function-word trigram entropy, type-token ratio, the smart-punctuation
+signature, bare-noun-phrase bullet lists — are reimplemented as Vale `script`
+rules (Tengo) at the same thresholds. The 0-100 score and its classification
+bands are reimplemented in `vale-skill score`, which weights Vale's own output
+using the weight table and the `log2(words/50)` normalization from upstream's
+scoring model. See `git log` for the removal.
 
 Upstream credits its own pattern research to Pangram Labs, Wikipedia's "Signs of
 AI writing," [blader/humanizer](https://github.com/blader/humanizer),
 [brandonwise/humanizer](https://github.com/brandonwise/humanizer),
 [Aboudjem/humanizer-skill](https://github.com/Aboudjem/humanizer-skill), and the
 OpenClaw humanizer ecosystem. Those inline credits are preserved in the skill body.
+
+## Simple English Skill
+
+The `simple-english` skill is a synthesis of
+[AminBlg/SimpleEnglish](https://github.com/AminBlg/SimpleEnglish) (MIT License,
+Copyright (c) 2026 AminBlg), which paraphrases ASD-STE100 Issue 9 as an agent
+skill. This repo's version keeps upstream's rule catalog, mode split, modal
+ladder, and worked example; it replaces upstream's by-hand mechanical checklist
+with the `SimpleEnglish` Vale style, rewrites the reference material, and adds
+the profile mapping. Upstream's `prompts/` and `evals/` are not vendored.
+
+ASD-STE100 itself is not reproduced. Both upstream and this skill paraphrase the
+rules and omit the copyrighted dictionary. ASD-STE100 is a registered trademark
+of ASD; the standard is a free download at asd-ste100.org. Neither upstream nor
+this repo is affiliated with or endorsed by ASD or STEMG.
+
+## Diátaxis Skill
+
+The `diataxis` skill adapts [Diátaxis](https://diataxis.fr) by Daniele Procida,
+published under **CC BY-SA 4.0**
+([source](https://github.com/evildmp/diataxis-documentation-framework)).
+
+`skills/diataxis/` is adapted material: the map, the compass, the four modes and
+their principles, the language patterns, the workflow loop, and the functional /
+deep quality distinction all come from diataxis.fr. The wording is largely
+rewritten and the checklists, split recipes, and Vale rules are original, but the
+framework and its structure are Procida's.
+
+**`skills/diataxis/` and `packages/vale-agent-skills/styles/Diataxis/` are
+therefore licensed CC BY-SA 4.0**, and anyone redistributing them must keep that
+license and this attribution.
+
+## Vale Package
+
+`packages/vale-agent-skills/` wraps [Vale](https://vale.sh) (MIT License,
+errata-ai) as packaged in nixpkgs. Vale itself is unmodified. None of the
+third-party styles nixpkgs packages (`alex`, `Google`, `Microsoft`,
+`proselint`, `Readability`, `write-good`) are included; the only styles on the
+StylesPath are the three written here.
+
+The `AvoidAI`, `SimpleEnglish`, and `Diataxis` styles, the config profiles, the
+`vale-skill` launcher, and the tests are original to this repo, derived from the
+skills they serve (and so inheriting their attributions above).
 
 ## Prose Craft Skill
 

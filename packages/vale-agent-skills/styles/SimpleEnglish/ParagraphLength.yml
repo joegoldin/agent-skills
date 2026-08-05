@@ -1,0 +1,7 @@
+# Rule 6.6 -- six sentences per paragraph.
+extends: occurrence
+message: "%s sentence endings in one paragraph -- the limit is six (Rule 6.6)."
+level: suggestion
+scope: paragraph
+max: 6
+token: '[.!?](?:\s|$)'

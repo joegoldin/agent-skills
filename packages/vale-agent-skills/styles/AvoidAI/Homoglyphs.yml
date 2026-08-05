@@ -1,0 +1,10 @@
+# Zero-width characters and Cyrillic/Greek Latin-lookalikes are what
+# "humanizer" tools insert to defeat exact-string detectors. Humans do not
+# paste zero-width spaces into their own writing, so a hit is corroborating
+# evidence on its own -- and it means the other rules are being evaded.
+extends: existence
+message: "Invisible or lookalike character ('%s') -- the text has been run through a detector-evasion pass."
+level: error
+nonword: true
+raw:
+  - '[\x{200B}-\x{200D}\x{FEFF}\x{2060}\x{0400}-\x{04FF}\x{0370}-\x{03FF}]'

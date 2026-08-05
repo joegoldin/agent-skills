@@ -1,0 +1,8 @@
+extends: existence
+message: "Numbered-list inflation ('%s') -- only count items the content actually has."
+level: suggestion
+ignorecase: true
+tokens:
+  - '(?:\d+|three|four|five|six|seven|eight|nine|ten)\s+key\s+(?:takeaways|points|reasons|lessons|things)'
+  - '(?:\d+|three|four|five|six|seven|eight|nine|ten)\s+things\s+(?:to\s+know|you\s+need)'
+  - 'here\s+are\s+the\s+top\s+(?:\d+|three|four|five|six|seven|ten)'

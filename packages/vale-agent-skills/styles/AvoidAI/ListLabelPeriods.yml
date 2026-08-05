@@ -1,0 +1,9 @@
+# `- **Intros.** Years of conferences...` -- a person writes `**Intros:**` and
+# lowercases the gloss. Counted on raw markup so the bold survives.
+extends: existence
+message: "List label ends with a period ('%s') -- use a colon and lowercase the gloss."
+level: suggestion
+scope: raw
+nonword: true
+raw:
+  - '(?m)^\s*[-*+]\s+\*\*[A-Z][^*\n]{1,40}\.\*\*\s'

@@ -1,0 +1,6 @@
+extends: existence
+message: "'Not X, it's Y' construction ('%s') -- state the positive claim directly."
+level: warning
+nonword: true
+raw:
+  - "(?i)(?:\\bit'?s not [^.!?]{1,60}?(?:—|--|,)\\s*it'?s\\b|\\bthis isn'?t about [^.!?]{1,60}?,\\s*it'?s about\\b|\\bnot just [^.!?]{1,50}?(?:—|--|,)\\s*(?:but|it'?s)\\b)"

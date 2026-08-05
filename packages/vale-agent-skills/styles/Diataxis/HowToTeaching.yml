@@ -1,0 +1,16 @@
+# A how-to guide serves a competent user at work. Lesson framing wastes their
+# time and signals a tutorial that wandered into the wrong directory.
+extends: existence
+message: "Teaching voice in a how-to ('%s') -- the reader already knows the basics."
+level: warning
+ignorecase: true
+tokens:
+  - 'in\s+this\s+tutorial'
+  - 'you\s+will\s+learn'
+  - 'you.ll\s+learn'
+  - 'by\s+the\s+end\s+of\s+this\s+(?:tutorial|guide|lesson)'
+  - 'let.s\s+(?:start|begin|explore|learn)'
+  - 'first,?\s+we.ll'
+  - 'don.t\s+worry\s+(?:if|about)'
+  - 'we.ll\s+(?:cover|explain|introduce)'
+  - 'no\s+(?:prior\s+)?experience\s+(?:is\s+)?(?:required|needed)'

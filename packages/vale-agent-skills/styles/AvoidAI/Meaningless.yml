@@ -1,0 +1,15 @@
+# Participial pseudo-analysis, the "despite challenges ... continues to thrive"
+# non-statement, and false-concession balance.
+extends: existence
+message: "Says nothing ('%s') -- replace with a specific fact or cut."
+level: warning
+ignorecase: true
+tokens:
+  - ',\s*(?:symboli[sz]ing|reflecting|showcasing|highlighting|underscoring|emphasi[sz]ing|signaling|cementing|solidifying)'
+  - 'this\s+represents\s+a\s+broader\s+shift'
+  - 'speaks\s+to\s+a\s+larger\s+trend'
+  - 'symboli[sz]es\s+a\s+commitment\s+to'
+  - 'despite\s+(?:the\s+)?challenges'
+  - 'while\s+facing\s+headwinds'
+  - 'remains?\s+resilient'
+  - 'continues\s+to\s+thrive'

@@ -1,0 +1,12 @@
+# Routine events inflated into history. If the sentence still works after the
+# inflation clause is deleted, delete it.
+extends: existence
+message: "Significance inflation ('%s') -- state what happened and let the reader judge."
+level: warning
+ignorecase: true
+tokens:
+  - 'marking\s+a\s+(?:pivotal|defining|historic)\s+moment'
+  - 'a\s+watershed\s+moment'
+  - 'marks?\s+a\s+turning\s+point\s+in\s+the\s+(?:history|evolution)\s+of'
+  - 'in\s+the\s+(?:evolution|history)\s+of'
+  - 'a\s+defining\s+moment\s+for'

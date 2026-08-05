@@ -1,0 +1,15 @@
+# How-to titles name a goal: "How to ..." or a gerund. Lesson and essay titles
+# in a how-to directory mean the page is in the wrong quadrant.
+extends: existence
+message: "Heading is not goal-shaped ('%s') -- a how-to answers 'How do I ...?'."
+level: suggestion
+scope: heading
+ignorecase: true
+tokens:
+  - 'getting\s+started'
+  - 'introduction\s+to'
+  - 'understanding\s+\w+'
+  - 'what\s+is\s+\w+'
+  - 'why\s+\w+\s+(?:matters|works)'
+  - 'a\s+tour\s+of'
+  - 'overview\s+of'

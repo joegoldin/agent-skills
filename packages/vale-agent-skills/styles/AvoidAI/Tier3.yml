@@ -1,0 +1,21 @@
+# Normal words that AI over-reaches for. Only meaningful at density -- see
+# Tier3Density. Kept at `suggestion` so a single honest use stays quiet.
+extends: existence
+message: "Vague praise ('%s') -- replace with a number, comparison, or example."
+level: suggestion
+ignorecase: true
+tokens:
+  - 'significant(?:ly)?'
+  - 'innovat(?:ive|ion|ions)'
+  - 'effective(?:ly)?'
+  - 'dynamics?'
+  - 'scalab(?:le|ility)'
+  - 'compelling'
+  - 'unprecedented'
+  - 'exceptional(?:ly)?'
+  - 'remarkabl[ey]'
+  - 'sophisticated'
+  - 'instrumental'
+  - 'world[- ]class'
+  - 'state[- ]of[- ]the[- ]art'
+  - 'best[- ]in[- ]class'

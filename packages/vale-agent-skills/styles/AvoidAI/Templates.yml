@@ -1,0 +1,10 @@
+# Slot-fill constructions: if a phrase has a blank where a noun or adjective
+# could go and still sound the same, it was generated, not written.
+extends: existence
+message: "Slot-fill construction ('%s') -- say what actually changed, or pick the real audience."
+level: warning
+ignorecase: true
+tokens:
+  - 'an?\s+\w+\s+step\s+(?:towards?|forward\s+for)'
+  - 'whether\s+you.re\s+(?:an?|the)'
+  - 'I\s+recently\s+had\s+the\s+pleasure\s+of\s+\w+ing'

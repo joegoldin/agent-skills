@@ -72,7 +72,7 @@
           vibecad = pkgs.callPackage ./packages/vibecad { };
           pxd = pkgs.callPackage ./packages/pxd { };
           figr = pkgs.callPackage ./packages/figr { };
-          avoidAiDetect = pkgs.callPackage ./packages/avoid-ai-detect { };
+          valeAgentSkills = pkgs.callPackage ./packages/vale-agent-skills { };
 
           # ── Claude plugin ──
           claude-plugin = build.buildPlugin {
@@ -85,7 +85,7 @@
               vibecad
               pxd
               figr
-              avoidAiDetect
+              valeAgentSkills
             ];
           };
 
@@ -100,7 +100,7 @@
               vibecad
               pxd
               figr
-              avoidAiDetect
+              valeAgentSkills
             ];
           };
 
@@ -115,7 +115,7 @@
               vibecad
               pxd
               figr
-              avoidAiDetect
+              valeAgentSkills
             ];
           };
 
@@ -152,11 +152,12 @@
 
           # ── Web/app uploadable skills bundle ──
           # One folder per skill (folder = zip root for the Claude web/app
-          # "Customize > Skills" upload format). avoid-ai-writing ships its
-          # Node detector vendored into scripts/ so it runs in the sandbox.
+          # "Customize > Skills" upload format). The Vale-backed skills carry a
+          # vendored copy of their style and config profiles, since the sandbox
+          # has no `vale-skill` launcher.
           web-skills = build.buildWebBundle {
             inherit skills;
-            avoidAiDetectSrc = ./packages/avoid-ai-detect;
+            valeSrc = ./packages/vale-agent-skills;
           };
 
           # One zip per skill (zip root = exactly one folder + one SKILL.md), the layout
@@ -178,7 +179,8 @@
         // {
           default = claude-plugin;
           inherit web-skills web-skills-zips;
-          avoid-ai-detect = avoidAiDetect;
+          vale-agent-skills = valeAgentSkills;
+          vale = valeAgentSkills.vale;
           inherit
             claude-plugin
             antigravity-plugin
@@ -250,9 +252,10 @@
               touch $out
             '';
 
-          # Builds the detector package, whose checkPhase runs the vendored
-          # engine tests (patterns.test.js + categories.test.js).
-          avoid-ai-detect = pkgs.callPackage ./packages/avoid-ai-detect { };
+          # Builds the Vale package, whose checkPhase runs tests/run-tests.sh:
+          # every config profile loads, every rule in every bundled style fires
+          # on a fixture, and the clean fixtures stay silent.
+          vale-agent-skills = pkgs.callPackage ./packages/vale-agent-skills { };
         }
       );
 

@@ -1,0 +1,10 @@
+# Rule 5.4 -- a required condition goes before the command, divided by a comma:
+# "If the build fails, read the log." Case-sensitive on purpose, so a sentence
+# that already starts with If/When does not match.
+extends: existence
+message: "Condition after the command ('%s') -- move it to the front (Rule 5.4)."
+level: suggestion
+scope: sentence
+nonword: true
+raw:
+  - '\b[a-z]+\s+(?:if|when|unless)\s+(?:the|a|an|you|it|this|there)\b'

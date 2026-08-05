@@ -1,0 +1,12 @@
+extends: substitution
+message: "Copula avoidance: use '%s' instead of '%s'."
+level: suggestion
+ignorecase: true
+action:
+  name: replace
+swap:
+  'serves?\s+as': 'is'
+  'boasts?': 'has'
+  'features\s+(?:a|an|the)': 'has, includes'
+  'stands\s+as\s+a\s+testament\s+to': 'shows'
+  'represents\s+an?\s+(?:major|significant|important)': 'is'

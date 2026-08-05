@@ -1,0 +1,15 @@
+# Treating established ideas as discoveries, plus the scarcity-of-knowledge
+# framings that go with it.
+extends: existence
+message: "Novelty inflation ('%s') -- describe what was done with the idea, not that it was invented."
+level: warning
+ignorecase: true
+tokens:
+  - 'coined\s+the\s+(?:term|phrase)'
+  - 'introduced\s+a\s+(?:term|concept)\s+I'
+  - 'a\s+(?:term|concept|idea)\s+I\s+hadn.t\s+heard'
+  - 'the\s+failure\s+mode\s+nobody'
+  - 'a\s+(?:problem|concept)\s+nobody\s+(?:talks\s+about|.s\s+naming)'
+  - 'the\s+insight\s+everyone.s\s+missing'
+  - 'what\s+nobody\s+tells\s+you\s+about'
+  - 'nobody\s+is\s+talking\s+about'

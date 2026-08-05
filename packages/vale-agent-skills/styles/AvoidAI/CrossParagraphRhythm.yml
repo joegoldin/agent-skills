@@ -1,0 +1,46 @@
+# Sentence-length uniformity checks rhythm inside a paragraph. This checks it
+# ACROSS paragraphs: AI gives every paragraph the same internal cadence, while
+# humans put terse paragraphs next to discursive ones.
+#
+# Ported from the avoid-ai-detect `cross-para-burstiness` detector.
+extends: script
+message: "Rhythm"
+level: suggestion
+scope: summary
+script: |
+  text := import("text")
+  fmt := import("fmt")
+  math := import("math")
+
+  matches := []
+  paras := text.re_split("\n\n+", scope, -1)
+  cvs := []
+  for p in paras {
+    parts := text.re_split("[.!?]+[\\s]+", p, -1)
+    lens := []
+    for s in parts {
+      w := text.re_find("[A-Za-z0-9'-]+", s, -1)
+      if !is_undefined(w) && len(w) > 0 { lens = append(lens, len(w)) }
+    }
+    if len(lens) < 3 { continue }
+    sum := 0.0
+    for l in lens { sum += float(l) }
+    m := sum / float(len(lens))
+    if m == 0.0 { continue }
+    v := 0.0
+    for l in lens { v += (float(l) - m) * (float(l) - m) }
+    cvs = append(cvs, math.sqrt(v / float(len(lens))) / m)
+  }
+  if len(cvs) >= 4 {
+    sum := 0.0
+    for c in cvs { sum += c }
+    mean := sum / float(len(cvs))
+    v := 0.0
+    for c in cvs { v += (c - mean) * (c - mean) }
+    sd := math.sqrt(v / float(len(cvs)))
+    if sd < 0.08 && mean < 0.45 {
+      matches = append(matches, {begin: 0, end: 1, message: fmt.sprintf(
+        "Every paragraph has the same internal rhythm (spread %.2f) -- vary cadence between terse and discursive paragraphs.",
+        sd)})
+    }
+  }

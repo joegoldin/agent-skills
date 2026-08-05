@@ -1,0 +1,13 @@
+# Chain-of-thought scaffolding leaking into published prose. State the
+# conclusion, then the evidence.
+extends: existence
+message: "Reasoning scaffolding ('%s') -- the reader does not need the working."
+level: error
+ignorecase: true
+tokens:
+  - 'let\s+me\s+think\s+step\s+by\s+step'
+  - 'breaking\s+this\s+down'
+  - 'to\s+approach\s+this\s+systematically'
+  - 'here.s\s+my\s+thought\s+process'
+  - 'first,?\s+let.s\s+consider'
+  - 'working\s+through\s+this\s+logically'
