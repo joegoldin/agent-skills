@@ -55,6 +55,20 @@ See the superpowers repository for the original versions.
   pixeldrain.com HTTP API is third-party. API documentation:
   https://pixeldrain.com/api
 
+- **gh-stack** — synthesized from the official agent skill and documentation
+  shipped in [github/gh-stack](https://github.com/github/gh-stack) (MIT License),
+  at upstream **v0.1.0**. Upstream's `skills/gh-stack/` (`SKILL.md`,
+  `references/{commands,stack-design,troubleshooting}.md`) and its docs site
+  (`docs/src/content/docs/reference/{rest,merge,graphql,webhooks}-api.md`) were
+  merged and restructured rather than vendored: upstream's three reference files
+  are consolidated into `references/cli.md`, and `references/api.md` — covering
+  the REST `/stacks` endpoints, the async merge API, GraphQL, and webhooks — is
+  written from the upstream API docs, which upstream's skill does not cover.
+  Frontmatter lives in `skill.nix` per this repo's convention, and the
+  description is rewritten as triggering conditions only. Factual details
+  (the `view --json` schema, exit codes 0–10) were verified against the v0.1.0
+  Go source rather than the prose, which is incomplete on both.
+
 ## Vibe Modeling Skill
 
 The `vibe-modeling` skill methodology is distilled from
