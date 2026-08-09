@@ -267,6 +267,15 @@
             else
               throw "frontmatter tests failed: ${builtins.toJSON failures}";
 
+          lint-tests =
+            let
+              failures = import ./lib/lint-tests.nix { inherit lib; };
+            in
+            if failures == [ ] then
+              pkgs.runCommand "lint-tests" { } "touch $out"
+            else
+              throw "lint tests failed: ${builtins.toJSON failures}";
+
           # Builds the detector package, whose checkPhase runs the vendored
           # engine tests (patterns.test.js + categories.test.js).
           avoid-ai-detect = pkgs.callPackage ./packages/avoid-ai-detect { };
