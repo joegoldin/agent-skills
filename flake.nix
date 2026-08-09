@@ -129,18 +129,24 @@
           };
           discoveredPlugins = build.discoverPlugins ./plugins;
           crossPlugins = lib.listToAttrs (
-            lib.concatMap (
-              target:
-              map (p: {
-                name = "${p.name}-${target}";
-                value = build.mkCrossAgentPlugin {
-                  def = p.raw { inherit pkgs lib target; };
-                  inherit target;
-                  targetLib = targetLibs.${target};
-                  attributionFile = ./ATTRIBUTION.md;
-                };
-              }) discoveredPlugins
-            ) [ "claude" "antigravity" "codex" ]
+            lib.concatMap
+              (
+                target:
+                map (p: {
+                  name = "${p.name}-${target}";
+                  value = build.mkCrossAgentPlugin {
+                    def = p.raw { inherit pkgs lib target; };
+                    inherit target;
+                    targetLib = targetLibs.${target};
+                    attributionFile = ./ATTRIBUTION.md;
+                  };
+                }) discoveredPlugins
+              )
+              [
+                "claude"
+                "antigravity"
+                "codex"
+              ]
           );
 
           perSkillPackages = lib.listToAttrs (
@@ -205,7 +211,10 @@
                   config.servers = {
                     ctx = {
                       command = "npx";
-                      args = [ "-y" "ctx" ];
+                      args = [
+                        "-y"
+                        "ctx"
+                      ];
                     };
                     remote = {
                       url = "https://x/mcp";
@@ -225,30 +234,38 @@
           codexJson = pkgs.writeText "codex-mcp.json" (builtins.toJSON (mcp.mcpNativeFor "codex" servers));
         in
         {
-          eval-mcp =
-            pkgs.runCommand "eval-mcp" { nativeBuildInputs = [ pkgs.jq ]; } ''
-              # disabled servers are omitted from every target
-              jq -e 'has("off") | not' ${claudeJson} >/dev/null
-              jq -e 'has("off") | not' ${agyJson} >/dev/null
-              jq -e 'has("off") | not' ${codexJson} >/dev/null
+          eval-mcp = pkgs.runCommand "eval-mcp" { nativeBuildInputs = [ pkgs.jq ]; } ''
+            # disabled servers are omitted from every target
+            jq -e 'has("off") | not' ${claudeJson} >/dev/null
+            jq -e 'has("off") | not' ${agyJson} >/dev/null
+            jq -e 'has("off") | not' ${codexJson} >/dev/null
 
-              # stdio is identical across all three targets
-              jq -e '.ctx.command == "npx" and (.ctx.args == ["-y","ctx"])' ${claudeJson} >/dev/null
-              jq -e '.ctx.command == "npx"' ${agyJson} >/dev/null
-              jq -e '.ctx.command == "npx"' ${codexJson} >/dev/null
+            # stdio is identical across all three targets
+            jq -e '.ctx.command == "npx" and (.ctx.args == ["-y","ctx"])' ${claudeJson} >/dev/null
+            jq -e '.ctx.command == "npx"' ${agyJson} >/dev/null
+            jq -e '.ctx.command == "npx"' ${codexJson} >/dev/null
 
-              # claude remote → type:"http" + url + headers
-              jq -e '.remote.type == "http" and .remote.url == "https://x/mcp" and .remote.headers.Authorization == "Bearer Y"' ${claudeJson} >/dev/null
+            # claude remote → type:"http" + url + headers
+            jq -e '.remote.type == "http" and .remote.url == "https://x/mcp" and .remote.headers.Authorization == "Bearer Y"' ${claudeJson} >/dev/null
 
-              # antigravity remote → serverUrl (no url), + headers
-              jq -e '.remote.serverUrl == "https://x/mcp" and (.remote | has("url") | not)' ${agyJson} >/dev/null
+            # antigravity remote → serverUrl (no url), + headers
+            jq -e '.remote.serverUrl == "https://x/mcp" and (.remote | has("url") | not)' ${agyJson} >/dev/null
 
-              # codex remote → url + bearer_token_env_var + http_headers (no headers/type)
-              jq -e '.remote.url == "https://x/mcp" and .remote.bearer_token_env_var == "TOK" and .remote.http_headers.Authorization == "Bearer Y"' ${codexJson} >/dev/null
-              jq -e '.remote | (has("type") | not) and (has("serverUrl") | not)' ${codexJson} >/dev/null
+            # codex remote → url + bearer_token_env_var + http_headers (no headers/type)
+            jq -e '.remote.url == "https://x/mcp" and .remote.bearer_token_env_var == "TOK" and .remote.http_headers.Authorization == "Bearer Y"' ${codexJson} >/dev/null
+            jq -e '.remote | (has("type") | not) and (has("serverUrl") | not)' ${codexJson} >/dev/null
 
-              touch $out
-            '';
+            touch $out
+          '';
+
+          frontmatter-tests =
+            let
+              failures = import ./lib/frontmatter-tests.nix { inherit lib; };
+            in
+            if failures == [ ] then
+              pkgs.runCommand "frontmatter-tests" { } "touch $out"
+            else
+              throw "frontmatter tests failed: ${builtins.toJSON failures}";
 
           # Builds the detector package, whose checkPhase runs the vendored
           # engine tests (patterns.test.js + categories.test.js).
@@ -257,100 +274,99 @@
       );
 
       # ── Re-exported home-manager modules ──
-      homeManagerModules =
-        {
-          claude =
-            {
-              lib,
-              pkgs,
-              ...
-            }:
-            let
-              build = import ./lib/default.nix {
-                inherit pkgs lib;
-                claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
-              };
-              skills = build.discoverSkills ./skills;
-              skillPermissions = map (s: "Skill(agent-skills:${s.name})") skills;
-              claudePlugins = map (
-                p: self.packages.${pkgs.system}."${p.name}-claude"
-              ) (build.discoverPlugins ./plugins);
-            in
-            {
-              imports = [ "${claude-nix}/modules/home-manager.nix" ];
-              programs.claude-nix.plugins = lib.mkBefore (
-                [ self.packages.${pkgs.system}.claude-plugin ] ++ claudePlugins
-              );
-              programs.claude-nix.extraPermissions.allow = skillPermissions;
-              programs.claude-nix.extraHooks = build.foldClaudeHooks (
-                map (p: p.passthru.claudeHooks or { }) claudePlugins
-              );
-              programs.claude-nix.statusLine.enable = true;
-              # Fall through to Sonnet if the primary model is unavailable.
-              # Additive + rebuild-safe (unlike a declared `model`/`effortLevel`,
-              # which would re-assert on every rebuild and clobber an in-session
-              # /model or /effort switch — those are intentionally left unset).
-              programs.claude-nix.fallbackModel = [ "claude-sonnet-5" ];
+      homeManagerModules = {
+        claude =
+          {
+            lib,
+            pkgs,
+            ...
+          }:
+          let
+            build = import ./lib/default.nix {
+              inherit pkgs lib;
+              claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
             };
+            skills = build.discoverSkills ./skills;
+            skillPermissions = map (s: "Skill(agent-skills:${s.name})") skills;
+            claudePlugins = map (p: self.packages.${pkgs.system}."${p.name}-claude") (
+              build.discoverPlugins ./plugins
+            );
+          in
+          {
+            imports = [ "${claude-nix}/modules/home-manager.nix" ];
+            programs.claude-nix.plugins = lib.mkBefore (
+              [ self.packages.${pkgs.system}.claude-plugin ] ++ claudePlugins
+            );
+            programs.claude-nix.extraPermissions.allow = skillPermissions;
+            programs.claude-nix.extraHooks = build.foldClaudeHooks (
+              map (p: p.passthru.claudeHooks or { }) claudePlugins
+            );
+            programs.claude-nix.statusLine.enable = true;
+            # Fall through to Sonnet if the primary model is unavailable.
+            # Additive + rebuild-safe (unlike a declared `model`/`effortLevel`,
+            # which would re-assert on every rebuild and clobber an in-session
+            # /model or /effort switch — those are intentionally left unset).
+            programs.claude-nix.fallbackModel = [ "claude-sonnet-5" ];
+          };
 
-          antigravity =
-            {
-              lib,
-              pkgs,
-              ...
-            }:
-            let
-              build = import ./lib/default.nix {
-                inherit pkgs lib;
-                claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
-              };
-              antigravityPlugins = map (
-                p: self.packages.${pkgs.system}."${p.name}-antigravity"
-              ) (build.discoverPlugins ./plugins);
-            in
-            {
-              imports = [ "${antigravity-cli-nix}/modules/home-manager.nix" ];
-              programs.antigravity-cli-nix.plugins = lib.mkBefore (
-                [ self.packages.${pkgs.system}.antigravity-plugin ] ++ antigravityPlugins
-              );
+        antigravity =
+          {
+            lib,
+            pkgs,
+            ...
+          }:
+          let
+            build = import ./lib/default.nix {
+              inherit pkgs lib;
+              claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
             };
+            antigravityPlugins = map (p: self.packages.${pkgs.system}."${p.name}-antigravity") (
+              build.discoverPlugins ./plugins
+            );
+          in
+          {
+            imports = [ "${antigravity-cli-nix}/modules/home-manager.nix" ];
+            programs.antigravity-cli-nix.plugins = lib.mkBefore (
+              [ self.packages.${pkgs.system}.antigravity-plugin ] ++ antigravityPlugins
+            );
+          };
 
-          codex =
-            {
-              lib,
-              pkgs,
-              ...
-            }:
-            let
-              build = import ./lib/default.nix {
-                inherit pkgs lib;
-                claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
-              };
-              codexPlugins = map (
-                p: self.packages.${pkgs.system}."${p.name}-codex"
-              ) (build.discoverPlugins ./plugins);
-            in
-            {
-              imports = [ "${codex-nix}/modules/home-manager.nix" ];
-              programs.codex-nix.plugins = lib.mkBefore (
-                [ self.packages.${pkgs.system}.codex-plugin ] ++ codexPlugins
-              );
+        codex =
+          {
+            lib,
+            pkgs,
+            ...
+          }:
+          let
+            build = import ./lib/default.nix {
+              inherit pkgs lib;
+              claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
             };
+            codexPlugins = map (p: self.packages.${pkgs.system}."${p.name}-codex") (
+              build.discoverPlugins ./plugins
+            );
+          in
+          {
+            imports = [ "${codex-nix}/modules/home-manager.nix" ];
+            programs.codex-nix.plugins = lib.mkBefore (
+              [ self.packages.${pkgs.system}.codex-plugin ] ++ codexPlugins
+            );
+          };
 
-          agent-skills =
-            {
-              lib,
-              pkgs,
-              ...
-            }:
-            {
-              imports = [ ./modules/agent-skills.nix ];
-              programs.agent-skills.enable = lib.mkDefault true;
-              programs.agent-skills.plugins = lib.mkBefore [
-                self.packages.${pkgs.system}.claude-plugin
-              ];
-            };
-        };
+        agent-skills =
+          {
+            lib,
+            pkgs,
+            ...
+          }:
+          {
+            imports = [ ./modules/agent-skills.nix ];
+            programs.agent-skills.enable = lib.mkDefault true;
+            programs.agent-skills.plugins = lib.mkBefore [
+              self.packages.${pkgs.system}.claude-plugin
+            ];
+          };
+      };
 
       # ── Re-exported libs ──
       lib = forAllSystems (
