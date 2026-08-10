@@ -143,4 +143,4 @@ just switch   # or: sudo nixos-rebuild switch --flake .
 darwin-rebuild switch --flake .
 ```
 
-Skills hot-reload in modern Claude Code, but commands and plugin structure require a rebuild.
+Skill content edits hot-reload in modern Claude Code (including command-style skills). Adding or removing a skill, or changing sidecars/agents/plugin structure, requires a rebuild for `discoverSkills` to pick it up.
