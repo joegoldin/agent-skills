@@ -102,7 +102,7 @@ in
       bad = builtins.filter (k: !(builtins.elem k sidecarKeys)) (builtins.attrNames attrs);
     in
     if bad != [ ] then
-      throw "agent-skills: skill '${dirName}': skill.nix may only contain ${toString sidecarKeys}; found: ${toString bad}. name/description/allowed-tools belong in SKILL.md frontmatter; commands are skills now; subagents go in agents/*.md"
+      throw "agent-skills: skill '${dirName}': skill.nix may only contain ${toString sidecarKeys}; found: ${toString bad}. name/description/allowed-tools belong in SKILL.md frontmatter; subagents go in agents/*.md; command-style workflows are skills with disable-model-invocation"
     else
       attrs;
 }

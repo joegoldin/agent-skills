@@ -108,10 +108,9 @@ Agent system prompt.
 4. That's it — `discoverSkills` auto-discovers any directory under
    `skills/` containing a `SKILL.md`.
 
-**Commands are skills.** To make a slash-command-style workflow, create a
+**Commands are skills.** For a slash-command-style workflow, create a
 normal skill with `disable-model-invocation: true` and an `argument-hint`
-in its frontmatter (see `skills/format-nix/` for the pattern). Do not use
-`claudeLib.mkCommand` for skills in this repo.
+in its frontmatter (see `skills/format-nix/` for the pattern).
 
 ## Permissions
 

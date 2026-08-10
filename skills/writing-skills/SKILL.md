@@ -169,7 +169,7 @@ Two tiers. Which one you write for depends on where the skill ships:
 | `paths` | Glob patterns limiting when the skill auto-activates |
 | `shell` | `bash` (default) or `powershell` for inline `!` commands |
 
-**Commands are skills.** A skill invoked as `/name` with `$ARGUMENTS` in its body replaces the old separate command concept. For a command-style workflow: `disable-model-invocation: true` + `argument-hint`.
+**Commands are skills.** Every skill is invocable as `/name`, with `$ARGUMENTS` available in its body. For a command-style workflow: `disable-model-invocation: true` + `argument-hint`.
 
 ## This Repo's Contract (agent-skills)
 
