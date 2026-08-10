@@ -54,11 +54,19 @@ in
       name = f.name or "";
       desc = f.description or "";
       inlineTools = f.allowed-tools or "";
+      blockTools = parsed.items.allowed-tools or [ ];
+      # Key present but no value in any form: an empty allowed-tools line
+      # restricts the skill to no tools — reject rather than ship the trap.
+      emptyTools = builtins.elem "allowed-tools" parsed.keys && inlineTools == "" && blockTools == [ ];
       spaceTokens =
         if inlineTools == "" || lib.hasInfix "," inlineTools then
           [ ]
         else
           builtins.filter (t: t != "") (lib.splitString " " inlineTools);
+      # Shear detection is a paren-balance heuristic: it catches Bash(...)
+      # entries split mid-parens by the space form, but a space-containing
+      # entry with no parens (e.g. a hypothetical `mcp__foo bar`) would
+      # shear silently — use the comma form for any entry with spaces.
       unbalanced = builtins.filter (t: charCount "(" t != charCount ")" t) spaceTokens;
     in
     if name == "" then
@@ -81,6 +89,8 @@ in
       err "description exceeds the spec's 1024-character cap"
     else if unknown != [ ] then
       err "unknown frontmatter key(s): ${toString unknown} (typo? known fields: portable ∪ Claude Code extensions)"
+    else if emptyTools then
+      err "allowed-tools is present but empty — an empty allowed-tools line restricts the skill to no tools; remove the key instead"
     else if unbalanced != [ ] then
       err "allowed-tools entries containing spaces must use the comma-separated or block-list form (shorn token(s): ${toString unbalanced})"
     else

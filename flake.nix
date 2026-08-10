@@ -75,18 +75,14 @@
           avoidAiDetect = pkgs.callPackage ./packages/avoid-ai-detect { };
 
           # ── Claude plugin ──
+          # Skill-owned tool packages (figr, pxd, vibecad, avoid-ai-detect)
+          # ride in via each skill's sidecar `packages`, not extraPackages.
           claude-plugin = build.buildPlugin {
             name = "agent-skills";
             description = "Agent skills, commands, and agents";
             inherit skills;
             hooksDir = ./hooks;
             attributionFile = ./ATTRIBUTION.md;
-            extraPackages = [
-              vibecad
-              pxd
-              figr
-              avoidAiDetect
-            ];
           };
 
           # ── Antigravity plugin ──
@@ -96,12 +92,6 @@
             inherit skills;
             hooksDir = ./hooks;
             attributionFile = ./ATTRIBUTION.md;
-            extraPackages = [
-              vibecad
-              pxd
-              figr
-              avoidAiDetect
-            ];
           };
 
           # ── Codex plugin ──
@@ -111,12 +101,6 @@
             inherit skills;
             hooksDir = ./hooks;
             attributionFile = ./ATTRIBUTION.md;
-            extraPackages = [
-              vibecad
-              pxd
-              figr
-              avoidAiDetect
-            ];
           };
 
           # ── Cross-agent plugins (temporal, code-notify) ──

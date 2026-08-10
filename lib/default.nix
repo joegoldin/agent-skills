@@ -146,6 +146,10 @@ let
       }
     ) validNames;
 
+  # Sidecar-declared tool packages, aggregated into every target's buildEnv
+  # so skill-referenced commands are on PATH.
+  skillPackagesOf = skills: lib.concatMap (s: s.meta.packages or [ ]) skills;
+
   # ── Web/app uploadable skills bundle ──
   # Emits $out/<name>/ for every skill so each top-level folder is a complete,
   # ready-to-zip skill (folder = zip root for the Claude web/app
@@ -186,7 +190,7 @@ let
           fm {
             if ($0 ~ /^[A-Za-z0-9_-]+:/) {
               key=$0; sub(/:.*/, "", key)
-              keep = (key=="name" || key=="description" || key=="license" || key=="compatibility" || key=="metadata" || key=="allowed-tools")
+              keep = (${lib.concatMapStringsSep " || " (f: ''key=="${f}"'') lintLib.portableFields})
             }
             if (keep) print
             next
@@ -338,7 +342,7 @@ let
       claudeSpecAgents = map (a: mkClaudeAgentFromSpec a) allAgentSpecs;
       allMcpServers = lib.foldl' (acc: s: acc // (s.meta.mcpServers or { })) { } skills;
       allLspServers = lib.foldl' (acc: s: acc // (s.meta.lspServers or { })) { } skills;
-      skillPackages = lib.concatMap (s: s.meta.packages or [ ]) skills;
+      skillPackages = skillPackagesOf skills;
 
       plugin = claudeLib.mkPlugin {
         inherit name description;
@@ -401,7 +405,7 @@ let
 
       agyAgents = map mkAgyAgentFromSpec (lib.concatMap (s: s.meta.agentSpecs or [ ]) skills);
 
-      skillPackages = lib.concatMap (s: s.meta.packages or [ ]) skills;
+      skillPackages = skillPackagesOf skills;
 
       # Skill-scoped MCP servers → Antigravity per-plugin mcp_config.json.
       # stdio (command/args/env) passes through verbatim (identical across
@@ -450,7 +454,7 @@ let
 
       allMcpServers = lib.foldl' (acc: s: acc // (s.meta.mcpServers or { })) { } skills;
 
-      skillPackages = lib.concatMap (s: s.meta.packages or [ ]) skills;
+      skillPackages = skillPackagesOf skills;
 
       codexAgents = map mkCodexAgentFromSpec (lib.concatMap (s: s.meta.agentSpecs or [ ]) skills);
 

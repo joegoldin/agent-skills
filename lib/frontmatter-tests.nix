@@ -115,4 +115,20 @@ lib.debug.runTests {
     expr = (builtins.tryEval (fm.parse "---\nname: x\nno closing marker")).success;
     expected = false;
   };
+  testEscapedQuotesUnwrapped = {
+    # unquote's documented escapes: \" -> " and \\ -> \
+    expr =
+      (fm.parse "---\nname: x\ndescription: \"say \\\"hi\\\" via C:\\\\path\"\n---\nbody")
+      .fields.description;
+    expected = ''say "hi" via C:\path'';
+  };
+  testParseFileReadsRealSkill = {
+    expr = (fm.parseFile ../skills/brainstorming/SKILL.md).fields.name;
+    expected = "brainstorming";
+  };
+  testParseFileMissingFrontmatterThrows = {
+    # parseFile's error names the offending file; ATTRIBUTION.md has no frontmatter.
+    expr = (builtins.tryEval (fm.parseFile ../ATTRIBUTION.md)).success;
+    expected = false;
+  };
 }

@@ -12,14 +12,58 @@ let
     body
   '';
   tryValidate = args: (builtins.tryEval (lint.validateSkillMd args)).success;
+  # Exactly-at-limit and one-over-limit inputs for the spec caps.
+  name64 = lib.concatStrings (lib.genList (_: "a") 64);
+  name65 = lib.concatStrings (lib.genList (_: "a") 65);
+  desc1024 = lib.concatStrings (lib.genList (_: "d") 1024);
+  desc1025 = lib.concatStrings (lib.genList (_: "d") 1025);
+  mkParsed = name: desc: fm.parse "---\nname: ${name}\ndescription: ${desc}\n---\nbody";
 in
 lib.debug.runTests {
   testValidSkill = {
+    # Success must return the parsed set unchanged, not merely not-throw.
+    expr =
+      (lint.validateSkillMd {
+        dirName = "good-skill";
+        parsed = ok;
+      }) == ok;
+    expected = true;
+  };
+  testName64Accepted = {
     expr = tryValidate {
-      dirName = "good-skill";
-      parsed = ok;
+      dirName = name64;
+      parsed = mkParsed name64 "y";
     };
     expected = true;
+  };
+  testName65Rejected = {
+    expr = tryValidate {
+      dirName = name65;
+      parsed = mkParsed name65 "y";
+    };
+    expected = false;
+  };
+  testDescription1024Accepted = {
+    expr = tryValidate {
+      dirName = "x";
+      parsed = mkParsed "x" desc1024;
+    };
+    expected = true;
+  };
+  testDescription1025Rejected = {
+    expr = tryValidate {
+      dirName = "x";
+      parsed = mkParsed "x" desc1025;
+    };
+    expected = false;
+  };
+  testEmptyAllowedToolsRejected = {
+    # Present-but-empty allowed-tools would restrict the skill to no tools.
+    expr = tryValidate {
+      dirName = "x";
+      parsed = fm.parse "---\nname: x\ndescription: y\nallowed-tools:\n---\nbody";
+    };
+    expected = false;
   };
   testNameDirMismatch = {
     expr = tryValidate {
