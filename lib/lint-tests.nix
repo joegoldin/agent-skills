@@ -126,7 +126,7 @@ lib.debug.runTests {
       )).success;
     expected = true;
   };
-  testSidecarRejectsLegacyKeys = {
+  testSidecarRejectsForeignKeys = {
     expr = (builtins.tryEval (lint.validateSidecar "x" { description = "nope"; })).success;
     expected = false;
   };
