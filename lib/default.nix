@@ -8,17 +8,23 @@
 let
   mcpLib = import ./mcp.nix { inherit lib; };
 
-  # Import a skill.nix — handles both plain attrsets and functions.
-  # For non-Claude targets, pass claudeLib as a stub so skill.nix files
-  # that reference claudeLib builders (mkCommand, mkAgent) don't break.
-  evalSkillNix =
-    raw:
-    if builtins.isFunction raw then
-      raw {
-        inherit pkgs lib claudeLib;
-      }
-    else
-      raw;
+  fm = import ./frontmatter.nix { inherit lib; };
+  lintLib = import ./lint.nix { inherit lib; };
+
+  # Evaluate an optional skill.nix sidecar. Sidecars carry only what
+  # markdown cannot express: packages, mcpServers, lspServers. A sidecar
+  # may be an attrset or a function of (a subset of) { pkgs, lib }.
+  evalSidecar =
+    dirName: raw:
+    let
+      args = { inherit pkgs lib; };
+      attrs =
+        if builtins.isFunction raw then
+          raw (builtins.intersectAttrs (builtins.functionArgs raw) args)
+        else
+          raw;
+    in
+    lintLib.validateSidecar dirName attrs;
 
   # ── Target-neutral agent spec → per-target agent derivation ──
   # Skills declare subagents once as a spec so the same definition lands in
@@ -58,49 +64,84 @@ let
       // lib.optionalAttrs (a ? model) { inherit (a) model; }
     ) a.prompt;
 
+  # A skill directory is shipped verbatim: SKILL.md (frontmatter included)
+  # and all assets, minus the Nix sidecar and the agents/ source dir.
   buildSkillDrv =
-    name: meta: skillDir:
-    let
-      skillBody = builtins.readFile (skillDir + "/SKILL.md");
-      frontmatterFields = [
-        "name: ${meta.name}"
-        "description: ${meta.description}"
-      ]
-      ++
-        lib.optional ((meta.allowed-tools or [ ]) != [ ])
-          "allowed-tools: ${toString (meta.allowed-tools or [ ])}";
-      frontmatter = "---\n" + lib.concatStringsSep "\n" frontmatterFields + "\n---";
-      skillMdContent = frontmatter + "\n\n" + skillBody;
-      skillMd = pkgs.writeText "skill-${name}-md" skillMdContent;
-    in
+    name: skillDir:
     pkgs.runCommand "skill-${name}" { } ''
       mkdir -p $out/skills/${name}
-      cp ${skillMd} $out/skills/${name}/SKILL.md
-
       for item in ${skillDir}/*; do
         basename=$(basename "$item")
         case "$basename" in
-          skill.nix|SKILL.md) ;;
+          skill.nix|agents) ;;
           *) cp -r "$item" $out/skills/${name}/ ;;
         esac
       done
     '';
+
+  # Parse agents/<name>.md files into target-neutral agent specs:
+  #   { name; description; prompt; tools ? [ ]; model ? ...; }
+  loadAgentSpecs =
+    skillName: dir:
+    let
+      agentsDir = dir + "/agents";
+      mdFiles = builtins.filter (n: lib.hasSuffix ".md" n) (
+        builtins.attrNames (builtins.readDir agentsDir)
+      );
+    in
+    if !builtins.pathExists agentsDir then
+      [ ]
+    else
+      map (
+        fname:
+        let
+          parsed = fm.parseFile (agentsDir + "/${fname}");
+          stem = lib.removeSuffix ".md" fname;
+        in
+        {
+          name = parsed.fields.name or stem;
+          description =
+            parsed.fields.description
+              or (throw "agent-skills: skill '${skillName}': agents/${fname} must set description");
+          tools = fm.parseToolList parsed "tools";
+          prompt = parsed.body;
+        }
+        // lib.optionalAttrs (parsed.fields ? model) { model = parsed.fields.model; }
+      ) mdFiles;
 
   discoverSkills =
     skillsDir:
     let
       entries = builtins.readDir skillsDir;
       dirNames = builtins.attrNames (lib.filterAttrs (_: type: type == "directory") entries);
-      validNames = builtins.filter (
-        name: builtins.pathExists (skillsDir + "/${name}/skill.nix")
-      ) dirNames;
+      validNames = builtins.filter (name: builtins.pathExists (skillsDir + "/${name}/SKILL.md")) dirNames;
     in
-    map (name: rec {
-      inherit name;
-      dir = skillsDir + "/${name}";
-      meta = evalSkillNix (import (dir + "/skill.nix"));
-      drv = buildSkillDrv name meta dir;
-    }) validNames;
+    map (
+      name:
+      let
+        dir = skillsDir + "/${name}";
+        parsed = lintLib.validateSkillMd {
+          dirName = name;
+          parsed = fm.parseFile (dir + "/SKILL.md");
+        };
+        sidecar =
+          if builtins.pathExists (dir + "/skill.nix") then
+            evalSidecar name (import (dir + "/skill.nix"))
+          else
+            { };
+      in
+      {
+        inherit name dir parsed;
+        meta = {
+          inherit name;
+          description = parsed.fields.description;
+          allowed-tools = fm.parseToolList parsed "allowed-tools";
+          agentSpecs = loadAgentSpecs name dir;
+        }
+        // sidecar;
+        drv = buildSkillDrv name dir;
+      }
+    ) validNames;
 
   # ── Web/app uploadable skills bundle ──
   # Emits $out/<name>/ for every skill so each top-level folder is a complete,
@@ -184,18 +225,7 @@ let
       usingAgentSkillsSkill = lib.findFirst (s: s.name == "using-agent-skills") null skills;
     in
     if usingAgentSkillsSkill != null then
-      let
-        meta = usingAgentSkillsSkill.meta;
-        body = builtins.readFile (usingAgentSkillsSkill.dir + "/SKILL.md");
-        fields = [
-          "name: ${meta.name}"
-          "description: ${meta.description}"
-        ]
-        ++
-          lib.optional ((meta.allowed-tools or [ ]) != [ ])
-            "allowed-tools: ${toString (meta.allowed-tools or [ ])}";
-      in
-      "---\n" + lib.concatStringsSep "\n" fields + "\n---\n\n" + body
+      builtins.readFile (usingAgentSkillsSkill.dir + "/SKILL.md")
     else
       "";
 
@@ -275,8 +305,6 @@ let
       extraPackages ? [ ],
     }:
     let
-      allCommands = lib.concatMap (s: s.meta.commands or [ ]) skills;
-      allAgents = lib.concatMap (s: s.meta.agents or [ ]) skills;
       # Target-neutral agent specs → Claude agents. Skills declare agents once
       # as `{ name; description; prompt; tools?; model?; }` so the same spec can
       # be re-targeted to Codex/Antigravity by the other build functions.
@@ -284,12 +312,12 @@ let
       claudeSpecAgents = map (a: mkClaudeAgentFromSpec a) allAgentSpecs;
       allMcpServers = lib.foldl' (acc: s: acc // (s.meta.mcpServers or { })) { } skills;
       allLspServers = lib.foldl' (acc: s: acc // (s.meta.lspServers or { })) { } skills;
+      skillPackages = lib.concatMap (s: s.meta.packages or [ ]) skills;
 
       plugin = claudeLib.mkPlugin {
         inherit name description;
         skills = map (s: s.drv) skills;
-        commands = allCommands;
-        agents = allAgents ++ claudeSpecAgents;
+        agents = claudeSpecAgents;
         mcpServers = allMcpServers;
         lspServers = allLspServers;
       };
@@ -305,27 +333,29 @@ let
     in
     pkgs.buildEnv {
       name = "${name}-complete";
-      paths = [ plugin ] ++ hooksDrv ++ attributionDrv ++ extraPackages;
+      paths = [ plugin ] ++ hooksDrv ++ attributionDrv ++ extraPackages ++ skillPackages;
     };
 
   # ── Build a skill using a target's mkSkill ──
+  # Targets rebuild their own frontmatter from name/description/
+  # allowed-tools; Claude Code-only fields intentionally do not carry over.
   buildSkillForTarget =
     targetMkSkill: skill:
     let
-      meta = skill.meta;
-      skillBody = builtins.readFile (skill.dir + "/SKILL.md");
       extraFiles =
         let
           entries = builtins.readDir skill.dir;
-          extras = lib.filterAttrs (name: _: name != "skill.nix" && name != "SKILL.md") entries;
+          extras = lib.filterAttrs (
+            name: _: name != "skill.nix" && name != "SKILL.md" && name != "agents"
+          ) entries;
         in
         map (name: skill.dir + "/${name}") (builtins.attrNames extras);
     in
     targetMkSkill {
-      inherit (meta) name description;
-      allowed-tools = meta.allowed-tools or [ ];
+      inherit (skill.meta) name description;
+      allowed-tools = skill.meta.allowed-tools or [ ];
       inherit extraFiles;
-    } skillBody;
+    } skill.parsed.body;
 
   # ── Antigravity plugin ──
   buildAntigravityPlugin =
@@ -344,6 +374,8 @@ let
       agySkills = map (buildSkillForTarget agyLib.mkSkill) skills;
 
       agyAgents = map mkAgyAgentFromSpec (lib.concatMap (s: s.meta.agentSpecs or [ ]) skills);
+
+      skillPackages = lib.concatMap (s: s.meta.packages or [ ]) skills;
 
       # Skill-scoped MCP servers → Antigravity per-plugin mcp_config.json.
       # stdio (command/args/env) passes through verbatim (identical across
@@ -371,7 +403,7 @@ let
     in
     pkgs.buildEnv {
       name = "${name}-antigravity-complete";
-      paths = [ plugin ] ++ attributionDrv ++ extraPackages;
+      paths = [ plugin ] ++ attributionDrv ++ extraPackages ++ skillPackages;
       passthru.meta = { inherit name description; };
     };
 
@@ -391,6 +423,8 @@ let
       codexSkills = map (buildSkillForTarget codexLib.mkSkill) skills;
 
       allMcpServers = lib.foldl' (acc: s: acc // (s.meta.mcpServers or { })) { } skills;
+
+      skillPackages = lib.concatMap (s: s.meta.packages or [ ]) skills;
 
       codexAgents = map mkCodexAgentFromSpec (lib.concatMap (s: s.meta.agentSpecs or [ ]) skills);
 
@@ -415,7 +449,7 @@ let
     in
     (pkgs.buildEnv {
       name = "${name}-codex-complete";
-      paths = [ plugin ] ++ attributionDrv ++ extraPackages;
+      paths = [ plugin ] ++ attributionDrv ++ extraPackages ++ skillPackages;
     })
     // {
       _codex = plugin._codex or { };
@@ -491,15 +525,15 @@ let
       claudeSkill =
         body:
         pkgs.runCommand "skill-${def.name}-claude" { } ''
-          mkdir -p $out/skills/${def.name}
-          cat > $out/skills/${def.name}/SKILL.md <<'SKILLEOF'
----
-name: ${def.name}
-description: ${def.description}
----
+                    mkdir -p $out/skills/${def.name}
+                    cat > $out/skills/${def.name}/SKILL.md <<'SKILLEOF'
+          ---
+          name: ${def.name}
+          description: ${def.description}
+          ---
 
-${body}
-SKILLEOF
+          ${body}
+          SKILLEOF
         '';
 
       skillDrv =
@@ -574,7 +608,7 @@ in
     discoverSkills
     buildWebBundle
     buildPlugin
-    evalSkillNix
+    evalSidecar
     buildSkillDrv
     buildSkillForTarget
     buildAntigravityPlugin

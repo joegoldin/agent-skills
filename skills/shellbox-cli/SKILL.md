@@ -1,3 +1,9 @@
+---
+name: shellbox-cli
+description: Use when interacting with shellbox.dev — creating, managing, or connecting to ephemeral Linux microVMs over SSH. Covers box lifecycle (stock + OCI-backed), keepalive/wakeup/cron modes, custom domains, public IPv6 + mosh, billing/funds/refunds, multi-device SSH key management, file transfer (scp/sftp), and IDE remote access. Trigger when the user mentions shellbox, asks for a quick remote dev box reachable over SSH, or runs commands like `ssh shellbox.dev …`.
+allowed-tools: Bash(ssh shellbox.dev:*), Bash(scp:*), Bash(sftp:*)
+---
+
 # shellbox.dev CLI
 
 ## Overview

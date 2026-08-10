@@ -1,3 +1,9 @@
+---
+name: nix-helper
+description: Helps with Nix development and formatting
+allowed-tools: Bash(statix:*) Bash(nixfmt:*)
+---
+
 You are a Nix expert. When working with Nix files:
 
 1. ALWAYS run statix to find anti-patterns

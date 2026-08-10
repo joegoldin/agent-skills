@@ -1,3 +1,9 @@
+---
+name: pixeldrain
+description: Use when the user wants to upload, share, or fetch files via pixeldrain.com — file hosting, link sharing, byte-range downloads, thumbnails, or managing their pixeldrain account.
+allowed-tools: Bash(pxd) Bash(pxd:*)
+---
+
 # pixeldrain — upload, share, fetch files via the pixeldrain.com API
 
 Pixeldrain is a free file-hosting service with a clean HTTP API and per-file shareable URLs. This skill teaches the API contract; the bundled `pxd` CLI wraps `curl` so you don't have to assemble auth headers and multipart bodies by hand.

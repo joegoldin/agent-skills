@@ -1,7 +1,20 @@
+---
+name: gh-checks
+description: Use when reading CI check statuses, viewing test/lint failure logs, or diagnosing why PR checks are failing
+argument-hint: "[pr-number]"
+---
 
 # gh-checks
 
 Read and diagnose GitHub Actions CI check statuses and failure logs for pull requests.
+
+## Workflow
+
+1. Identify the PR — use `$ARGUMENTS` if given, otherwise detect from the current branch
+2. Fetch check statuses and show a summary table
+3. For any failing checks, fetch the failure logs
+4. Categorize failures (test, lint, build, security, etc.)
+5. Propose fixes or next steps
 
 ## Identifying the PR
 

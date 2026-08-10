@@ -1,3 +1,9 @@
+---
+name: zmx
+description: Use when running long-lived or persistent terminal processes — dev servers, builds, remote SSH/container shells that must survive disconnects or outlive the task — or when the user mentions zmx, session persistence, attach/detach, or asks to run or inspect something in a named session.
+allowed-tools: Bash(zmx) Bash(zmx:*)
+---
+
 # zmx — persistent terminal sessions (attach/detach, no window management)
 
 zmx (https://github.com/neurosnap/zmx) keeps a shell + its processes alive independent of any terminal. A session is one PTY running `$SHELL` (or a given command), reachable by name. Humans `zmx attach` to it; agents drive it non-interactively with `run`/`send`/`history`. Sessions survive SSH drops, closed terminals, and the end of your task.

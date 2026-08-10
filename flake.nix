@@ -276,6 +276,32 @@
             else
               throw "lint tests failed: ${builtins.toJSON failures}";
 
+          skills-lint =
+            let
+              build = import ./lib/default.nix {
+                inherit pkgs lib;
+                claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
+              };
+              skills = build.discoverSkills ./skills;
+              # toJSON forces every parsed/linted field deeply.
+              summary = builtins.toJSON (
+                map (s: {
+                  inherit (s) name;
+                  inherit (s.meta) description;
+                  tools = s.meta.allowed-tools;
+                  agents = map (a: a.name) (s.meta.agentSpecs or [ ]);
+                }) skills
+              );
+            in
+            pkgs.runCommand "skills-lint"
+              {
+                inherit summary;
+                passAsFile = [ "summary" ];
+              }
+              ''
+                cp "$summaryPath" $out
+              '';
+
           # Builds the detector package, whose checkPhase runs the vendored
           # engine tests (patterns.test.js + categories.test.js).
           avoid-ai-detect = pkgs.callPackage ./packages/avoid-ai-detect { };

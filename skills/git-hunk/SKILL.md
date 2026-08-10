@@ -1,3 +1,8 @@
+---
+name: git-hunk
+description: Use when you need to stage, unstage, or inspect individual git hunks non-interactively — especially for crafting precise commits from mixed changes
+---
+
 # git-hunk: Non-Interactive Hunk Staging
 
 `git-hunk` enables deterministic staging of git hunks using content hashes instead of interactive prompts. This is essential for Claude Code since `git add -p` requires interactive input.

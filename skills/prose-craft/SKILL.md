@@ -1,3 +1,8 @@
+---
+name: prose-craft
+description: Use when drafting or strengthening prose and you want craft rather than merely clean copy. Provides compression (freighting, telescoping, melted-together words), direct metaphor (line-ups), refreshing stale phrases (recyclables), powerful lists (netting), and punctuation rhythm (hieroglyphics). The generative companion to avoid-ai-writing, which strips machine tells while this skill adds craft.
+---
+
 # Prose Craft — Techniques for Vivid, Compressed Writing
 
 Generative writing techniques: concrete moves that **add** craft, energy, and precision to prose. This is the companion to `avoid-ai-writing`. That skill is subtractive — it strips the tells that make text read as machine-generated. This one is additive — it gives you specific techniques to make plain prose vivid without tipping into purple.

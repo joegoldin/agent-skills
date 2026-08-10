@@ -1,3 +1,9 @@
+---
+name: day-sync
+description: Use when the user asks "what's my day/week look like", "sync up", "daily brief", or wants their Notion tasks, calendar, and GitHub PRs coordinated with their Obsidian daily note.
+allowed-tools: Bash(*/day_sync.py:*), Bash(uv run:*)
+---
+
 # day-sync — coordinate the day/week across calendar, Notion, GitHub, and the daily note
 
 Brief the user on their day/week: Google Calendar (via the `gws` CLI) +
