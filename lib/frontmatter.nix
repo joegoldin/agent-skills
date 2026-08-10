@@ -91,7 +91,16 @@ rec {
         body = lib.concatStringsSep "\n" bodyLines;
       };
 
-  parseFile = path: parse (builtins.readFile path);
+  parseFile =
+    path:
+    let
+      text = builtins.readFile path;
+      lines = lib.splitString "\n" text;
+    in
+    if lines == [ ] || builtins.head lines != "---" then
+      throw "agent-skills: ${toString path} must start with a '---'-delimited YAML frontmatter block"
+    else
+      parse text;
 
   # Tool lists: block-list form wins, then comma-separated, then
   # space-separated. Entries containing spaces MUST use the comma or block
@@ -107,7 +116,7 @@ rec {
     else if inline == "" then
       [ ]
     else if lib.hasInfix "," inline then
-      map lib.trim (lib.splitString "," inline)
+      builtins.filter (t: t != "") (map (t: unquote t) (lib.splitString "," inline))
     else
       builtins.filter (t: t != "") (lib.splitString " " inline);
 }

@@ -139,7 +139,10 @@ let
           agentSpecs = loadAgentSpecs name dir;
         }
         // sidecar;
-        drv = buildSkillDrv name dir;
+        # Forcing `parsed` here runs validateSkillMd's whole check chain, so any
+        # lint violation fails every build that instantiates the skill drv — not
+        # just checks.skills-lint.
+        drv = builtins.seq parsed (buildSkillDrv name dir);
       }
     ) validNames;
 

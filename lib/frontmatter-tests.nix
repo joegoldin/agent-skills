@@ -25,6 +25,14 @@ let
     ---
     body
   '';
+  commaTrailingAndQuotedSample = ''
+    ---
+    name: comma-trailing
+    description: Trailing comma and quoted entries
+    allowed-tools: "Bash(sem diff:*)", Bash(b:*),
+    ---
+    body
+  '';
   blockSample = ''
     ---
     name: block
@@ -70,6 +78,13 @@ lib.debug.runTests {
     expected = [
       "Bash(sem diff:*)"
       "Bash(sem impact:*)"
+    ];
+  };
+  testCommaTrailingAndQuoted = {
+    expr = fm.parseToolList (fm.parse commaTrailingAndQuotedSample) "allowed-tools";
+    expected = [
+      "Bash(sem diff:*)"
+      "Bash(b:*)"
     ];
   };
   testQuotedDescriptionUnwrapped = {
