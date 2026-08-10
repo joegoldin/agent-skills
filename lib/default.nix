@@ -169,6 +169,29 @@ let
       ${copyCmds}
       chmod -R u+w $out
 
+      # ── Restrict frontmatter to the agentskills.io portable field set ──
+      # claude.ai uploads reject any other key ("Unexpected key(s) in
+      # SKILL.md frontmatter"). Claude Code-only fields (argument-hint,
+      # context, disable-model-invocation, ...) are dropped here; they keep
+      # working in the plugin, which ships the file verbatim. Indented
+      # continuation lines (block lists, metadata maps) follow their key's
+      # keep/drop decision.
+      for f in $out/*/SKILL.md; do
+        awk '
+          NR==1 && $0=="---" { fm=1; print; next }
+          fm && $0=="---"    { fm=0; print; next }
+          fm {
+            if ($0 ~ /^[A-Za-z0-9_-]+:/) {
+              key=$0; sub(/:.*/, "", key)
+              keep = (key=="name" || key=="description" || key=="license" || key=="compatibility" || key=="metadata" || key=="allowed-tools")
+            }
+            if (keep) print
+            next
+          }
+          { print }
+        ' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+      done
+
       # ── Neutralize XML-like tags in every SKILL.md ──
       # The web/app uploader rejects XML tags in skills (e.g. <HARD-GATE>,
       # <path>, <SUBAGENT-STOP>). Convert tag-like <foo>/</foo> to [foo]/[/foo],
@@ -213,8 +236,8 @@ let
           -e 's#Bash(avoid-ai-detect)#Bash(node)#' \
           "$aaw/SKILL.md"
 
-        # Declare the runtime dependency (Node stdlib; no npm packages).
-        sed -i '0,/^description:/ s/^description:/dependencies: node>=18\ndescription:/' "$aaw/SKILL.md"
+        # Declare the runtime dependency via the spec's compatibility field.
+        sed -i '0,/^description:/ s/^description:/compatibility: Requires Node.js 18 or newer (engine is Node stdlib only)\ndescription:/' "$aaw/SKILL.md"
       fi
     '';
 
