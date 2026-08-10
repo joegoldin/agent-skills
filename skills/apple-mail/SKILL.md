@@ -99,15 +99,17 @@ RFC=$(sqlite3 "file:$DB?mode=ro" "SELECT trim(g.message_id_header,'<>') FROM mes
 ```applescript
 tell application "Mail"
     set msgs to (messages of inbox whose message id is "RFC_ID_WITHOUT_BRACKETS")
-    set r to reply (item 1 of msgs) without opening window
+    set theMsg to item 1 of msgs
+    set origAccount to account of mailbox of theMsg
+    set r to reply theMsg without opening window
     set content of r to "Body text here.\n\nBest,\nJoe"
-    set sender of r to "joe.goldin@kanary.com" -- else Mail routes via the default account
+    set sender of r to (item 1 of email addresses of origAccount) -- else Mail routes via the default account
     save r -- lands in Drafts; DO NOT call send
-    return "draft saved"
+    return "draft saved as " & (sender of r)
 end tell
 ```
 
-`reply theMsg with properties {...}` is invalid syntax — reply first, then set properties. Always set `sender`, or the draft silently lands under the wrong account's identity.
+`reply theMsg with properties {...}` is invalid syntax — reply first, then set properties. Always set `sender`, or the draft silently lands under the wrong account's identity; deriving it from the original message's account beats hardcoding an address in multi-account setups. `email addresses of account` is flaky across calls (intermittent `-1700` coercion errors) — capture the address once and reuse the string, don't re-query it.
 
 New (non-reply) draft: `make new outgoing message with properties {subject:"...", content:"...", visible:false}`, then `make new to recipient at end of to recipients of it with properties {address:"..."}`, set `sender`, `save`.
 
@@ -115,9 +117,9 @@ New (non-reply) draft: `make new outgoing message with properties {subject:"..."
 
 Saved drafts are read-only to AppleScript — `set content of <draft>` errors with "Can't set content of message". The edit is a replace:
 
-1. Read the old draft from `drafts mailbox` (subject, content, `reply to`, recipients).
+1. Read the old draft from `drafts mailbox` — record its `message id` (subject, content, recipients too).
 2. Create a new outgoing message / reply with the amended text and `save` it.
-3. Delete the old draft (the one legitimate unprompted deletion).
+3. Delete the old draft **by its exact `message id`** (the one legitimate unprompted deletion). Never delete by matching subject or body: multiple unrelated drafts can reply to the same message, and reply-draft bodies start with a leading newline, so `content starts with "..."` silently matches nothing while a looser filter can destroy someone else's draft.
 
 ### Mark read / flag / move (batch, one script)
 
