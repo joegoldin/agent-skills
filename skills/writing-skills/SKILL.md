@@ -94,18 +94,18 @@ skills/
 ## SKILL.md Structure
 
 **Frontmatter (YAML):**
-- Two required fields: `name` and `description` (see [agentskills.io/specification](https://agentskills.io/specification) for all supported fields)
-- Max 1024 characters total
-- `name`: Use letters, numbers, and hyphens only (no parentheses, special chars)
-- `description`: Third-person, describes ONLY when to use (NOT what it does)
+- Two required fields: `name` and `description` (see Frontmatter Reference below for the full field list and which tier each field belongs to)
+- `name`: REQUIRED. Must equal the skill's directory name. Lowercase letters, numbers, and single hyphens only; no leading/trailing/consecutive hyphens; max 64 characters
+- `description`: REQUIRED. Single line, max 1024 characters. Third-person, describes ONLY when to use (NOT what it does)
   - Start with "Use when..." to focus on triggering conditions
   - Include specific symptoms, situations, and contexts
   - **NEVER summarize the skill's process or workflow** (see SDO section for why)
   - Keep under 500 characters if possible
+- Keep SKILL.md under 500 lines (~5k tokens). Move deep reference material to separate files with explicit load triggers: "Read references/api-errors.md if the API returns a non-200 status" beats "see references/ for details"
 
 ```markdown
 ---
-name: Skill-Name-With-Hyphens
+name: skill-name-with-hyphens
 description: Use when [specific triggering conditions and symptoms]
 ---
 
@@ -137,6 +137,47 @@ What goes wrong + fixes
 Concrete results
 ```
 
+
+## Frontmatter Reference
+
+Two tiers. Which one you write for depends on where the skill ships:
+
+**Portable tier** — the [agentskills.io](https://agentskills.io/specification) open standard. claude.ai web uploads and the Skills API accept ONLY these six fields and reject anything else:
+
+| Field | Notes |
+|-------|-------|
+| `name` | Required. Must match the directory name. Lowercase/hyphens, max 64 chars |
+| `description` | Required. Max 1024 chars, single line |
+| `license` | Optional. License name or bundled file reference |
+| `compatibility` | Optional, max 500 chars. Environment requirements (e.g. "Requires Node.js 18+") |
+| `metadata` | Optional. Free-form string-to-string map |
+| `allowed-tools` | Optional, experimental. Space-separated string of pre-approved tools |
+
+**Claude Code tier** — extensions that work in Claude Code (including plugin skills like this repo's). Use freely here; they're stripped from web-upload bundles automatically:
+
+| Field | Purpose |
+|-------|---------|
+| `when_to_use` | Extra trigger context appended to description in listings |
+| `argument-hint` | Autocomplete hint, e.g. `"[pr-number]"` (quote it — starts with `[`) |
+| `arguments` | Named positional args for `$name` substitution |
+| `disable-model-invocation` | `true` = only the user can invoke (via `/name`) |
+| `user-invocable` | `false` = hide from the `/` menu (background knowledge) |
+| `allowed-tools` / `disallowed-tools` | Pre-approve / remove tools for the invoking turn |
+| `model`, `effort` | Override model/effort while the skill is active |
+| `context: fork` + `agent`, `background` | Run the skill in a forked subagent context |
+| `hooks` | Hooks scoped to the skill's lifecycle |
+| `paths` | Glob patterns limiting when the skill auto-activates |
+| `shell` | `bash` (default) or `powershell` for inline `!` commands |
+
+**Commands are skills.** A skill invoked as `/name` with `$ARGUMENTS` in its body replaces the old separate command concept. For a command-style workflow: `disable-model-invocation: true` + `argument-hint`.
+
+## This Repo's Contract (agent-skills)
+
+- SKILL.md frontmatter is the source of truth and ships verbatim; `checks.skills-lint` enforces name/description rules and rejects unknown keys at build time
+- `allowed-tools`: space-separated string; switch to comma-separated when any entry contains a space (`Bash(sem diff:*), Bash(sem impact:*)`)
+- Never put Nix store paths in frontmatter. Use plain command names (`Bash(dot:*)`) and declare the package in the optional `skill.nix` sidecar — allowed sidecar keys: `packages`, `mcpServers`, `lspServers`, nothing else
+- Subagents live in `agents/<name>.md` (frontmatter: description, tools, model; body = prompt); they're built for Claude, Codex, and Antigravity from the one file
+- Codex/Antigravity targets receive only name/description/allowed-tools + body; don't rely on Claude Code-tier fields for behavior those targets need
 
 ## Skill Discovery Optimization (SDO)
 
