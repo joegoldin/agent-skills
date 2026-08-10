@@ -50,8 +50,12 @@ Rules (enforced by `checks.skills-lint` at build time):
 - `description` is required, single-line, max 1024 chars
 - `allowed-tools` is a space-separated string; use commas when an entry
   contains a space (e.g. `Bash(sem diff:*), Bash(sem impact:*)`)
+- An `allowed-tools:` key with no value is rejected — an empty line would
+  restrict the skill to no tools; omit the key instead
 - Reference tools by plain command name, never by Nix store path — put the
   package in the sidecar instead (next step) so it lands on PATH
+- YAML `#` comment lines are fine inside the frontmatter block (see
+  `skills/gh-stack/SKILL.md` for an example annotating allowed-tools)
 
 2. Only if the skill needs Nix-level things, add a `skill.nix` sidecar.
    Allowed keys: `packages`, `mcpServers`, `lspServers` — nothing else:
@@ -73,6 +77,19 @@ Rules (enforced by `checks.skills-lint` at build time):
       extensionToLanguage = { ".ext" = "my-lang"; };
     };
   };
+}
+```
+
+The sidecar may be a plain attrset or a function of (a subset of)
+`{ pkgs, lib }`. For a tool built from this repo's `packages/` directory
+(not nixpkgs), call it relative to the skill dir — this is how
+avoid-ai-writing, figma-readonly, pixeldrain, and vibe-modeling ship
+their CLIs:
+
+```nix
+{ pkgs }:
+{
+  packages = [ (pkgs.callPackage ../../packages/my-tool { }) ];
 }
 ```
 
