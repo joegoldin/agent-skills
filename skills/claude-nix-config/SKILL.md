@@ -23,61 +23,43 @@ Plugins are built per-target: `claude-plugin`, `antigravity-plugin`, `codex-plug
 |------|---------|
 | `agent-skills/flake.nix` | Flake definition — inputs (claude-nix, antigravity-cli-nix, codex-nix), builds plugins, exports homeManagerModules |
 | `agent-skills/lib/default.nix` | Build system — `discoverSkills`, `buildPlugin`, `buildAntigravityPlugin`, `buildCodexPlugin` |
-| `agent-skills/skills/<name>/skill.nix` | Skill metadata (name, description, optional commands/agents/mcpServers/lspServers) |
-| `agent-skills/skills/<name>/SKILL.md` | Skill content — the instructions loaded when the skill is invoked |
+| `agent-skills/skills/<name>/SKILL.md` | The skill — YAML frontmatter (name, description, allowed-tools, any Claude Code field) + instructions, shipped verbatim |
+| `agent-skills/skills/<name>/skill.nix` | Optional sidecar — ONLY `packages`, `mcpServers`, `lspServers` (things markdown can't express) |
+| `agent-skills/skills/<name>/agents/*.md` | Optional subagents — frontmatter (description, tools, model) + prompt body, built per-target |
 | `agent-skills/hooks/` | Claude hook scripts (e.g., session-start) |
 | `agent-skills/ATTRIBUTION.md` | Attribution file bundled into all plugins |
 
 ## How to Add a Skill
 
-1. Create `agent-skills/skills/<skill-name>/skill.nix`:
+1. Create `agent-skills/skills/<skill-name>/SKILL.md`. Frontmatter is the
+   source of truth and is shipped verbatim — any Claude Code frontmatter
+   field works with zero Nix changes:
 
-**Simple skill** (no packages needed):
-```nix
-{
-  name = "my-skill";
-  description = "When to use this skill";
-}
+```markdown
+---
+name: my-skill
+description: Use when [triggering conditions]
+allowed-tools: Bash(sometool:*) Read
+---
+
+Skill instructions here.
 ```
 
-**Skill with packages** (function form — receives `{ pkgs, lib, claudeLib }`):
+Rules (enforced by `checks.skills-lint` at build time):
+- `name` must equal the directory name (lowercase, hyphens, max 64 chars)
+- `description` is required, single-line, max 1024 chars
+- `allowed-tools` is a space-separated string; use commas when an entry
+  contains a space (e.g. `Bash(sem diff:*), Bash(sem impact:*)`)
+- Reference tools by plain command name, never by Nix store path — put the
+  package in the sidecar instead (next step) so it lands on PATH
+
+2. Only if the skill needs Nix-level things, add a `skill.nix` sidecar.
+   Allowed keys: `packages`, `mcpServers`, `lspServers` — nothing else:
+
 ```nix
-{ pkgs, ... }:
+{ pkgs, lib }:
 {
-  name = "my-skill";
-  description = "When to use this skill";
-  allowed-tools = [
-    "Bash(${pkgs.sometool}/bin/sometool)"
-  ];
-}
-```
-
-**Skill with commands, agents, MCP servers, LSP servers:**
-```nix
-{ pkgs, lib, claudeLib, ... }:
-{
-  name = "my-skill";
-  description = "When to use this skill";
-
-  commands = [
-    (claudeLib.mkCommand {
-      name = "my-command";
-      description = "What this command does";
-      allowed-tools = [ "Bash" "Read" ];
-    } ''
-      Command prompt. Use $ARGUMENTS for user input.
-    '')
-  ];
-
-  agents = [
-    (claudeLib.mkAgent {
-      name = "my-agent";
-      description = "What this agent does";
-      tools = [ "Bash" "Read" "Write" ];
-    } ''
-      Agent system prompt.
-    '')
-  ];
+  packages = [ pkgs.sometool ];
 
   mcpServers = {
     my-server = {
@@ -94,21 +76,37 @@ Plugins are built per-target: `claude-plugin`, `antigravity-plugin`, `codex-plug
 }
 ```
 
-2. Create `agent-skills/skills/<skill-name>/SKILL.md` with the skill content.
+3. Only if the skill ships subagents, add `agents/<agent-name>.md`:
 
-3. That's it — `discoverSkills` auto-discovers any directory under `skills/` that contains a `skill.nix`.
+```markdown
+---
+name: my-agent
+description: What this agent does
+tools: Read, Glob, Grep
+---
+
+Agent system prompt.
+```
+
+4. That's it — `discoverSkills` auto-discovers any directory under
+   `skills/` containing a `SKILL.md`.
+
+**Commands are skills.** To make a slash-command-style workflow, create a
+normal skill with `disable-model-invocation: true` and an `argument-hint`
+in its frontmatter (see `skills/format-nix/` for the pattern). Do not use
+`claudeLib.mkCommand` for skills in this repo.
 
 ## Permissions
 
 - A `Skill(agent-skills:<name>)` allow is auto-generated for every discovered skill and merged into `~/.claude/settings.json` via `programs.claude-nix.extraPermissions.allow` (additive — concatenates with claude-nix's defaults).
-- Per-skill Bash allows go in `allowed-tools` inside that skill's `skill.nix`.
+- Per-skill Bash allows go in `allowed-tools` inside that skill's SKILL.md frontmatter.
 - Repo-wide additive perms (e.g. a new Bash variant every skill should have) go in `agent-skills/flake.nix` via `programs.claude-nix.extraPermissions.{allow,ask,deny}`, **not** `programs.claude-nix.settings.permissions.*` — the latter is a full-list replacement (via `lib.recursiveUpdate`) and will silently nuke the defaults shipped by claude-nix.
 - Default Bash allows themselves live upstream in `claude-nix/modules/home-manager.nix` (`defaultSettings.permissions.allow`).
 
 ## How the Build System Works
 
-1. **`discoverSkills ./skills`** — scans for directories with `skill.nix`, evaluates each (handles both plain attrsets and functions), builds skill derivations with frontmatter-injected SKILL.md
-2. **`buildPlugin`** — aggregates all skills' commands, agents, mcpServers, lspServers into a single Claude plugin via `claudeLib.mkPlugin`
+1. **`discoverSkills ./skills`** — scans for directories with `SKILL.md`, parses/lints the frontmatter (`lib/frontmatter.nix` + `lib/lint.nix`), evaluates the optional sidecar, parses `agents/*.md`, and builds a verbatim-copy skill derivation
+2. **`buildPlugin`** — aggregates all skills' agents, mcpServers, lspServers, and sidecar packages into a single Claude plugin via `claudeLib.mkPlugin`
 3. **`buildAntigravityPlugin`** — converts skills using `agyLib.mkSkill` and bundles into an Antigravity plugin
 4. **`buildCodexPlugin`** — converts skills using `codexLib.mkSkill` and bundles into a Codex plugin
 
