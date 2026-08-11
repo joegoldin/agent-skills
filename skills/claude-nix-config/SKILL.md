@@ -25,7 +25,7 @@ Plugins are built per-target: `claude-plugin`, `antigravity-plugin`, `codex-plug
 | `agent-skills/lib/default.nix` | Build system — `discoverSkills`, `buildPlugin`, `buildAntigravityPlugin`, `buildCodexPlugin` |
 | `agent-skills/skills/<name>/SKILL.md` | The skill — YAML frontmatter (name, description, allowed-tools, any Claude Code field) + instructions, shipped verbatim |
 | `agent-skills/skills/<name>/skill.nix` | Optional sidecar — ONLY `packages`, `mcpServers`, `lspServers` (things markdown can't express) |
-| `agent-skills/skills/<name>/agents/*.md` | Optional subagents — frontmatter (description, tools, model) + prompt body, built per-target |
+| `agent-skills/skills/<name>/agents/*.md` | Optional subagents — frontmatter (description, tools, model, effort, permission-mode, isolation, …) + prompt body, built per-target |
 | `agent-skills/hooks/` | Claude hook scripts (e.g., session-start) |
 | `agent-skills/ATTRIBUTION.md` | Attribution file bundled into all plugins |
 
@@ -104,6 +104,17 @@ tools: Read, Glob, Grep
 
 Agent system prompt.
 ```
+
+`description` is required; `name` defaults to the filename. Beyond `tools`,
+the parser reads `disallowed-tools`, `skills`, `model`, `effort`,
+`permission-mode`, `max-turns`, `memory`, `isolation`, `background`,
+`initial-prompt`, and `color` (the camelCase spellings Claude Code's own
+schema uses — `disallowedTools`, `maxTurns`, … — are accepted too). Unknown
+keys are a build error, so a typo fails loudly instead of being dropped.
+Each target receives only the fields its own agent format models. Nested
+`mcpServers` / `hooks` maps can't be expressed here — the frontmatter parser
+reads single-line values only — so declare those in the skill's `skill.nix`
+sidecar.
 
 4. That's it — `discoverSkills` auto-discovers any directory under
    `skills/` containing a `SKILL.md`.

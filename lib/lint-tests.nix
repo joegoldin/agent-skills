@@ -12,6 +12,13 @@ let
     body
   '';
   tryValidate = args: (builtins.tryEval (lint.validateSkillMd args)).success;
+  tryAgent =
+    parsed:
+    (builtins.tryEval (lint.validateAgentMd {
+      skillName = "s";
+      fileName = "a.md";
+      inherit parsed;
+    })).success;
   # Exactly-at-limit and one-over-limit inputs for the spec caps.
   name64 = lib.concatStrings (lib.genList (_: "a") 64);
   name65 = lib.concatStrings (lib.genList (_: "a") 65);
@@ -128,6 +135,42 @@ lib.debug.runTests {
   };
   testSidecarRejectsForeignKeys = {
     expr = (builtins.tryEval (lint.validateSidecar "x" { description = "nope"; })).success;
+    expected = false;
+  };
+  testAgentAcceptsFullFieldSet = {
+    expr = tryAgent (fm.parse ''
+      ---
+      name: auditor
+      description: Audits things
+      tools: Read, Bash(git log:*)
+      disallowed-tools: Write
+      model: inherit
+      effort: high
+      permission-mode: dontAsk
+      max-turns: 20
+      memory: project
+      isolation: worktree
+      background: true
+      initial-prompt: Start by reading the diff
+      color: blue
+      skills: sem
+      ---
+      body
+    '');
+    expected = true;
+  };
+  testAgentAcceptsCamelCaseAliases = {
+    expr = tryAgent (
+      fm.parse "---\nname: a\ndescription: d\ndisallowedTools: Write\nmaxTurns: 3\n---\nbody"
+    );
+    expected = true;
+  };
+  testAgentRejectsUnknownField = {
+    expr = tryAgent (fm.parse "---\nname: a\ndescription: d\nallowed-tools: Read\n---\nbody");
+    expected = false;
+  };
+  testAgentRequiresDescription = {
+    expr = tryAgent (fm.parse "---\nname: a\n---\nbody");
     expected = false;
   };
 }

@@ -326,6 +326,22 @@
             # which would re-assert on every rebuild and clobber an in-session
             # /model or /effort switch — those are intentionally left unset).
             programs.claude-nix.fallbackModel = [ "claude-sonnet-5" ];
+
+            # Preferences that were only ever runtime state in
+            # ~/.claude/settings.json, so a fresh config dir (a container, a
+            # new machine, an extraAccounts wrapper) started without them.
+            # Both are set-and-forget rather than per-session, so declaring
+            # them costs nothing to the rebuild-clobber caveat above.
+            #
+            # Auto permission mode and the fullscreen renderer are deliberately
+            # absent: claude-nix defaults to both as of the bump below.
+            programs.claude-nix.voice = {
+              enabled = true;
+              mode = "tap";
+            };
+            # Accept the multi-agent usage warning up front; until it is set,
+            # auto mode prompts before every workflow run.
+            programs.claude-nix.workflows.skipUsageWarning = true;
           };
 
         antigravity =

@@ -29,17 +29,45 @@ let
   # ── Target-neutral agent spec → per-target agent derivation ──
   # Skills declare subagents once as a spec so the same definition lands in
   # every target's native format:
-  #   { name; description; prompt; tools ? [ ]; model ? null; }
+  #   { name; description; prompt; tools ? [ ];
+  #     model? effort? permissionMode? maxTurns? memory? isolation?
+  #     background? initialPrompt? color? disallowedTools? skills? }
   # Claude/Antigravity take (attrs: body); Codex takes a single attrs with the
   # prompt as `developer_instructions` and has no tool-restriction field.
+  # Each target is handed only the fields its own format models, so a
+  # Claude-specific field on a shared spec degrades rather than erroring.
+  pickSpec =
+    keys: a:
+    lib.filterAttrs (k: _: builtins.elem k keys) (
+      builtins.removeAttrs a [
+        "prompt"
+        "tools"
+      ]
+    );
+
+  claudeAgentKeys = [
+    "name"
+    "description"
+    "model"
+    "effort"
+    "permissionMode"
+    "maxTurns"
+    "memory"
+    "isolation"
+    "background"
+    "initialPrompt"
+    "color"
+    "disallowedTools"
+    "skills"
+  ];
+
   mkClaudeAgentFromSpec =
     a:
     claudeLib.mkAgent (
-      {
-        inherit (a) name description;
+      pickSpec claudeAgentKeys a
+      // {
         tools = a.tools or [ ];
       }
-      // lib.optionalAttrs (a ? model) { inherit (a) model; }
     ) a.prompt;
 
   mkCodexAgentFromSpec =
@@ -88,6 +116,36 @@ let
       mdFiles = builtins.filter (n: lib.hasSuffix ".md" n) (
         builtins.attrNames (builtins.readDir agentsDir)
       );
+      # Optional scalars, keyed by the spec attr they become. Each accepts
+      # either the kebab frontmatter spelling or the camelCase one; absent
+      # keys stay absent so the target builder omits them entirely.
+      scalarKeys = {
+        model = [ "model" ];
+        effort = [ "effort" ];
+        permissionMode = [
+          "permission-mode"
+          "permissionMode"
+        ];
+        maxTurns = [
+          "max-turns"
+          "maxTurns"
+        ];
+        memory = [ "memory" ];
+        isolation = [ "isolation" ];
+        background = [ "background" ];
+        initialPrompt = [
+          "initial-prompt"
+          "initialPrompt"
+        ];
+        color = [ "color" ];
+      };
+      listKeys = {
+        disallowedTools = [
+          "disallowed-tools"
+          "disallowedTools"
+        ];
+        skills = [ "skills" ];
+      };
     in
     if !builtins.pathExists agentsDir then
       [ ]
@@ -95,18 +153,35 @@ let
       map (
         fname:
         let
-          parsed = fm.parseFile (agentsDir + "/${fname}");
+          parsed = lintLib.validateAgentMd {
+            inherit skillName;
+            fileName = fname;
+            parsed = fm.parseFile (agentsDir + "/${fname}");
+          };
           stem = lib.removeSuffix ".md" fname;
+          scalarAttrs = lib.concatMapAttrs (
+            attr: aliases:
+            let
+              hit = lib.findFirst (k: parsed.fields ? ${k}) null aliases;
+            in
+            lib.optionalAttrs (hit != null) { ${attr} = parsed.fields.${hit}; }
+          ) scalarKeys;
+          listAttrs = lib.concatMapAttrs (
+            attr: aliases:
+            let
+              vals = lib.concatMap (k: fm.parseToolList parsed k) aliases;
+            in
+            lib.optionalAttrs (vals != [ ]) { ${attr} = vals; }
+          ) listKeys;
+          optionals = scalarAttrs // listAttrs;
         in
         {
           name = parsed.fields.name or stem;
-          description =
-            parsed.fields.description
-              or (throw "agent-skills: skill '${skillName}': agents/${fname} must set description");
+          inherit (parsed.fields) description;
           tools = fm.parseToolList parsed "tools";
           prompt = parsed.body;
         }
-        // lib.optionalAttrs (parsed.fields ? model) { model = parsed.fields.model; }
+        // optionals
       ) mdFiles;
 
   discoverSkills =

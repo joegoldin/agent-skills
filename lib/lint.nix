@@ -28,6 +28,7 @@ let
     "hooks"
     "paths"
     "shell"
+    "version"
   ];
   knownFields = portableFields ++ claudeCodeFields;
   sidecarKeys = [
@@ -35,6 +36,38 @@ let
     "mcpServers"
     "lspServers"
   ];
+  # agents/<name>.md frontmatter. `name`/`description` are the required pair;
+  # everything else is optional and forwarded to whichever targets model it
+  # (Claude takes all of these; Codex and Antigravity take the subset their
+  # own agent format has). Nested `mcpServers`/`hooks` maps are deliberately
+  # absent: the parser reads single-line values only, so declare those in the
+  # skill's `skill.nix` sidecar instead.
+  agentFields = [
+    "name"
+    "description"
+    "tools"
+    "disallowed-tools"
+    "skills"
+    "model"
+    "effort"
+    "permission-mode"
+    "max-turns"
+    "memory"
+    "isolation"
+    "background"
+    "initial-prompt"
+    "color"
+  ];
+  # Kebab frontmatter key -> the camelCase name Claude Code's agent schema
+  # uses. Both spellings are accepted on the way in.
+  agentFieldAliases = {
+    "disallowed-tools" = "disallowedTools";
+    "permission-mode" = "permissionMode";
+    "max-turns" = "maxTurns";
+    "initial-prompt" = "initialPrompt";
+  };
+  # Both the kebab spelling and the camelCase one Claude Code's schema uses.
+  agentKnownFields = agentFields ++ builtins.attrValues agentFieldAliases;
   charCount = c: s: lib.count (x: x == c) (lib.stringToCharacters s);
 in
 {
@@ -43,7 +76,23 @@ in
     claudeCodeFields
     knownFields
     sidecarKeys
+    agentFields
+    agentFieldAliases
+    agentKnownFields
     ;
+
+  validateAgentMd =
+    { skillName, fileName, parsed }:
+    let
+      unknown = builtins.filter (k: !(builtins.elem k agentKnownFields)) parsed.keys;
+      err = msg: throw "agent-skills: skill '${skillName}': agents/${fileName}: ${msg}";
+    in
+    if !(parsed.fields ? description) || parsed.fields.description == "" then
+      err "must set a non-empty description"
+    else if unknown != [ ] then
+      err "unknown frontmatter key(s): ${toString unknown} (known: ${toString agentKnownFields})"
+    else
+      parsed;
 
   validateSkillMd =
     { dirName, parsed }:
