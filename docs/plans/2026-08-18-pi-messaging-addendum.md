@@ -13,7 +13,7 @@ seventh subsystem alongside `agent-statusline`, `pi-nix`, permissions/sandbox,
 >    phone-control growth path. This document was rewritten around `remote-pi`,
 >    and that rewrite included reading `remote-pi`'s shipped source and running
 >    its broker.
-> 3. That reading produced findings F23-F25: `remote-pi` authenticates nobody,
+> 3. That reading produced findings F40-F42: `remote-pi` authenticates nobody,
 >    ships an unauthenticated `takeover` flag that evicts a live peer and hands
 >    over its exact address, hardcodes `triggerTurn: true` with no configuration
 >    knob, and creates its whole socket tree `0755` (`0775` under `umask 002`).
@@ -236,14 +236,14 @@ The user chose this package first, believing it comparable to `pi-intercom` on
 security and better on capability. Reading its shipped source disproved the
 first half. The findings are worth keeping in one place.
 
-Its genuine strengths, which are real and were not the problem:
+Its strengths, which were never the problem:
 
 - **The local broker is not a separate process.** `session/leader_election.js`
   races `connect()` against `bind()` on
   `~/.pi/remote/sessions/local/broker.sock`; the winner constructs
   `new Broker(...)` inside its own pi process and a follower re-elects when the
   leader exits. Nothing to spawn, nothing to put on `PATH`.
-- **Local mode genuinely needs no relay**, verified in `_cmdRootInner`:
+- **Local mode needs no relay**, verified in `_cmdRootInner`:
   `_cmdJoin` is unconditional and only the relay is gated on
   `auto_start_relay`.
 - **It is configurable entirely by environment** (`REMOTE_PI_DIRECT_CONFIG`,
@@ -533,7 +533,7 @@ Read the four lines carefully, because two of them are bad and one is good:
   transport is a UDS on a non-Windows host, not because anything was checked.
 - **Step 2** shows `list` hands every session's UUID to any peer that asks. The
   ID is not a secret and cannot be treated as one.
-- **Step 3 is the good news, and it is a genuine design win.** Registering a
+- **Step 3 is the good news, and it is a design win.** Registering a
   second session under an existing *name* does **not** evict anyone and does
   **not** silently fan out: `findSessions` returns both and the send is refused
   with `delivery_failed`. The failure mode of a name collision is denial of
@@ -544,7 +544,7 @@ Read the four lines carefully, because two of them are bad and one is good:
 
 **Mitigation, mandatory:** patch the register handler to refuse a `sessionId`
 already held by a **live** session, rather than evicting its holder. Reconnect
-after a genuine disconnect is unaffected, because a closed session moves to
+after a real disconnect is unaffected, because a closed session moves to
 `disconnectedSessions` and is no longer found by `this.sessions.get(id)`, so
 restart-stable addressing via `stableId` keeps working. Verified: the patched
 broker answers `{"type":"error","error":"Session ID already held by a live
@@ -626,8 +626,8 @@ contract at:
 and its builder arguments have grown `bunNix`, `keepDependencies`, and
 `patchPhaseExtra` for bun2nix-built extensions.
 
-`pi-intercom` consumes that contract with **one addition that is genuinely
-unavoidable**:
+`pi-intercom` consumes that contract with **one addition there is no way
+around**:
 
 **`settings` is not the only configuration surface, and for this package it is
 the wrong one.** `pi-intercom` reads

@@ -22,6 +22,11 @@ Read this before editing. Several agents work in this repo at once.
 5. **Record what you learned, not just what you did.** The Findings table is the
    most valuable part of this document: it is where a claim from documentation
    got corrected by reading source.
+6. **Allocate finding numbers from your phase, not from the end of the table.**
+   Concurrent agents that each take "the next free number" collide, which has
+   already happened once and cost a renumbering. Take a block: phase N owns
+   F<N>00-F<N>99 (phase 2 -> F200+, phase 7 -> F700+). Numbers below F100 are
+   historical, are never reused, and their gaps are expected.
 
 Status values: `todo` · `wip` · `done` · `blocked` · `dropped`
 
@@ -31,13 +36,13 @@ Status values: `todo` · `wip` · `done` · `blocked` · `dropped`
 | --- | --- | --- | --- | --- |
 | 1 | agent-statusline (extract + dual mode) | agent-statusline, claude-nix | 9 | **done** |
 | 1b | statusline native pi rewrite | agent-statusline | 11 | wip |
-| 2 | pi-nix fork | pi-nix | 9 | todo (plan ready) |
+| 2 | pi-nix fork | pi-nix | 9 | wip |
 | 3 | pi-auto-mode, pi-notify, jail | pi-nix | 10 | todo |
 | 4 | agent-skills pi target | agent-skills | 9 | todo |
 | 5 | system prompt layers | agent-skills | 8 | wip |
 | 6 | dotfiles wiring | dotfiles | 7 | todo |
-| 7 | inter-instance messaging | pi-nix, dotfiles | 11 | todo |
-| 8 | pi-voice over audiomemo | audiomemo, pi-nix | TBD | todo (planning) |
+| 7 | inter-instance messaging | pi-nix, dotfiles | 9 | todo |
+| 8 | pi-voice over audiomemo | audiomemo, pi-nix, dotfiles | 12 | todo |
 
 ## Phase 1: agent-statusline — DONE
 
@@ -78,8 +83,10 @@ spacers; nothing ticks, so the spinner and clocks freeze.
 | 3 | Go: bar + threshold widgets render spans | done (ff460a6) |
 | 4 | Go: structured activity snapshot | done (305102d) |
 | 5 | Go: `--emit json` | done (9dfa6db) |
-| 6 | TS: migrate to `bun test` | todo |
-| 7-9 | TS: component, theme tokens, tick + teardown | todo |
+| 6 | TS: migrate to `bun test` | done (7cae54c) |
+| 7 | TS: width arithmetic pinned to pi-tui | wip |
+| 8 | TS: snapshot types, intent→theme map, theme-derived bar | todo |
+| 9 | TS: row layout and the activity stack | todo |
 | 10 | Integration test that catches the sanitize bug | todo |
 | 11 | Nix packaging via bun2nix | todo |
 
@@ -92,7 +99,7 @@ The Go side is done. `--emit json` ships the wire format tasks 7-9 consume;
 `--emit ansi` remains the default and is byte-identical to no flag at all in
 both modes.
 
-## Phase 2: pi-nix fork — TODO
+## Phase 2: pi-nix fork — WIP
 
 Plan: `2026-08-18-pi-nix-fork.md` (9 tasks, 72 steps). Plan revised and ready to
 execute: **10 third-party pins**, `bun2nix` throughout instead of
@@ -109,9 +116,9 @@ Pins: `pi-mcp-adapter`, `pi-subagents`, `pi-background-tasks`,
 
 | Task | What | Status |
 | --- | --- | --- |
-| 1 | Rename bookkeeping, eval-test harness | todo |
-| 2 | `lib/` pi package builders | todo |
-| 3 | `mkPiExtension`, `extensions.json`, `packages.ext-*` | todo |
+| 1 | Rename bookkeeping, eval-test harness | done (3473505) |
+| 2 | `lib/` pi package builders | done (c8bc072) |
+| 3 | `mkPiExtension`, `extensions.json`, `packages.ext-*` | wip |
 | 4 | Extend `nix run .#update` to bump pins | todo |
 | 5 | `extra-options.nix` and `systemPrompt` | todo |
 | 6 | `extensionPackages` | todo |
@@ -223,46 +230,81 @@ Last phase; depends on 2, 3, 5.
 ## Phase 7: inter-instance messaging — TODO
 
 Plans: `2026-08-18-pi-messaging-addendum.md` (§17, decision + security),
-`2026-08-18-pi-messaging.md` (11 tasks, 67 steps). Owner: unassigned.
+`2026-08-18-pi-messaging.md` (9 tasks, 49 steps). Owner: unassigned.
 
-Decision: `remote-pi` 0.7.0 in local mode, `auto_start_relay: false`. The relay
-on erdtree is deferred to Tier 2 (tasks 10-11) for phone control and
-cross-machine peers. `pi-intercom` rejected; `pi-agents-talk-to-each-other`
-retained only as a documented fallback blueprint (addendum §17.13).
+Decision: **`pi-intercom` 0.10.1**, hardened, dependency-free under bun. Decided,
+reversed to `remote-pi`, then reversed back on the evidence in F40-F42; the
+addendum keeps the whole comparison rather than only the outcome.
+`pi-agents-talk-to-each-other` is retained only as a documented fallback
+blueprint (addendum §17.13).
 
-Hardening that is not optional, all three measured against the shipped broker
-(F23-F25): inbound peer messages do not start a model turn by default,
-`takeover` is refused unconditionally, and the launcher runs at `umask 0077`.
-Task 3 owns the first two and Task 6 the third; Task 5 asserts all three at
-runtime and fails against the unpatched tarball.
+**Phone control and cross-machine peers are DECLINED, not deferred.**
+`pi-intercom` is local-only — a grep of the tarball for WebSocket, HTTP, or any
+outbound URL returns nothing. `remote-pi` was the package that offered them and
+it was rejected on security. There is no Tier 2 and no relay task. Addendum
+§17.6.2 lists the three ways back, none of them scheduled.
+
+Hardening that is not optional, both reproduced against the shipped broker
+(F48, F50): `inboundTrigger` is `"replies"` rather than upstream's `"always"`,
+and the broker refuses a `sessionId` already held by a live session. Task 3 owns
+the second, Task 2 ships the first, and Task 5 asserts both at runtime and fails
+against the unpatched tarball.
 
 | Task | What | Status |
 | --- | --- | --- |
-| 1 | `mkPiExtension`: bun2nix branch, `keepDependencies`, contract test | todo |
-| 2 | Pin `remote-pi` 0.7.0, generate `bun.lock`/`bun.nix`, build `ext-remote-pi` | todo |
-| 3 | Harden the broker: refuse `takeover`, gate the turn trigger, two tests | todo |
-| 4 | Patch the `session_start` gate so local-only sessions join (A11) | todo |
-| 5 | End-to-end smoke test over the real wire protocol, under bun | todo |
-| 6 | `messaging` option, env-driven, `umask 0077` + `0700` repair | todo |
-| 7 | Prove the socket crosses two jails (A8); nothing added to the jail | todo |
+| 1 | Add `configFiles` to the `mkPiExtension` passthru contract, with a test | todo |
+| 2 | Pin `pi-intercom` 0.10.1 via the four-part evidence chain (F47), build it | todo |
+| 3 | Harden the broker: refuse a live session-ID collision, reproduce first | todo |
+| 4 | Run the package's shipped broker tests as a Nix check, under `bun test` | todo |
+| 5 | End-to-end smoke test over the real wire protocol | todo |
+| 6 | `messaging` option, `configFiles` prelude, bun `brokerCommand` | todo |
+| 7 | Fold `bun` into the jail; prove the socket crosses two jails (A9) | todo |
 | 8 | Untrusted-peer-input prompt fragment + §12 inventory lint | todo |
-| 9 | dotfiles `modules/ai/pi.nix`, two-terminal acceptance run (tests A7) | todo |
-| 10 | *(Tier 2, deferred)* relay as a NixOS module on erdtree, tailnet-only | todo |
-| 11 | *(Tier 2, deferred)* turn the relay arm on, pair a phone | todo |
+| 9 | dotfiles `modules/ai/pi.nix`, two-terminal acceptance run (tests A8) | todo |
 
-The passthru contract is consumed, not widened: `remote-pi` uses `piEntrypoint`
-(the package root, so pi reads its own `pi` manifest) and `promptFragment`, and
-needs neither `configFiles` nor `runtimeInputs`. What it lost against
-`pi-intercom` is written up in addendum §17.6.3; the item that will be felt is
-blocking ask/answer as a single tool result.
+The passthru contract grows by exactly one field, `configFiles`, and it is
+load-bearing rather than speculative: `inboundTrigger` is file-only with no
+environment override (F50), so without it the security default cannot be set
+from Nix at all. `runtimeInputs` is **not** added — the broker's interpreter is
+bun, the same runtime pi already is, folded into `jail.permissions` from a
+module-local internal option. `keepDependencies`/`bunNix` go unused because the
+package needs no `node_modules` (F51).
 
 ## Phase 8: pi-voice over audiomemo — TODO
 
-Plan: `2026-08-18-pi-voice-audiomemo.md` (being written). Owner: unassigned.
-Two repos: `audiomemo` gains `record --stream` (NDJSON); `pi-nix` gains the
-`pi-voice` extension.
+Plan: `2026-08-18-pi-voice-audiomemo.md` (12 tasks, 82 steps). Owner: unassigned.
+Two repos plus a thin third: `audiomemo` gains `record --stream` (NDJSON),
+`pi-nix` gains the `pi-voice` extension, `dotfiles` wires the secrets and the
+jail. Depends on phase 2 for the passthru contract and `extensionPackages`.
 
-Open question: whether mic capture works inside the bwrap jail.
+| Task | What | Status |
+| --- | --- | --- |
+| 1 | audiomemo: NDJSON event schema and emitter | todo |
+| 2 | audiomemo: level normalisation and 20 Hz coalescing | todo |
+| 3 | audiomemo: `--stream` flag, guardrails, mode resolution | todo |
+| 4 | audiomemo: streaming run loop and signal termination | todo |
+| 5 | audiomemo: `final` event with the batch pass captured | todo |
+| 6 | audiomemo: integration coverage for the flag contract | todo |
+| 7 | pi-voice: parsing, config, width maths, metering | todo |
+| 8 | pi-voice: the voice state file | todo |
+| 9 | pi-voice: meter and transcript rows | todo |
+| 10 | pi-voice: controller, `/voice`, and the paste | todo |
+| 11 | pi-nix: packaging, `voice` option, jail permissions | todo |
+| 12 | dotfiles: wiring and the end-to-end check | todo |
+
+**Mic capture in the jail: resolved, works, but not by default.** Verified on
+elphael 2026-08-18 by running `audiomemo record -L` inside a jail-shaped
+bwrap. With no audio permission it lists zero devices and exits zero; with
+`$XDG_RUNTIME_DIR/pulse` bound it lists every device, and `ffmpeg -f pulse`
+captures audio. Four binds are needed and none exist today: the PulseAudio
+socket, the audiomemo closure (for ffmpeg), the agenix key files, and
+`~/.config/audiomemo/config.toml`. `/dev/snd` is not one of them: audiomemo
+talks to PulseAudio, never to ALSA. See F33-F35.
+
+The voice state file contract, for any producer including Claude Code:
+`{"voice":{"enabled":bool,"mode":str}}` merged into
+`$CLAUDE_CONFIG_DIR/settings.local.json`, defaulting to
+`~/.claude/settings.local.json`.
 
 ## Findings
 
@@ -292,24 +334,37 @@ them; this table is why the plans are trustworthy.
 | F19 | `/tmp/.git` exists on this machine. | `TestQueryNotARepoReturnsNil` states its precondition and skips. |
 | F20 | `git.go`'s worktree glyph comment says `nf-fa-tree (U+F1BB)`; the literal in the string is U+E5FB. | Under a byte-identical gate, glyph literals must be copied from source, never retyped from the comment that names them. The plan said so; this is the case that proves it. |
 | F21 | `antigravity-cli-nix` exposes no instruction-file option and does not package the CLI at all, so the plan's `nix build …#default` step cannot run. The path had to come from the installed `agy` 1.1.11 binary's embedded docs: `~/.gemini/config/` is the global customization root and rules are markdown files under `rules/` beneath it. | `home.file.".gemini/config/rules/agent-skills-shared.md"` is the route, written directly rather than through any module option. Corroborated by `mcpConfigPaths`, which already defaults to `.gemini/config/mcp_config.json`. |
-| F23 | `mkIf false { programs.pi.x = …; }` does not suppress "The option `programs.pi' does not exist" — `mkIf` is pushed down and the path is still named in the definition set. | The `mkIf (options.programs ? <agent>)` idiom the MCP fan-out uses does **not** degrade cleanly when a module is absent; it only works today because all three agent modules are always imported. The prompt arms use `lib.optional (options.programs ? x) (mkIf cfg.prompt.enable {…})` instead: `optional` drops the attrset whole so the path is never named, and the `enable` half stays in `mkIf` because a list whose *length* depends on `config` is an infinite recursion. The MCP arms still carry the latent bug. |
 | F22 | The same binary documents progressive disclosure for rules: "Only `always_on` rules are loaded unconditionally." Its own rule template is `---` / `trigger: always_on` / `glob:` / `description:`. | A plain-markdown rule, which is what the plan and `agyLib.mkRule` both emit, is not guaranteed to load. The Antigravity arm prepends `trigger: always_on` frontmatter, so its file is the shared text plus a header rather than byte-identical to `packages.prompt-shared`. The fan-out test asserts suffix plus frontmatter instead of equality. |
-| F23 | `remote-pi`'s local broker authenticates nobody, and it is worse than `pi-intercom` on two counts rather than equal. `_handleRegister` does no `SO_PEERCRED`, no uid check, nothing; the `cwd` a client declares is never verified yet is half the routing address (`<cwd>@<name>`); and a client-set `takeover: true` destroys the incumbent peer's socket and hands the caller its exact address. Since the broker then forces `env.from` to the registered address, the anti-spoofing measure becomes the impersonation guarantee. Reproduced against the shipped `dist/session/broker.js`: the attacker got `/home/joe/secret-repo@planner` and the victim was dropped. | Not a reason `remote-pi` beat intercom. It is the risk the hardening task exists to contain. Phase 7 task 3 patches `takeover` to `false` unconditionally; after the patch the attacker is demoted to `…@planner#2` and the victim stays connected. The unverified `cwd` survives hardening and is unfixable without `SO_PEERCRED`, so the task-8 prompt fragment tells the model the sender name is a claim, not a fact. |
-| F24 | An inbound peer message calls `sendMessage(..., {triggerTurn: true})` with a `customType` that pi's `convertToLlm` maps to a **user-role** LLM message. `grep -rn triggerTurn` over the whole `dist/` returns two lines and one comment: unlike `pi-intercom`'s `inboundTrigger`, there is no configuration option to disable it. | Any process that can open the socket could start a turn in any session with text the model reads as the operator's, routing around design §9 entirely. Phase 7 task 3 patches it to an env gate defaulting to off, using upstream's own `triggerTurn: false` batching path so the message is still delivered and rendered. |
-| F25 | `ensureGlobalDirs()` calls `mkdirSync` with no `mode`, and the socket's permissions come from the umask at `bind()` time. Measured: `0755` on the whole tree under `umask 022`, `0775` under `umask 002`. `broker.js:502` also appends every routed envelope, bodies included, to `audit.jsonl` with no mode. `pi-intercom` sets `0700`/`0600` explicitly. | No patch target exists, so the fix is `umask 0077` in the launcher plus a `chmod 0700` repair for trees left behind by a pre-Nix run. Measured to give `0700` on every directory and on the socket. |
-| F26 | `remote-pi`'s local broker is **not** a spawned process. `leader_election.js` races `connect()` against `bind()`; the winner constructs `new Broker(...)` inside its own pi process and a follower re-elects when it exits. | The strongest packaging reason it beat `pi-intercom`, whose broker launches via `npx --no-install tsx`. Nothing to spawn means no `brokerCommand` to rewrite, no `passthru.runtimeInputs`, and no Node+tsx interpreter to fold into the jail, which is also why the bun switch costs phase 7 nothing. |
-| F27 | `REMOTE_PI_DIRECT_CONFIG` carries the entire per-directory config as inline JSON and takes precedence over `<cwd>/.pi/remote-pi/config.json`, making `localConfigExists()` true everywhere. `saveLocalConfig` is reachable only from the wizard, `/remote-pi rename`, `/remote-pi setup`, and `remote-pi create`. | The setup wizard never fires and nothing is written into any repository working tree, so the phase-2 passthru contract needs no `configFiles` field. Retires the old assumption A11 about needing to run the wizard once per host. `saveLocalConfig`'s own comment names "NixOS/Home Manager symlink into the immutable Nix store" as a supported case. |
-| F28 | `_cmdRootInner` treats `auto_start_relay` as relay-only and says so in its own comment, but the `session_start` auto-init gates the whole lifecycle on it. | With the relay off, which is the configuration phase 7 ships, nothing auto-joins and the user must type `/remote-pi` once per session. Task 4 drops the relay term from that one gate; the `isPrintMode` and `localConfigExists` guards stay. |
-| F29 | `remote-pi` declares ten runtime dependencies; a static import-graph walk of `dist/index.js` reaches 42 files and four of them. `@napi-rs/keyring` is a dynamic import that upstream made lazy because it "resolves under Node and not under Bun" (issue #113); `@modelcontextprotocol/sdk` and `zod` belong to the `remote-pi claude` path; `noise-protocol` is imported but **not declared at all**. | `bun install` on the declared set costs 216 packages including `@aws-sdk` and `@anthropic-ai`; the reachable set is 4 packages and 708 KB. `mkPiExtension` gains a `keepDependencies` allowlist. On a Bun-built pi, Tier 2 pairing falls back to a plaintext `0600` `~/.pi/remote/identity.json` rather than the OS keyring. |
+| F23 | `mkIf false { programs.pi.x = …; }` does not suppress "The option `programs.pi' does not exist" — `mkIf` is pushed down and the path is still named in the definition set. | The `mkIf (options.programs ? <agent>)` idiom the MCP fan-out uses does **not** degrade cleanly when a module is absent; it only works today because all three agent modules are always imported. The prompt arms use `lib.optional (options.programs ? x) (mkIf cfg.prompt.enable {…})` instead: `optional` drops the attrset whole so the path is never named, and the `enable` half stays in `mkIf` because a list whose *length* depends on `config` is an infinite recursion. The MCP arms still carry the latent bug. |
 | F30 | `--omit=peer` drops `typebox`, which `pi-background-tasks` and `@narumitw/pi-goal` both declare as **non-optional peers** and both `import` at runtime. Verified by installing and looking: `node_modules/typebox` is absent. Every other peer in the phase-2 pin set is `@earendil-works/*` (pi supplies its own) or `optional: true`. | The npm form of the phase-2 plan would have shipped `pi-background-tasks` broken, failing only at load. `mkPiExtension` normalises `package.json` first: hoist every non-`@earendil-works`, non-optional peer into `dependencies`, then `--omit=peer`. A future pin that imports an *optional* peer would still slip through. |
 | F31 | `bun install --lockfile-only --omit=dev` writes root dev entries into `bun.lock` without resolving them. The later `bun install --frozen-lockfile --omit=dev` then dies: `error: Failed to resolve root dev dependency '@earendil-works/pi-coding-agent'` (reproduced on `pi-subagents`). | `--omit=dev` is not enough; the normalisation must `del(.devDependencies)` outright before generating the lockfile. Same `jq` program as F30, shared between the update app and the builder so the lockfile one writes is the one the other accepts. |
 | F32 | `bun.lock` records only the host platform's variants of an optional native dependency, and `bun2nix` emits one `fetchurl` per lock entry. | A pin generated on `x86_64-linux` produces a `bun.nix` with no Darwin tarballs, so the Darwin build fails. Generate with `bun install --lockfile-only --os='*' --cpu='*'`; the sandboxed `--frozen-lockfile` install still takes only the host's. Any bun2nix consumer in this repo needs both flags. |
+| F33 | Mic capture inside bwrap works with nothing but the PulseAudio socket bound. Measured: `audiomemo record -L` lists 0 devices with no audio bind and exits 0; with `--bind $XDG_RUNTIME_DIR/pulse` it lists every device, and `ffmpeg -f pulse -i default` captured 32 KiB. No `/dev/snd`, no added capability. | Voice and the jail are not in conflict; the default jail is simply missing four binds (audio socket, audiomemo closure, agenix keys, audiomemo config). Same silent-empty failure as F5: no error, just nothing. `jail.nix` already ships `pulse` and `pipewire` combinators. |
 | F33 | Deleting `peerDependencies`/`peerDependenciesMeta` *after* hoisting stops bun re-resolving the `@earendil-works` tree transitively. Measured on `@juicesharp/rpiv-todo`: 137 `fetchurl` entries down to 2; `pi-background-tasks` 138 to 3; `@gotgenes/pi-permission-system` 140 to 5. | Worth doing, but it is not uniform. `@narumitw/*` pins stay at ~137 because `@narumitw/pi-tui-kit` pulls the tree through its own `dependencies`, where the rule does not reach. |
+| F34 | jail.nix's `base` does `--clearenv` and `--tmpfs ~`, and `--dev /dev` does supply `/dev/shm`. | `~/.config/audiomemo/config.toml` and `~/.claude` vanish inside the jail unless bound. Without the config, `record` decides it needs onboarding and dies on `/dev/tty`, so the bind is required rather than convenient. PulseAudio's SHM transport has somewhere to land, so no extra tmpfs is needed. |
 | F34 | A4 is false in a way the design did not anticipate. No phase-2 pin ships a self-contained `dist`: `@heyhuynhgiabuu/pi-pretty` publishes `tsc` output but `dist/index.js` still `require`s `@shikijs/cli` and `@ff-labs/fff-node` from `node_modules`. The `bundled = true` branch survives only because `pi-cache-optimizer` has **zero** runtime dependencies. | "Ships a `dist`" is not the test; "needs no `node_modules`" is. Exactly one of eleven pins qualifies, and the phase-2 extension test asserts that so a future bump that adds a dependency to `pi-cache-optimizer` fails at build rather than at load. |
+| F35 | `jail.permissions` is `functionTo (listOf raw)`. Function-typed options do not merge across module definitions. | No module can *contribute* jail permissions. `pi.coding-agent.voice` exposes a read-only `jailPermissions` function the consumer splices into its own definition by hand. Every future permission contributor has the same constraint. |
 | F35 | Prebuilt `.node` files in the pin set arrive with an empty `RPATH` and `DT_NEEDED` on `libgcc_s.so.1`/`libstdc++.so.6`/`libc.so.6`, none of which resolve on NixOS. Reached transitively: `@yuuang/ffi-rs-linux-x64-gnu` under `@heyhuynhgiabuu/pi-pretty`, and `@napi-rs/keyring` under `pi-mcp-adapter`. | `mkPiExtension` needs `autoPatchelfHook` plus `stdenv.cc.cc.lib`, gated on `isLinux`. Verified sufficient for the whole set (`auto-patchelf: 0 dependencies could not be satisfied`, native modules loading under `node` from the store). `pi-pretty` catches its own failed `import` and degrades quietly, so without the hook the loss would be silent. |
+| F36 | `ctx.ui.pasteToEditor(text)` exists at `pi-coding-agent/src/core/extensions/types.ts:213`, beside `setEditorText` (`:216`) and `getEditorText` (`:219`). | The rejected `rpiv-voice`'s usage was real. pasteToEditor is the right call: it triggers paste handling and does not discard what the user already typed. |
 | F36 | bun installs **both** the gnu and the musl build of a napi platform package: `os` and `cpu` cannot express libc. `autoPatchelfHook` then walks the musl `.node` and halts the build — `error: auto-patchelf could not satisfy dependency libc.musl-x86_64.so.1`, reproduced on `@yuuang/ffi-rs-linux-x64-musl` under `@heyhuynhgiabuu/pi-pretty`. | `ffi-rs` selects its variant by detecting libc at load time and never opens that file on a glibc host, so `mkPiExtension` carries a fixed `autoPatchelfIgnoreMissingDeps = [ "libc.musl-x86_64.so.1" "libc.musl-aarch64.so.1" ]`. With it the build succeeds, the gnu `.node` gets a real `RPATH`, and `require("@ff-labs/fff-node")` returns its exports under `node` from the store. A green build still prints `1 dependencies could not be satisfied` followed by a `warn:` line; only the `error:` line means failure. Any bun2nix + autoPatchelf combination in this repo hits this. |
+| F37 | pi injects `@earendil-works/pi-tui` and `pi-coding-agent` as jiti **virtual modules** (`core/extensions/loader.ts:50-74`, aliases at `:81-120`). | An extension at a bare store path can import them with no `node_modules`. But `bun test` cannot, so any code path under test must not import them. pi-voice imports nothing; `agent-statusline`'s extension took the devDependency road instead, because it needs far more than two functions. |
 | F37 | `@narumitw/pi-caffeinate` calls `sessionBus()` and sends `Inhibit`/`UnInhibit` to `org.freedesktop.ScreenSaver`; on Linux it first prefers spawning `systemd-inhibit` (`src/inhibitors.ts:28-46`). Upstream's `jail.permissions` default is `[ network mount-cwd ]` plus a bind of `PI_CODING_AGENT_DIR`, so neither is reachable and the extension is silently inert inside the jail. It also carried the same ~141-package `pi-tui-kit` tail. | **Pin dropped.** `systemd-inhibit` already does the job in one command on NixOS; paying a dependency tail plus a session-bus talk permission to reach the same syscall, with silence as the failure mode, is a bad trade. Design §9's parallel note for `pi-notify` on `org.freedesktop.Notifications` is unaffected and is still phase 3's. |
+| F38 | ffmpeg's `astats` RMS is dBFS and can be the literal `inf`/`-inf`, which `strconv.ParseFloat` accepts. `encoding/json` returns `UnsupportedValueError` for `±Inf`. | An unclamped level event does not lose a field, it loses the whole line. Both wire scales are clamped at the emitter. |
 | F38 | `@narumitw/pi-goal` and `@narumitw/pi-btw` share **137 dependency entries at identical `name@version`, `url`, and `hash`** — the only difference is `typebox@1.3.15`, which `pi-goal` carries from the peer hoist. Both resolve `@narumitw/pi-tui-kit@0.56.0`. | The `pi-tui-kit` tail is paid once, not twice: `bun2nix` emits a bare `fetchurl` per dependency, and a fixed-output derivation with identical coordinates is one store path (verified by building the same tarball from two expressions and getting one path). The *unpacked* `node_modules` is still duplicated, since each `ext-*` is its own derivation, so the marginal cost of the second pin is one tarball plus 11 MB. Re-measure after any `@narumitw` bump: if the two diverge off `pi-tui-kit@0.56.0`, the sharing ends silently. |
+| F39 | `nix fmt` in pi-nix is bare `pkgs.nixfmt`, not a treefmt wrapper. With no arguments it reads stdin, prints `unexpected end of input`, and exits 0 — a silent no-op, which is what every `nix fmt` step in the phase-2 plan would have done. Handing it the tree (`nix fmt -- .`) does format, and immediately reformats upstream's generated `coding-agent/bun.nix` (91 KB), breaking the additive constraint on the first commit. | Formatting must name the files: `find . -name '*.nix'` minus `coding-agent/bun.nix` and `packages/extensions/*/bun.nix`. Phase 3 and any later work in this repo inherits the same trap; a plain `nix fmt` there is not a formatting step at all. |
+| F40 | *(the rejected option; these six rows are why it was rejected)* `remote-pi`'s local broker authenticates nobody, and it is worse than `pi-intercom` on two counts rather than equal. `_handleRegister` does no `SO_PEERCRED`, no uid check, nothing; the `cwd` a client declares is never verified yet is half the routing address (`<cwd>@<name>`); and a client-set `takeover: true` destroys the incumbent peer's socket and hands the caller its exact address. Since the broker then forces `env.from` to the registered address, the anti-spoofing measure becomes the impersonation guarantee. Reproduced against the shipped `dist/session/broker.js`: the attacker got `/home/joe/secret-repo@planner` and the victim was dropped. | **This reversed the decision.** The user had chosen `remote-pi` believing the two packages comparable on security. `pi-intercom` also authenticates nobody and has its own takeover path (F48), but its equivalent needs the attacker to first learn a UUID, its unverified `cwd` is display metadata rather than routing identity, and its socket tree is `0700`/`0600` (F49). Phase 7 now pins `pi-intercom`. |
+| F41 | An inbound peer message calls `sendMessage(..., {triggerTurn: true})` with a `customType` that pi's `convertToLlm` maps to a **user-role** LLM message. `grep -rn triggerTurn` over the whole `dist/` returns two lines and one comment: unlike `pi-intercom`'s `inboundTrigger`, there is no configuration option to disable it. | Any process that can open the socket could start a turn in any session with text the model reads as the operator's, routing around design §9 entirely. `pi-intercom` ships the same unsafe default but exposes a supported `inboundTrigger` setting to change it (F50), so the chosen path is a config value rather than a patch against shipped JavaScript. |
+| F42 | `ensureGlobalDirs()` calls `mkdirSync` with no `mode`, and the socket's permissions come from the umask at `bind()` time. Measured: `0755` on the whole tree under `umask 022`, `0775` under `umask 002`. `broker.js:502` also appends every routed envelope, bodies included, to `audit.jsonl` with no mode. `pi-intercom` sets `0700`/`0600` explicitly. | No patch target exists; the fix would have been `umask 0077` in the launcher. `pi-intercom` needs none of that: it passes explicit modes **and** chmods, measured `0700`/`0600` under the same hostile `umask 002` (F49). This row is the clearest single reason the decision reversed. |
+| F43 | `remote-pi`'s local broker is **not** a spawned process. `leader_election.js` races `connect()` against `bind()`; the winner constructs `new Broker(...)` inside its own pi process and a follower re-elects when it exits. | This was the strongest packaging argument in its favour, and F51 later took most of it away: `pi-intercom`'s broker runs under `bun` directly with no `node_modules`, so its separate process costs one jail package (bun, which pi already is) rather than the Node+tsx pair its default launch path implied. |
+| F44 | `REMOTE_PI_DIRECT_CONFIG` carries the entire per-directory config as inline JSON and takes precedence over `<cwd>/.pi/remote-pi/config.json`, making `localConfigExists()` true everywhere. `saveLocalConfig` is reachable only from the wizard, `/remote-pi rename`, `/remote-pi setup`, and `remote-pi create`. | Would have avoided a `configFiles` passthru field entirely, and `saveLocalConfig`'s own comment names "NixOS/Home Manager symlink into the immutable Nix store" as a supported case. Moot now: `pi-intercom` has no such env escape hatch (F50), so `configFiles` is added after all. |
+| F45 | `_cmdRootInner` treats `auto_start_relay` as relay-only and says so in its own comment, but the `session_start` auto-init gates the whole lifecycle on it. | Would have needed a fourth patch: with the relay off nothing auto-joins and the user types `/remote-pi` once per session. Recorded for anyone who revisits this package. |
+| F46 | `remote-pi` declares ten runtime dependencies; a static import-graph walk of `dist/index.js` reaches 42 files and four of them. `@napi-rs/keyring` is a dynamic import that upstream made lazy because it "resolves under Node and not under Bun" (issue #113); `@modelcontextprotocol/sdk` and `zod` belong to the `remote-pi claude` path; `noise-protocol` is imported but **not declared at all**. | `bun install` on the declared set costs 216 packages including `@aws-sdk` and `@anthropic-ai`; the reachable set is 4 packages and 708 KB. That motivated `mkPiExtension`'s `keepDependencies` allowlist, which the chosen package does not need. The keyring note stands as general evidence that bun/node divergence in this ecosystem is live, which is why F34 was measured rather than assumed. |
+| F47 | `pi-intercom` publishes **no `repository`, `homepage`, or `bugs` field on npm**, in any of its 27 versions or at the packument top level. The npm maintainer is `nicopreme` <nico.bailon@gmail.com>; the GitHub repo is `nicobailon/pi-intercom`. Different strings, and F13 documents a package in this same ecosystem where exactly that mismatch hides a different author's project. | Design §8's "pin by verified repository URL" **cannot be followed as written** for the package this fork is adopting. The replacement is a four-part check run as a build step at every bump: confirm npm still has no repository field; `gh api users/nicobailon --jq .twitter_username` returns `nicopreme`, so the GitHub account claims the npm handle; the repo publishes tag `v0.10.1`; and the tarball's `package.json` is byte-identical to that tag. All four verified 2026-08-18. |
+| F48 | `pi-intercom` **does** have a takeover-equivalent, contradicting the first draft of the addendum, and it needs no opt-in flag: `register` lets a client choose its own `sessionId`, and when a live session already holds it the broker calls `previous.socket.end()` and hands the ID over. The ID is not secret — any registered peer may `list`, and `list` returns every session's UUID, cwd, model and pid. Reproduced in four unauthenticated steps: register accepted, `list` leaks the UUIDs, then `SAME ID GRANTED` and `victim socket closed by broker`. | Phase 7 task 3 patches the register handler to refuse a **live** collision, verified to answer `Session ID already held by a live session` with the incumbent still connected. Reconnect-after-disconnect is untouched, because a closed session moves to `disconnectedSessions` and is no longer matched by `this.sessions.get(id)`. |
+| F49 | `pi-intercom`'s permissions are real and umask-independent, verified by running the broker rather than reading `paths.ts`: `INTERCOM_DIR_MODE = 0o700` and `INTERCOM_RUNTIME_FILE_MODE = 0o600` are applied with `mkdirSync({ mode })` **plus** an explicit `chmodSync`, so a directory left `0755` by an earlier run is repaired. Started under a deliberately hostile `umask 002`: `700` on the dir, `600` on `broker.sock`, `600` on `broker.pid`. | The clearest way the chosen package beats the rejected one (F42: `0775` under the same conditions), and the reason the launcher needs no `umask 0077` workaround. Asserted in the phase-7 smoke test, which sets `umask 002` on purpose. |
+| F50 | `inboundTrigger` defaults to **`"always"`** in the shipped `config.ts`, and it is **file-only**: the complete env surface is `PI_INTERCOM_ASK_TIMEOUT_MS`, `PI_INTERCOM_LIVENESS_*`, `PI_INTERCOM_NAME_POLL_MS`, `PI_INTERCOM_SESSION_ID`, `PI_INTERCOM_STABLE_ID`, `PI_INTERCOM_TCP`, `PI_INTERCOM_TRANSPORT`, `PI_BIN`. There is no environment override. | This is why `passthru.configFiles` is added to the contract instead of being avoided: without a config-file mechanism the security default cannot be set from Nix at all. Related trap: `index.ts` resolves the session ID as `PI_INTERCOM_STABLE_ID ?? config.stableId ?? piSessionId`, so a `stableId` written into a shared `config.json` would give every session on the machine one ID and each new session would evict the last. Never write it. |
+| F51 | `bun broker/broker.ts` runs `pi-intercom`'s broker with **no `node_modules` present at all**, and `bun test broker/` runs its shipped tests (47 pass, 1 fail; the failure reproduces identically under `tsx --test`, so it is upstream's, not bun's). Separately, upstream's *default* launch path does not run `npx`: it calls `getNodeCommand(process.execPath)`, which falls back to the literal string `"node"` resolved through `PATH` whenever the interpreter's basename is not node — which under `coding-agent-bun` it never is. | Two consequences. The declared `tsx` dependency is dead weight, so the pin needs no `bun.nix`, no lockfile and no `node_modules`, and the jail needs one package (`bun`) rather than a Node+tsx pair. And the default path would have failed to spawn inside a jail with no Node on `PATH`, so setting `brokerCommand` to a bun store path fixes a latent bug rather than only saving a dependency. |
+| F52 | A duplicate session **name** in `pi-intercom` is not silently ambiguous: `findSessions` returns every match and `send` refuses with `delivery_failed "Multiple sessions named \"planner\" are connected. Use the session ID instead."`. Reproduced. | The failure mode of a name collision is denial of delivery, which is loud, rather than interception, which is silent. The rejected package's `#N` suffixing plus its takeover flag gave the opposite outcome. The phase-7 hardening patch must not break this, and the probe in task 3 asserts it still holds after patching. |
 
 ## Decisions
 
@@ -321,5 +376,5 @@ them; this table is why the plans are trustworthy.
 | `pi-caffeinate` dropped | `systemd-inhibit` does the job in one command on NixOS. The pin cost a ~141-package tail plus a session-bus talk permission to reach the same syscall, and was silently inert without it (F37). |
 | Plan mode dropped | Planning writes documents. Consequence: `pi-auto-mode` rules are the only guard on the working tree. |
 | Voice via audiomemo, not `rpiv-voice` | Go, already a flake input, no npm native deps, no runtime model download into a jail. |
-| `pi-intercom` over `remote-pi` | Reversed after reading remote-pi's source. Its broker authenticates nobody and is worse than intercom on two counts: an unverified client-declared `cwd` forms half the routing address, and `takeover: true` hands a caller the incumbent's exact address, reproduced live (F23, F24). Phone control is a known gap, not an oversight. |
+| `pi-intercom` over `remote-pi` | Reversed after reading remote-pi's source. Its broker authenticates nobody and is worse than intercom on two counts: an unverified client-declared `cwd` forms half the routing address, and `takeover: true` hands a caller the incumbent's exact address, reproduced live (F40, F41). Phone control is a known gap, not an oversight. |
 | avoid-ai-writing on prose | Prompt fragments teach tone by example, so their register becomes the house style. |
