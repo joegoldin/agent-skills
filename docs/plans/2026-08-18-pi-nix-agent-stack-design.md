@@ -306,7 +306,6 @@ to be, predating it by 3.5 months and hardcoding a third-party Cloudflare Worker
 | `@juicesharp/rpiv-ask-user-question` | AskUserQuestion, previews and all | 12.3k dl/wk |
 | `@narumitw/pi-goal` | `/goal` — see the mechanism note below | 8.6k dl/wk |
 | `@juicesharp/rpiv-todo` | TodoWrite, which `using-agent-skills` mandates | 7k dl/wk |
-| `@juicesharp/rpiv-voice` | voice dictation, on-device Whisper | 5.9k dl/wk |
 | `@gotgenes/pi-permission-system` | deterministic permission layer | 5k dl/wk |
 | `remote-pi` | peer messaging between instances (§17) | see §17 |
 
@@ -319,8 +318,8 @@ to be, predating it by 3.5 months and hardcoding a third-party Cloudflare Worker
 | `@narumitw/pi-caffeinate` | inhibits sleep during runs, via D-Bus on Linux | 860 dl/wk |
 | `@heyhuynhgiabuu/pi-pretty` | syntax highlighting in the TUI | 746 dl/wk |
 
-**First-party** — `pi-auto-mode` (§9), `pi-notify` (§10), and the statusline
-extension (§6).
+**First-party** — `pi-auto-mode` (§9), `pi-notify` (§10), `pi-voice` (§18), and
+the statusline extension (§6).
 
 #### Two notes that change what these buy
 
@@ -352,6 +351,7 @@ Its value lands on the OpenRouter path. Pinned with that understood.
 | `pi-markdown-preview` | pandoc + Chromium for previewing markdown. |
 | `betterwright` | Second browser stack; `claude-in-chrome` already drives the real profile. |
 | `@dietrichgebert/ponytail` | Its asset is behavioural prose that would compete with this repo's skills and §12's `shared/` layer. |
+| `@juicesharp/rpiv-voice` | Superseded by `pi-voice` (§18), which drives `audiomemo` — a Go binary already in this flake, with no npm native deps and no runtime model download. |
 | `pi-intercom` | Superseded by `remote-pi`, which covers local and remote in one. |
 | `pi-agents-talk-to-each-other` | 18 dl/wk, 0 stars, untouched since June. Retained in §17 only as a fallback blueprint. |
 | `pi-chat` | The npm package is not the GitHub repo of the same name. |
@@ -528,6 +528,68 @@ store.
 >    `.#nixosConfigurations.elphael.config.home-manager.users.joe.home.activationPackage`.
 >
 > `jail.enable` is additionally gated on `isLinux`, since it throws on Darwin.
+
+## 18. Voice: `pi-voice` over `audiomemo`
+
+Dictation is first-party, driven by [`audiomemo`](https://github.com/joegoldin/audiomemo)
+— already a flake input of dotfiles (`follows` nixpkgs, locked at `6018d29`),
+MIT, and written in Go like `agent-statusline`.
+
+Chosen over `@juicesharp/rpiv-voice` on three counts: no npm native dependencies
+(`sherpa-onnx-node`/`decibri`) for bun2nix to package, no ~157 MB model
+downloaded at runtime into a jailed filesystem, and it is code this setup already
+owns and ships.
+
+### What audiomemo already provides
+
+- `transcribe` reads **stdin when the file is `-`** and writes stdout, with
+  `--format text|json|srt|vtt`. A proper filter already.
+- `record --no-tui` records headlessly and prints only the saved path, for piping.
+- `recw` batch-transcribes **entirely locally** via `whisper-cli`/whisper.cpp and
+  fails rather than silently reaching for a cloud backend.
+- A `Streamer` yielding live partials, and per-backend autodetection.
+- `*_API_KEY_FILE` variants for every backend.
+
+### The one addition: `record --stream`
+
+Live transcription today is consumed by audiomemo's own TUI; nothing
+machine-readable reaches stdout. `--stream` emits newline-delimited JSON instead,
+one object per line, so any consumer can render partials as they arrive:
+
+```
+$ rect --stream --no-tui
+{"type":"start","device":"Scarlett","path":"/tmp/x.ogg"}
+{"type":"level","rms":0.21}
+{"type":"partial","text":"so the thing is"}
+{"type":"final","text":"So the thing is…","path":"/tmp/x.ogg","backend":"elevenlabs"}
+```
+
+A flag rather than a new subcommand or symlink, so it composes with the existing
+device, duration, and format flags without duplicating them.
+
+### The `pi-voice` extension
+
+Spawns `record --stream`, reads stdout line by line, renders `partial` text and
+the `level` VU into the TUI through the same widget API the statusline uses, and
+on `final` pastes the text into the editor. Thin by construction: every decision
+about devices, backends, and formats stays in audiomemo.
+
+### Secrets and backend selection
+
+Backend selection stays audiomemo's existing runtime autodetect. Keys are passed
+as **file paths, not values** — `ELEVENLABS_API_KEY_FILE`, `DEEPGRAM_API_KEY_FILE`,
+`OPENAI_API_KEY_FILE`, `MISTRAL_API_KEY_FILE`, `HF_TOKEN_FILE` pointing at
+`/run/agenix/*`, plus `XDG_CONFIG_HOME` so the live `~/.config/audiomemo/config.toml`
+is found. audiomemo reads the files itself, so no secret enters the store *or* the
+process environment — a cleaner path than §13's `cat`-into-env approach, and one
+that survives the jail given read-binds for those paths.
+
+### A gap this closes
+
+`agent-statusline` already ships a `voice` widget that reads a voice state file;
+research established `rpiv-voice` could never drive it, because it never persists
+mic state at all. `pi-voice` writes that state file, so the mic indicator lights
+up in both Claude Code and pi from one implementation.
 
 ## 14. Testing
 
