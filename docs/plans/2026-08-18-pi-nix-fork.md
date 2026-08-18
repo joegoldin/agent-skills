@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Turn the fork at `/home/joe/Development/pi-nix` into `joegoldin/pi-nix` — upstream `lukasl-dev/pi.nix` plus a `systemPrompt` option, purely-pinned ecosystem extensions, a `lib/` of pi package builders that `agent-skills` consumes as `piLib`, and the `statusline` / `notifications` option surfaces.
+**Goal:** Turn the fork at `/home/joe/Development/pi-nix` into `joegoldin/pi-nix` — upstream `lukasl-dev/pi.nix` plus a `systemPrompt` option, purely-pinned ecosystem extensions, a `lib/` of pi package builders that `agent-skills` consumes as `piLib`, and the `statusline` / `notifications` option surfaces. Everything JavaScript runs on Bun: the fork's default pi package becomes upstream's `coding-agent-bun`, and pinned extensions resolve their dependencies through `bun2nix` instead of `buildNpmPackage`.
 
-**Architecture:** Every addition is a *new file*. The three upstream module entrypoints (`coding-agent/lib.nix`, `coding-agent/module.nix`, `coding-agent/home-manager.nix`) each gain exactly one line adding `coding-agent/extra-options.nix` to their module list; `coding-agent/options.nix` is never touched. `extra-options.nix` reaches pi's command line through the option surface upstream already exposes — `extraArgs` (appended after upstream's own flags), `extensions`, `skills`, `promptTemplates`, `settings`, `environment` — all of which are list- or attr-typed and therefore merge across module definitions. That gives a zero-diff options module and keeps `git rebase upstream/master` a fast-forward for everything but `flake.nix` and `update.nix`.
+**Architecture:** Every addition is a *new file*. The three upstream module entrypoints (`coding-agent/lib.nix`, `coding-agent/module.nix`, `coding-agent/home-manager.nix`) each gain exactly one line adding `coding-agent/extra-options.nix` to their module list; `coding-agent/options.nix` is never touched. `extra-options.nix` reaches pi's command line through the option surface upstream already exposes — `extraArgs` (appended after upstream's own flags), `extensions`, `skills`, `promptTemplates`, `settings`, `environment` — all of which are list- or attr-typed and therefore merge across module definitions. The same module sets `package = lib.mkDefault coding-agent-bun`, which beats upstream's own `default = coding-agent` without editing the option that declares it. That gives a zero-diff options module and keeps `git rebase upstream/master` a fast-forward for everything but `flake.nix` and `update.nix`.
 
-**Tech Stack:** Nix flakes (nixpkgs-unstable), `buildNpmPackage`, `nixfmt`, `nix-instantiate --eval` and `runCommand` assertions as the test vehicle, `writeShellApplication` for the update app.
+**Tech Stack:** Nix flakes (nixpkgs-unstable), `bun2nix` 2.1.0 (already an upstream flake input, its overlay already applied in `flake.nix`), `bun` 1.3.13, `autoPatchelfHook`, `nixfmt`, `nix-instantiate --eval` and `runCommand` assertions as the test vehicle, `writeShellApplication` for the update app.
 
 This is phase 2 of the design in `docs/plans/2026-08-18-pi-nix-agent-stack-design.md` (§7 and §8). Phase 1 (`agent-statusline`) must be merged and pushed before Task 7.
 
@@ -16,32 +16,74 @@ This is phase 2 of the design in `docs/plans/2026-08-18-pi-nix-agent-stack-desig
 - Permitted upstream edits, and nothing else: **one** `imports`/`modules` line in each of `coding-agent/lib.nix`, `coding-agent/module.nix`, `coding-agent/home-manager.nix`; insertions (never rewrites) in `flake.nix`; three added lines in `update.nix`; a rewritten `README.md`.
 - The upstream branch is `master`, not `main`. The `upstream` remote already exists and points at `git@github.com:lukasl-dev/pi.nix.git`.
 - Nix formatting is `pkgs.nixfmt` (**not** `nixfmt-rfc-style`), driven by `nix fmt`. Run it before every commit.
+- **No npm anywhere in this phase.** Extension dependencies resolve through `bun2nix`, the same mechanism upstream already uses for `coding-agent-bun`. Nothing here calls `buildNpmPackage`, `prefetch-npm-deps`, or `npm-lockfile-fix`, and `extensions.json` carries no `npmDepsHash`. The per-pin lockfile is `bun.lock` plus a generated `bun.nix`, not `package-lock.json`.
 - Every derivation name and flake attribute derived from an npm package name uses the **slug**: strip a leading `@`, replace `/` with `-`. `@juicesharp/rpiv-todo` → `juicesharp-rpiv-todo`.
-- Tarball hashes in `extensions.json` are npm's `dist.integrity` string used **verbatim** as the Nix SRI hash. This was verified: `nix build` of `fetchurl { url = ".../rpiv-todo-2.6.2.tgz"; hash = "sha512-Lt2HzNaKWgOl7/nEJrxtRsKoIQJTZd32BeckDxJ0JGvoUmwYvqOicSpXbgKVZwyGqGBw90WBKYWkEggo9U/Q4Q=="; }` succeeds. Never re-derive them with `nix store prefetch-file`, which defaults to sha256.
+- Tarball hashes in `extensions.json` are npm's `dist.integrity` string used **verbatim** as the Nix SRI hash. Re-verified on 2026-08-18 by building a bare `fetchurl` for three pins, including `hash = "sha512-L4JDDn2JqRND9IWywJPr9XhkixO38yeL4CCCEAJoqG4++YpaKdywY32w71+rvD4UUOqCSRHwCyXd3CTEf1jw9w=="` for `pi-goal-0.52.1.tgz` and `hash = "sha512-tAE0IcfoHo9s2u5VX2uFXkFYX7YId3uEcsjI1lWfiJI4jU8SzQHj1xqimM49pHSmUo3EVN/1RUm/tx5BLj2VTg=="` for `pi-cache-optimizer-2.8.3.tgz`. All three succeed. Never re-derive them with `nix store prefetch-file`, which defaults to sha256. `bun2nix` writes the same string into every `fetchurl` it generates, so one convention covers both layers.
 - No IFD. `extensions.json` is read with `builtins.fromJSON (builtins.readFile ...)`; nothing reads a *built* file at eval time.
 - The system in every command below is `x86_64-linux`.
 
 ### Verified facts this plan is built on
 
-Checked against the npm registry and `earendil-works/pi@v0.84.2` on 2026-08-18:
+Checked against the npm registry, `bun` 1.3.13, `bun2nix` 2.1.0, and `earendil-works/pi@v0.84.2` on 2026-08-18:
 
 1. `--system-prompt <text>` exists (`packages/coding-agent/src/cli/args.ts:96`). `resolvePromptInput` in `src/core/resource-loader.ts:53-68` reads the argument as a **file** when `existsSync(input)`, else treats it as literal text. So passing a store path works exactly as upstream's `rules` → `--append-system-prompt <path>` already does.
 2. `--extension <path>` accepts a **directory**. `discoverAndLoadExtensions` (`src/core/extensions/loader.ts:719-733`) stats the path; if it is a directory, `resolveExtensionEntries` reads `package.json`'s `pi.extensions` array and returns those entries. Handing pi the npm package root therefore loads whatever the package's own manifest declares — including `pi-background-tasks`, which declares **two** entrypoints.
 3. `--skill`, `--prompt-template`, `--theme`, `--extension` are all repeatable; `--append-system-prompt` is repeatable, `--system-prompt` is not.
-4. **Design assumption A4 is false for all six pinned packages.** None ships a bundled `dist`. Every one publishes raw TypeScript with unbundled runtime `dependencies`, and none ships a lockfile. The `bundled = true` code path is retained for future pins but is unused by the initial set.
-5. None of the six reads its configuration from pi's `settings.json`. `pi-mcp-adapter` reads `~/.config/mcp/mcp.json` and `~/.agents/mcp.json`; `@juicesharp/rpiv-todo` reads its own `rpiv-todo` JSON config. `passthru.settings` is therefore `{ }` for all six today — the mechanism exists and is tested, but the initial pin set does not exercise it.
-6. Authorship, confirmed from the registry (the gallery and awesome-pi disagree): `pi-mcp-adapter` and `pi-subagents` are **nicobailon**, not `nicopreme`.
+4. **Design assumption A4 is false for all eleven pinned packages.** None ships a bundled `dist` that carries its own dependencies. Ten publish raw TypeScript. `@heyhuynhgiabuu/pi-pretty` publishes `tsc` output under `dist/`, but `dist/index.js` still `require`s `@shikijs/cli` and `@ff-labs/fff-node` out of `node_modules`, so it is compiled, not bundled. The `bundled = true` path survives for a reason A4 did not anticipate: `pi-cache-optimizer` has **zero runtime dependencies**, so `fetchurl` plus `tar` is the entire build. It is the only pin that takes that branch.
+5. **`bun install` needs two `package.json` edits before it yields a usable tree.** Both were found by running it, and both are load-bearing:
+   - `--omit=peer` drops `typebox`, which `pi-background-tasks` and `@narumitw/pi-goal` each declare as a **non-optional peer** and each `import` at runtime (`pi-goal/src/tools.ts:8`). Verified: `node_modules/typebox` is absent afterwards. Every other peer across the pin set is either `@earendil-works/*`, which pi supplies itself, or carries `optional: true`.
+   - Leaving `devDependencies` in place makes `bun install --frozen-lockfile --omit=dev` fail outright on `pi-subagents` with `error: Failed to resolve root dev dependency '@earendil-works/pi-coding-agent'`, because `--lockfile-only --omit=dev` records the entry without resolving it.
+
+   One `jq` program fixes both. Task 3 Step 3 defines it once as `normalisePackageJson`; `mkPiExtension` and the update app run the identical string, so a lockfile generated by one always satisfies `--frozen-lockfile` in the other.
+6. **The npm approach this document previously described had a latent bug.** With `--omit=peer`, `pi-background-tasks` installed cleanly and would have thrown on load for want of `typebox`. Switching to Bun is what surfaced it; the peer-hoisting rule in fact 5 is the fix.
+7. **Two pins carry native code, and both build only because `autoPatchelfHook` is present.** `pi-mcp-adapter` pulls `@napi-rs/keyring`. `@heyhuynhgiabuu/pi-pretty` pulls `@ff-labs/fff-node` → `ffi-rs` → `@yuuang/ffi-rs-linux-x64-gnu`, whose `.node` has an empty `RPATH` and `DT_NEEDED` on `libgcc_s.so.1`, `librt.so.1`, `libpthread.so.0`, `libdl.so.2`, and `libc.so.6`. The hook is gated on `isLinux`; Darwin's prebuilt dylibs need no patching. `pi-pretty` catches a failed `import("@ff-labs/fff-node")` and degrades to the SDK file tools, so a miss here is quiet rather than fatal — which is exactly why the hook has to be there rather than relied on to fail loudly.
+8. **`bun2nix` generates a cross-platform dep set only if the lockfile was.** `bun install --lockfile-only --os='*' --cpu='*'` records every platform variant of an optional native dependency; the later `bun install --frozen-lockfile` inside the sandbox installs just the host's. Without the two overrides, a lockfile generated on `x86_64-linux` omits the Darwin tarballs and `ext-heyhuynhgiabuu-pi-pretty` fails to build on `aarch64-darwin`.
+9. None of the eleven reads its configuration from pi's `settings.json`. `pi-mcp-adapter` reads `~/.config/mcp/mcp.json` and `~/.agents/mcp.json`; the `@juicesharp/*` packages read their own `rpiv-*` config; `@narumitw/pi-caffeinate`, `@heyhuynhgiabuu/pi-pretty`, and `pi-cache-optimizer` all write under `getAgentDir()` (`~/.pi/agent`). `passthru.settings` is therefore `{ }` for all eleven today. The mechanism exists and is tested against a synthetic case, but the initial pin set does not exercise it.
+10. Authorship, confirmed from registry metadata rather than the gallery or awesome-pi, which disagree: `pi-mcp-adapter` and `pi-subagents` are **nicobailon**, not `nicopreme`. The `@narumitw/*` scope publishes out of **narumiruna/pi-extensions**. `pi-cache-optimizer` is **jiangge**.
+11. `pi-cache-optimizer` declares `peerDependencies: { "@earendil-works/pi-coding-agent": ">=0.82.0" }`. The fork pins pi at 0.84.2, which satisfies it. Because that pin is `bundled = true`, nothing runs `bun install` for it, so nothing tries to fetch the peer at all; its `import` resolves at runtime against the pi build that loads it.
 
 ## Pin set as verified on 2026-08-18
 
-| npm name | latest | repository | `pi.extensions` | `pi.skills` / `pi.prompts` |
-| --- | --- | --- | --- | --- |
-| `pi-mcp-adapter` | 2.26.1 | github.com/nicobailon/pi-mcp-adapter | `["./index.ts"]` | `skills` |
-| `pi-subagents` | 0.51.0 | github.com/nicobailon/pi-subagents | `["./index.ts"]` | `skills`, `prompts` |
-| `pi-background-tasks` | 2.4.2 | github.com/ismailsaleekh/pi-background-tasks | `["./extensions/anthropic-attribution.ts", "./extensions/background-tasks.ts"]` | — |
-| `@plannotator/pi-extension` | 0.27.4 | github.com/backnotprop/plannotator (`apps/pi-extension`) | `["./"]` | — |
-| `@juicesharp/rpiv-todo` | 2.6.2 | github.com/juicesharp/rpiv-mono (`packages/rpiv-todo`) | `["./index.ts"]` | — |
-| `@gotgenes/pi-permission-system` | 26.3.0 | github.com/gotgenes/pi-packages (`packages/pi-permission-system`) | `["./src/index.ts"]` | — |
+Eleven third-party packages. `@plannotator/pi-extension` is gone (design §8 drops plan mode entirely) and `remote-pi` belongs to the phase 7 messaging plan, not this one.
+
+| npm name | latest | repository | `pi.extensions` | `pi.skills` / `pi.prompts` | `bundled` |
+| --- | --- | --- | --- | --- | --- |
+| `pi-mcp-adapter` | 2.26.1 | github.com/nicobailon/pi-mcp-adapter | `["./index.ts"]` | `skills` | false |
+| `pi-subagents` | 0.51.0 | github.com/nicobailon/pi-subagents | `["./index.ts"]` | `skills`, `prompts` | false |
+| `pi-background-tasks` | 2.4.2 | github.com/ismailsaleekh/pi-background-tasks | `["./extensions/anthropic-attribution.ts", "./extensions/background-tasks.ts"]` | — | false |
+| `@juicesharp/rpiv-ask-user-question` | 2.6.2 | github.com/juicesharp/rpiv-mono (`packages/rpiv-ask-user-question`) | `["./index.ts"]` | — | false |
+| `@narumitw/pi-goal` | 0.52.1 | github.com/narumiruna/pi-extensions (`packages/pi-goal`) | `["./src/index.ts"]` | — | false |
+| `@juicesharp/rpiv-todo` | 2.6.2 | github.com/juicesharp/rpiv-mono (`packages/rpiv-todo`) | `["./index.ts"]` | — | false |
+| `@gotgenes/pi-permission-system` | 26.3.0 | github.com/gotgenes/pi-packages (`packages/pi-permission-system`) | `["./src/index.ts"]` | — | false |
+| `@narumitw/pi-btw` | 0.54.1 | github.com/narumiruna/pi-extensions (`packages/pi-btw`) | `["./src/index.ts"]` | — | false |
+| `pi-cache-optimizer` | 2.8.3 | github.com/jiangge/pi-cache-optimizer | `["./index.ts"]` | — | **true** |
+| `@narumitw/pi-caffeinate` | 0.49.4 | github.com/narumiruna/pi-extensions (`packages/pi-caffeinate`) | `["./src/index.ts"]` | — | false |
+| `@heyhuynhgiabuu/pi-pretty` | 0.6.21 | github.com/heyhuynhgiabuu/pi-pretty | `["./dist/index.js"]` | — | false |
+
+Runtime dependency shape, measured by running the exact Bun invocation Task 3 builds with. `bun deps` is the number of `fetchurl` entries in the generated `bun.nix`; `node_modules` is the installed tree:
+
+| slug | bun deps | node_modules | notes |
+| --- | --- | --- | --- |
+| `pi-mcp-adapter` | 130 | 83 MB | `@napi-rs/keyring` is native |
+| `pi-subagents` | 4 | 9.8 MB | |
+| `pi-background-tasks` | 3 | 16 MB | `typebox` hoisted from peers |
+| `juicesharp-rpiv-ask-user-question` | 2 | 6.2 MB | |
+| `narumitw-pi-goal` | 138 | 17 MB | `typebox` hoisted from peers |
+| `juicesharp-rpiv-todo` | 2 | 6.2 MB | |
+| `gotgenes-pi-permission-system` | 5 | 31 MB | |
+| `narumitw-pi-btw` | 137 | 11 MB | |
+| `pi-cache-optimizer` | 0 | none | `bundled = true` |
+| `narumitw-pi-caffeinate` | 141 | 14 MB | `dbus-native` |
+| `heyhuynhgiabuu-pi-pretty` | 78 | 66 MB | `shiki` + native `ffi-rs` |
+
+### Jail consequences to hand to phase 3
+
+Upstream's `jail.permissions` default is `[ network mount-cwd ]` plus a bind of `PI_CODING_AGENT_DIR`. Nothing else under `$HOME` or `/run/user/$UID` is visible inside bubblewrap. Two facts follow, both out of scope here and both needed in phase 3:
+
+- `@narumitw/pi-caffeinate` calls `sessionBus()` from `dbus-native` and sends `Inhibit`/`UnInhibit` to `org.freedesktop.ScreenSaver` on `/org/freedesktop/ScreenSaver` and `/ScreenSaver`. Without the session bus socket bound and talk permission on that name, it is silently inert inside the jail. Design §9 already records the identical problem for `pi-notify` on `org.freedesktop.Notifications`; fix both together.
+- On Linux `pi-caffeinate` prefers spawning `systemd-inhibit` (`src/inhibitors.ts:28-46`) and only falls back to D-Bus. The jail binds pi's runtime closure alone, so `systemd-inhibit` needs `add-pkg-deps` or the fallback path is the only one that ever runs.
+
+Config paths are fine as they stand: `pi-caffeinate`, `pi-pretty`, and `pi-cache-optimizer` all read and write under `getAgentDir()`, which the jail already binds read-write.
 
 ---
 
@@ -158,7 +200,8 @@ Everything below is new; upstream has no file at these paths, so a rebase never
 touches them:
 
 - `lib/` — `mkPiSkill`, `mkPiPromptTemplate`, `mkPiPlugin`
-- `packages/extensions/` — `mkPiExtension` and one `package-lock.json` per pin
+- `packages/extensions/` — `mkPiExtension`, `normalise-package-json.nix`, and
+  one `bun.lock` plus one generated `bun.nix` per unbundled pin
 - `extensions.json` — the extension pin file
 - `coding-agent/extra-options.nix` — `systemPrompt`, `extensionPackages`,
   `statusline`, `notifications`
@@ -170,7 +213,7 @@ Only these, and only as insertions:
 
 | File | Our change |
 | --- | --- |
-| `flake.nix` | `agent-statusline` input, `checks` output, `packages.ext-*`, `lib.builders`, `apps.update-extensions`, description |
+| `flake.nix` | `agent-statusline` input, `checks` output, `packages.ext-*`, `lib.builders`, `apps.update-extensions`, the `bun2nix` overlay on the `apps` block's nixpkgs, description |
 | `update.nix` | takes `updateExtensions`, runs `pi-update-extensions` last |
 | `coding-agent/lib.nix` | one line adding `extra-options.nix` to `modules` |
 | `coding-agent/module.nix` | one line adding `extra-options.nix` to `imports` |
@@ -180,7 +223,13 @@ Only these, and only as insertions:
 `coding-agent/options.nix` is **never** modified. Our options module reaches
 pi's command line through `extraArgs`, `extensions`, `skills`,
 `promptTemplates`, `settings`, and `environment`, all of which merge across
-module definitions.
+module definitions, and it overrides the `package` default with `lib.mkDefault`
+rather than editing the declaration.
+
+`packages.default` stays upstream's `coding-agent`, because changing it would
+be a rewrite rather than an insertion. The *module* default is the Bun build;
+`nix run github:joegoldin/pi-nix` still gives you the npm one. Use
+`nix run .#coding-agent-bun` to run the same binary the modules install.
 
 ## Procedure
 
@@ -223,7 +272,8 @@ sandbox wiring, and `lib.mkCodingAgent`. This fork adds, all additively:
 | Addition | What it is |
 | --- | --- |
 | `systemPrompt` | `--system-prompt`, which *replaces* pi's default prompt. Upstream's `rules` only appends. |
-| `packages.ext-*` | Purely pinned ecosystem extensions built from npm tarballs. |
+| Bun by default | `programs.pi.coding-agent.package` defaults to upstream's `coding-agent-bun`. Set it explicitly to get the npm build back. |
+| `packages.ext-*` | Purely pinned ecosystem extensions, built from npm tarballs with `bun2nix`. |
 | `extensionPackages` | Enable a pinned extension by listing its derivation; entrypoints, skills, prompts, and settings follow from its `passthru`. |
 | `statusline` | Wires the [agent-statusline](https://github.com/joegoldin/agent-statusline) pi extension and its config JSON. |
 | `notifications` | Option surface for the first-party `pi-notify` extension. |
@@ -237,6 +287,10 @@ See [docs/REBASING.md](docs/REBASING.md) before pulling upstream.
 ```bash
 nix run github:joegoldin/pi-nix --accept-flake-config
 ```
+
+That runs upstream's `packages.default`, which is the npm build. The Home
+Manager and NixOS modules default to the Bun build instead; `nix run
+github:joegoldin/pi-nix#coding-agent-bun` runs the same binary they install.
 
 ## Binary cache
 
@@ -270,6 +324,8 @@ nix.settings = {
       ext-pi-mcp-adapter
       ext-pi-subagents
       ext-juicesharp-rpiv-todo
+      ext-juicesharp-rpiv-ask-user-question
+      ext-narumitw-pi-goal
     ];
     statusline.enable = true;
   };
@@ -737,29 +793,30 @@ the module's extensionPackages list."
 
 ### Task 3: `mkPiExtension`, `extensions.json`, and `packages.ext-*`
 
-Purely pinned ecosystem extensions. This is where design assumption A4 gets settled: none of the six pins ships a bundled `dist`, so all six go through `buildNpmPackage`.
+Purely pinned ecosystem extensions, built with Bun. This is where design assumption A4 gets settled: ten of the eleven pins need a real dependency install, and the one that does not needs it for a reason A4 never considered.
 
 **Files:**
 - Create: `packages/extensions/mk-pi-extension.nix`
+- Create: `packages/extensions/normalise-package-json.nix`
 - Create: `packages/extensions/default.nix`
 - Create: `extensions.json`
-- Create: `packages/extensions/<slug>/package-lock.json` × 6 (generated in Step 6)
+- Create: `packages/extensions/<slug>/bun.lock` and `packages/extensions/<slug>/bun.nix` × 10 (generated in Step 6; `pi-cache-optimizer` gets neither)
 - Create: `tests/extensions-test.nix`
 - Modify: `tests/default.nix`
-- Modify: `flake.nix` (add `ext-*` to `packages`)
+- Modify: `flake.nix` (add `ext-*` to `packages`, thread `bunPkgs` in)
 
 **Interfaces:**
 - Consumes: the `checks` harness from Task 1
 - Produces:
-  - `mkPiExtension { pname, version, url, hash, bundled ? false, packageLock ? null, npmDepsHash ? null, entrypoints ? [ ], skills ? [ ], prompts ? [ ], settings ? { }, promptFragment ? null }` → derivation
+  - `mkPiExtension { pname, version, url, hash, bundled ? false, bunLock ? null, bunNix ? null, entrypoints ? [ ], skills ? [ ], prompts ? [ ], settings ? { }, promptFragment ? null, extraBuildInputs ? [ ] }` → derivation
   - **The passthru contract**, identical for `mkPiExtension` and `mkPiPlugin`:
     - `passthru.piEntrypoint` — `list of str`, absolute paths handed verbatim to repeated `--extension` flags. Normally a one-element list holding the package root, which makes pi read the package's own `pi` manifest.
     - `passthru.piSkills` — `list of str`, absolute paths for `--skill`
     - `passthru.piPrompts` — `list of str`, absolute paths for `--prompt-template`
     - `passthru.settings` — `attrs`, merged into `~/.pi/agent/settings.json`
     - `passthru.promptFragment` — `null` or `str`, appended via `--append-system-prompt`
-  - `packages.<system>.ext-<slug>` for each of the six pins
-  - `extensions.json` — attrset keyed by npm name, each `{ version, url, hash, npmDepsHash, bundled, entrypoints, skills, prompts }`
+  - `packages.<system>.ext-<slug>` for each of the eleven pins
+  - `extensions.json` — attrset keyed by npm name, each `{ version, url, hash, bundled, entrypoints, skills, prompts }`. There is no aggregate dependency hash: `bun2nix` records one `fetchurl` per dependency in the per-pin `bun.nix`, each with npm's `dist.integrity` verbatim, so there is nothing to keep in sync by hand and nothing to go stale independently of the lockfile.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -774,12 +831,13 @@ Create `tests/extensions-test.nix`:
 let
   lib = pkgs.lib;
   exts = import ../packages/extensions { inherit pkgs lib; };
-  mkPiExtension = pkgs.callPackage ../packages/extensions/mk-pi-extension.nix { };
   pins = builtins.fromJSON (builtins.readFile ../extensions.json);
 
+  mkPiExtension = pkgs.callPackage ../packages/extensions/mk-pi-extension.nix { };
+
   # A synthetic bundled pin. Never built — only its attributes are read — so
-  # the fake hash costs nothing and the bundled branch stays under test even
-  # though no real pin uses it.
+  # the fake hash costs nothing and the bundled branch stays under test on the
+  # settings/promptFragment axes the real bundled pin does not exercise.
   synthetic = mkPiExtension {
     pname = "@acme/pi-thing";
     version = "9.9.9";
@@ -794,21 +852,26 @@ let
 
   expectedNames = [
     "ext-gotgenes-pi-permission-system"
+    "ext-heyhuynhgiabuu-pi-pretty"
+    "ext-juicesharp-rpiv-ask-user-question"
     "ext-juicesharp-rpiv-todo"
+    "ext-narumitw-pi-btw"
+    "ext-narumitw-pi-caffeinate"
+    "ext-narumitw-pi-goal"
     "ext-pi-background-tasks"
+    "ext-pi-cache-optimizer"
     "ext-pi-mcp-adapter"
     "ext-pi-subagents"
-    "ext-plannotator-pi-extension"
   ];
 
-  # Every pin must be complete: an unbundled pin without an npmDepsHash means
-  # `nix run .#update` has not been run since it was added.
+  # A pin is complete when its tarball coordinates are real. There is no
+  # dependency hash to check: bun2nix keeps those in the per-pin bun.nix, and
+  # Step 6's guard proves every unbundled pin has one on disk.
   pinComplete =
     _name: pin:
     pin.version != ""
     && lib.hasPrefix "https://registry.npmjs.org/" pin.url
-    && lib.hasPrefix "sha512-" pin.hash
-    && (if pin.bundled then pin.npmDepsHash == null else lib.hasPrefix "sha256-" pin.npmDepsHash);
+    && lib.hasPrefix "sha512-" pin.hash;
 
   evalAssertions =
     assert lib.sort (a: b: a < b) (builtins.attrNames exts) == expectedNames;
@@ -825,6 +888,11 @@ let
     assert exts.ext-pi-background-tasks.passthru.piSkills == [ ];
     assert exts.ext-pi-mcp-adapter.passthru.settings == { };
     assert exts.ext-pi-mcp-adapter.passthru.promptFragment == null;
+    # Exactly one pin takes the bundled branch, and it is the one with no
+    # runtime dependencies. If a future bump gives pi-cache-optimizer a
+    # dependency, this fires before anything ships a broken node_modules.
+    assert pins."pi-cache-optimizer".bundled;
+    assert lib.all (n: !pins.${n}.bundled) (lib.filter (n: n != "pi-cache-optimizer") (builtins.attrNames pins));
     assert lib.all (n: pinComplete n pins.${n}) (builtins.attrNames pins);
     true;
 in
@@ -834,10 +902,13 @@ pkgs.runCommand "pi-nix-extensions-tests" { nativeBuildInputs = [ pkgs.jq ]; } '
 
   check() {
     local root="$1"
+    local wantDeps="$2"
     test -f "$root/package.json"
-    # Every pin publishes raw TypeScript against unbundled npm dependencies,
-    # so node_modules must have been materialised at build time.
-    test -d "$root/node_modules"
+    if [ "$wantDeps" = deps ]; then
+      # Every unbundled pin publishes source against dependencies it does not
+      # vendor, so node_modules must have been materialised at build time.
+      test -d "$root/node_modules"
+    fi
     # Each entry the pi manifest declares must actually exist, or pi silently
     # resolves zero entrypoints and the extension never loads.
     local n
@@ -848,17 +919,32 @@ pkgs.runCommand "pi-nix-extensions-tests" { nativeBuildInputs = [ pkgs.jq ]; } '
     done
   }
 
-  check ${exts.ext-pi-mcp-adapter}
-  check ${exts.ext-pi-subagents}
-  check ${exts.ext-pi-background-tasks}
-  check ${exts.ext-plannotator-pi-extension}
-  check ${exts.ext-juicesharp-rpiv-todo}
-  check ${exts.ext-gotgenes-pi-permission-system}
+  check ${exts.ext-pi-mcp-adapter} deps
+  check ${exts.ext-pi-subagents} deps
+  check ${exts.ext-pi-background-tasks} deps
+  check ${exts.ext-juicesharp-rpiv-ask-user-question} deps
+  check ${exts.ext-narumitw-pi-goal} deps
+  check ${exts.ext-juicesharp-rpiv-todo} deps
+  check ${exts.ext-gotgenes-pi-permission-system} deps
+  check ${exts.ext-narumitw-pi-btw} deps
+  check ${exts.ext-narumitw-pi-caffeinate} deps
+  check ${exts.ext-heyhuynhgiabuu-pi-pretty} deps
+  check ${exts.ext-pi-cache-optimizer} nodeps
 
   # Skills and prompts advertised through the passthru must be real directories.
   test -d ${exts.ext-pi-mcp-adapter}/skills
   test -d ${exts.ext-pi-subagents}/skills
   test -d ${exts.ext-pi-subagents}/prompts
+
+  # The two peers that must survive the --omit=peer install. Absent these, both
+  # extensions load and then throw on their first `import { Type } from
+  # "typebox"`, which is a failure that only shows up at runtime.
+  test -d ${exts.ext-pi-background-tasks}/node_modules/typebox
+  test -d ${exts.ext-narumitw-pi-goal}/node_modules/typebox
+
+  # pi-cache-optimizer has no dependencies at all; a node_modules here would
+  # mean the bundled branch quietly grew a bun install.
+  ! test -e ${exts.ext-pi-cache-optimizer}/node_modules
 
   touch $out
 ''
@@ -879,30 +965,74 @@ cd /home/joe/Development/pi-nix && nix build .#checks.x86_64-linux.extensions -L
 
 Expected: `error: path '/home/joe/Development/pi-nix/packages/extensions' does not exist`.
 
-- [ ] **Step 3: Write `packages/extensions/mk-pi-extension.nix`**
+- [ ] **Step 3: Write `packages/extensions/normalise-package-json.nix`**
+
+The two `package.json` edits from verified fact 5, defined once. `mk-pi-extension.nix` runs this in `postPatch` and `update-extensions.nix` runs the same string before generating the lockfile. Sharing it is not tidiness: `bun install --frozen-lockfile` compares the lockfile against the manifest, so any divergence between generator and builder fails the build.
+
+```nix
+{ jq }:
+# Emitted into a shell script; both consumers `source`-substitute it verbatim.
+#
+# Two edits, both required, both discovered by running bun rather than reading
+# docs:
+#
+#   1. Hoist every peer dependency that is neither `@earendil-works/*` nor
+#      marked optional into `dependencies`. pi supplies its own packages to
+#      extensions at runtime, so those peers must stay omitted; everything else
+#      is a real runtime import. pi-background-tasks and @narumitw/pi-goal both
+#      declare `typebox` as a plain peer and both `import` it, so under a bare
+#      `--omit=peer` they install cleanly and throw on load.
+#
+#   2. Delete devDependencies outright. `bun install --lockfile-only --omit=dev`
+#      writes the root dev entries into bun.lock without resolving them, and the
+#      later `--frozen-lockfile` run then dies with
+#      `Failed to resolve root dev dependency '@earendil-works/pi-coding-agent'`
+#      (reproduced on pi-subagents).
+#
+# peerDependencies and peerDependenciesMeta are dropped after the hoist so bun
+# does not re-resolve the @earendil-works tree transitively. That alone takes
+# @juicesharp/rpiv-todo from 137 fetchurl entries to 2.
+''
+  ${jq}/bin/jq '
+    (.peerDependenciesMeta // {}) as $meta
+    | .dependencies = ((.dependencies // {}) + ((.peerDependencies // {})
+        | with_entries(select(
+            (.key | startswith("@earendil-works/") | not)
+            and (($meta[.key].optional // false) | not)))))
+    | del(.devDependencies, .peerDependencies, .peerDependenciesMeta)
+  ' package.json > package.json.normalised
+  mv package.json.normalised package.json
+''
+```
+
+- [ ] **Step 4: Write `packages/extensions/mk-pi-extension.nix`**
 
 ```nix
 {
   lib,
+  stdenv,
   fetchurl,
-  buildNpmPackage,
   runCommand,
+  callPackage,
+  bun,
+  bun2nix,
+  autoPatchelfHook,
 }:
 # One pinned pi extension from an npm tarball.
 #
 # `bundled` decides how node_modules is obtained:
 #
-#   true  — the tarball already carries everything it needs (vendored dist, or
-#           no runtime dependencies at all). fetchurl + untar, nothing else.
-#   false — the tarball ships source against unbundled dependencies, so
-#           buildNpmPackage materialises node_modules from a vendored
-#           package-lock.json. `nix run .#update-extensions` generates that
-#           lockfile and the matching npmDepsHash.
+#   true  — the tarball already carries everything it needs, or needs nothing.
+#           fetchurl + untar, no bun at all.
+#   false — the tarball ships source against unvendored dependencies, so
+#           bun2nix's hook materialises node_modules from a vendored bun.lock
+#           and the bun.nix generated from it. `nix run .#update-extensions`
+#           regenerates both.
 #
-# Design assumption A4 predicted `bundled = true` would be the common case. It
-# is false for every package in the initial pin set: all six publish raw
-# TypeScript with unbundled dependencies and no lockfile. The bundled branch is
-# kept for future pins.
+# Design assumption A4 predicted `bundled = true` would be the common case
+# because packages would ship a self-contained dist. That is false for all
+# eleven pins. The branch survives for an unrelated reason: pi-cache-optimizer
+# has zero runtime dependencies, so there is nothing for bun to install.
 {
   pname,
   version,
@@ -911,8 +1041,9 @@ Expected: `error: path '/home/joe/Development/pi-nix/packages/extensions' does n
   # npm dist.integrity, usable verbatim as a Nix SRI hash
   hash,
   bundled ? false,
-  packageLock ? null,
-  npmDepsHash ? null,
+  # Vendored bun.lock and the bun2nix-generated dep set built from it.
+  bunLock ? null,
+  bunNix ? null,
   # Paths relative to the package root. Empty — the normal case — means "hand
   # pi the package root and let resolveExtensionEntries read the pi manifest
   # in package.json", which is what makes multi-entrypoint packages like
@@ -928,10 +1059,17 @@ Expected: `error: path '/home/joe/Development/pi-nix/packages/extensions' does n
   # Escape hatch for an extension that supplies no promptSnippet or
   # promptGuidelines of its own. Normally null.
   promptFragment ? null,
+  # Extra libraries autoPatchelfHook must be able to find. Empty for every pin
+  # in the initial set: the two with native code (@napi-rs/keyring under
+  # pi-mcp-adapter, ffi-rs under pi-pretty) need only libc, libgcc_s, and
+  # libstdc++, which stdenv.cc.cc.lib already supplies.
+  extraBuildInputs ? [ ],
   meta ? { },
 }:
 let
   slug = lib.replaceStrings [ "@" "/" ] [ "" "-" ] pname;
+
+  normalisePackageJson = callPackage ./normalise-package-json.nix { };
 
   src = fetchurl {
     inherit url hash;
@@ -945,33 +1083,52 @@ let
         tar -xzf $src -C $out --strip-components=1
       ''
     else
-      buildNpmPackage {
+      stdenv.mkDerivation {
         pname = "pi-ext-${slug}";
-        inherit version src npmDepsHash;
+        inherit version src;
 
-        # None of these packages publishes a lockfile, so the pin carries one
-        # generated by the update app. postPatch runs before npmConfigHook,
-        # which is exactly where upstream's coding-agent/package.nix drops
-        # pi's own lockfile too.
-        postPatch = ''
-          cp ${packageLock} package-lock.json
-        '';
+        nativeBuildInputs = [
+          bun2nix.hook
+          bun
+        ]
+        # Prebuilt .node files arrive with an empty RPATH and DT_NEEDED on
+        # libgcc_s/libstdc++/libc, none of which resolve on NixOS. Verified
+        # against @yuuang/ffi-rs-linux-x64-gnu, which pi-pretty pulls in
+        # transitively. macOS dylibs need no equivalent.
+        ++ lib.optionals stdenv.hostPlatform.isLinux [ autoPatchelfHook ];
 
-        # The same omissions the update app used when generating the lockfile
-        # and computing npmDepsHash. Diverging here makes `npm ci --offline`
-        # ask for a tarball the prefetched cache does not hold.
-        npmFlags = [
-          "--ignore-scripts"
+        buildInputs = lib.optionals stdenv.hostPlatform.isLinux (
+          [ stdenv.cc.cc.lib ] ++ extraBuildInputs
+        );
+
+        bunDeps = bun2nix.fetchBunDeps { bunNix = import bunNix; };
+
+        # Matches the flags the update app generated the lockfile with. A
+        # divergence here makes --frozen-lockfile reject the vendored lock.
+        bunInstallFlags = [
+          "--linker=hoisted"
+          "--frozen-lockfile"
           "--omit=dev"
           "--omit=peer"
-          "--omit=optional"
         ];
 
+        # These packages' install scripts are build tooling (napi, node-gyp) we
+        # never want to run; the prebuilt platform packages are already in the
+        # dep set.
+        dontRunLifecycleScripts = true;
+
+        # The normalisation must happen before bun2nix's hook runs its install,
+        # and must be byte-identical to what the update app did.
+        postPatch = ''
+          ${normalisePackageJson}
+          cp ${bunLock} bun.lock
+        '';
+
         # These are source packages, not build products: pi loads the .ts files
-        # through jiti at runtime. There is nothing to build and nothing to
-        # prune, and the default npmInstallHook would `npm pack` away the very
-        # files the pi manifest points at.
-        dontNpmBuild = true;
+        # through jiti at runtime, and pi-pretty ships tsc output already.
+        dontBuild = true;
+        # Stripping a prebuilt .node gains nothing and risks breaking it.
+        dontStrip = true;
 
         installPhase = ''
           runHook preInstall
@@ -1006,11 +1163,16 @@ drv
 }
 ```
 
-- [ ] **Step 4: Write `packages/extensions/default.nix`**
+- [ ] **Step 5: Write `packages/extensions/default.nix`**
+
+`bunPkgs` is nixpkgs with `bun2nix.overlays.default` applied. `flake.nix` already builds exactly that for `coding-agent-bun`; Step 8 passes the same value here instead of constructing a second one.
 
 ```nix
 {
   pkgs,
+  # nixpkgs with bun2nix.overlays.default applied. Defaults to pkgs so a caller
+  # that already applied the overlay can pass one argument.
+  bunPkgs ? pkgs,
   lib ? pkgs.lib,
 }:
 # Every pin in extensions.json becomes packages.ext-<slug>. The pin file is
@@ -1019,23 +1181,30 @@ drv
 let
   pins = builtins.fromJSON (builtins.readFile ../../extensions.json);
 
-  mkPiExtension = pkgs.callPackage ./mk-pi-extension.nix { };
+  mkPiExtension = bunPkgs.callPackage ./mk-pi-extension.nix { };
 
   slugOf = name: lib.replaceStrings [ "@" "/" ] [ "" "-" ] name;
 
   # Nix-side configuration per extension, merged into settings.json when the
   # extension is enabled. Every entry is `{ }` today: verified on 2026-08-18,
-  # none of the six pins reads pi's settings.json — pi-mcp-adapter reads
-  # ~/.config/mcp/mcp.json and ~/.agents/mcp.json, @juicesharp/rpiv-todo reads
-  # its own rpiv-todo config file. The mechanism is here for pins that do, and
-  # is exercised by the synthetic case in tests/extensions-test.nix.
+  # none of the eleven pins reads pi's settings.json. pi-mcp-adapter reads
+  # ~/.config/mcp/mcp.json and ~/.agents/mcp.json; the @juicesharp packages
+  # read their own rpiv-* config; pi-caffeinate, pi-pretty, and
+  # pi-cache-optimizer all write under getAgentDir(). The mechanism is here for
+  # pins that do, and is exercised by the synthetic case in
+  # tests/extensions-test.nix.
   settingsFor = {
     pi-mcp-adapter = { };
     pi-subagents = { };
     pi-background-tasks = { };
-    plannotator-pi-extension = { };
+    juicesharp-rpiv-ask-user-question = { };
+    narumitw-pi-goal = { };
     juicesharp-rpiv-todo = { };
     gotgenes-pi-permission-system = { };
+    narumitw-pi-btw = { };
+    pi-cache-optimizer = { };
+    narumitw-pi-caffeinate = { };
+    heyhuynhgiabuu-pi-pretty = { };
   };
 
   mkOne =
@@ -1054,8 +1223,8 @@ let
         skills
         prompts
         ;
-      inherit (pin) npmDepsHash;
-      packageLock = if pin.bundled then null else ./. + "/${slug}/package-lock.json";
+      bunLock = if pin.bundled then null else ./. + "/${slug}/bun.lock";
+      bunNix = if pin.bundled then null else ./. + "/${slug}/bun.nix";
       settings = settingsFor.${slug} or { };
       promptFragment = null;
     };
@@ -1063,9 +1232,9 @@ in
 lib.mapAttrs' (name: pin: lib.nameValuePair "ext-${slugOf name}" (mkOne name pin)) pins
 ```
 
-- [ ] **Step 5: Write the `extensions.json` skeleton**
+- [ ] **Step 6: Write `extensions.json` and generate the lockfiles**
 
-`npmDepsHash` is `null` for every entry at this point; Step 6 fills it in by running the generator, which is also exactly what `nix run .#update` will do from Task 4 onward. Nothing here is a placeholder: version, url, hash, entrypoints, skills, and prompts are the values read off the registry on 2026-08-18.
+Every value below is read off the npm registry on 2026-08-18. `bundled` and `entrypoints` are the two human-owned fields; the update app never rewrites either.
 
 ```json
 {
@@ -1073,7 +1242,6 @@ lib.mapAttrs' (name: pin: lib.nameValuePair "ext-${slugOf name}" (mkOne name pin
     "version": "2.26.1",
     "url": "https://registry.npmjs.org/pi-mcp-adapter/-/pi-mcp-adapter-2.26.1.tgz",
     "hash": "sha512-6/KDXIEPXTVM77274jAloxAo9AQSEy5EJ/7afIlUK2T8HOfeVapTJvwImvyChiIH+0gGShbFgnBK2BXFrjbj2w==",
-    "npmDepsHash": null,
     "bundled": false,
     "entrypoints": [],
     "skills": ["skills"],
@@ -1083,7 +1251,6 @@ lib.mapAttrs' (name: pin: lib.nameValuePair "ext-${slugOf name}" (mkOne name pin
     "version": "0.51.0",
     "url": "https://registry.npmjs.org/pi-subagents/-/pi-subagents-0.51.0.tgz",
     "hash": "sha512-qC9ndnMbuHefE6mGS2k69jP4htgbiQQG5jGnwCuKyK/pMcz5RFZ5nChrJ6JxPOBlpmVxsQzW27MCh0HDJCXxsA==",
-    "npmDepsHash": null,
     "bundled": false,
     "entrypoints": [],
     "skills": ["skills"],
@@ -1093,17 +1260,24 @@ lib.mapAttrs' (name: pin: lib.nameValuePair "ext-${slugOf name}" (mkOne name pin
     "version": "2.4.2",
     "url": "https://registry.npmjs.org/pi-background-tasks/-/pi-background-tasks-2.4.2.tgz",
     "hash": "sha512-KDH2yv5yKnc2slUNMSsysVZleriuv8tbhe5L+AeplVAfijQsECN5YAWOz5TDbStCXLdJC15GaUQ1P87BXGk5Hg==",
-    "npmDepsHash": null,
     "bundled": false,
     "entrypoints": [],
     "skills": [],
     "prompts": []
   },
-  "@plannotator/pi-extension": {
-    "version": "0.27.4",
-    "url": "https://registry.npmjs.org/@plannotator/pi-extension/-/pi-extension-0.27.4.tgz",
-    "hash": "sha512-9aK4v4AcjV/UwvAYvcT46fngIeMKmclv2glIYhzCIJiWKC0tfr4UQ5Aido7iveSfKlmbQuggCB/M018PxdbqnA==",
-    "npmDepsHash": null,
+  "@juicesharp/rpiv-ask-user-question": {
+    "version": "2.6.2",
+    "url": "https://registry.npmjs.org/@juicesharp/rpiv-ask-user-question/-/rpiv-ask-user-question-2.6.2.tgz",
+    "hash": "sha512-DS9yZHcaPr+/nf0x2CCfiXBod/1aWjGyakGM3lZAObuGDhYI0nFRE5gxTcCOfQug6JtJXjt1GlzyX8Pljefdzg==",
+    "bundled": false,
+    "entrypoints": [],
+    "skills": [],
+    "prompts": []
+  },
+  "@narumitw/pi-goal": {
+    "version": "0.52.1",
+    "url": "https://registry.npmjs.org/@narumitw/pi-goal/-/pi-goal-0.52.1.tgz",
+    "hash": "sha512-L4JDDn2JqRND9IWywJPr9XhkixO38yeL4CCCEAJoqG4++YpaKdywY32w71+rvD4UUOqCSRHwCyXd3CTEf1jw9w==",
     "bundled": false,
     "entrypoints": [],
     "skills": [],
@@ -1113,7 +1287,6 @@ lib.mapAttrs' (name: pin: lib.nameValuePair "ext-${slugOf name}" (mkOne name pin
     "version": "2.6.2",
     "url": "https://registry.npmjs.org/@juicesharp/rpiv-todo/-/rpiv-todo-2.6.2.tgz",
     "hash": "sha512-Lt2HzNaKWgOl7/nEJrxtRsKoIQJTZd32BeckDxJ0JGvoUmwYvqOicSpXbgKVZwyGqGBw90WBKYWkEggo9U/Q4Q==",
-    "npmDepsHash": null,
     "bundled": false,
     "entrypoints": [],
     "skills": [],
@@ -1123,7 +1296,42 @@ lib.mapAttrs' (name: pin: lib.nameValuePair "ext-${slugOf name}" (mkOne name pin
     "version": "26.3.0",
     "url": "https://registry.npmjs.org/@gotgenes/pi-permission-system/-/pi-permission-system-26.3.0.tgz",
     "hash": "sha512-FqRVq+YvHgBBJShQK1wdlUik4QZMdTDv5a9drmxZK8pXpCy0XjLX0nXLVNntQL+KhdTQ56JlsunKqjgU5YDNbQ==",
-    "npmDepsHash": null,
+    "bundled": false,
+    "entrypoints": [],
+    "skills": [],
+    "prompts": []
+  },
+  "@narumitw/pi-btw": {
+    "version": "0.54.1",
+    "url": "https://registry.npmjs.org/@narumitw/pi-btw/-/pi-btw-0.54.1.tgz",
+    "hash": "sha512-/zLu1ZJzDynMZLTObhuWb4/W/qaNoqvI1XDnu3ADVFhXANZvNTZXbdQDlYIvpRq2PzqEDLQZpV+fQOcfJslGXg==",
+    "bundled": false,
+    "entrypoints": [],
+    "skills": [],
+    "prompts": []
+  },
+  "pi-cache-optimizer": {
+    "version": "2.8.3",
+    "url": "https://registry.npmjs.org/pi-cache-optimizer/-/pi-cache-optimizer-2.8.3.tgz",
+    "hash": "sha512-tAE0IcfoHo9s2u5VX2uFXkFYX7YId3uEcsjI1lWfiJI4jU8SzQHj1xqimM49pHSmUo3EVN/1RUm/tx5BLj2VTg==",
+    "bundled": true,
+    "entrypoints": [],
+    "skills": [],
+    "prompts": []
+  },
+  "@narumitw/pi-caffeinate": {
+    "version": "0.49.4",
+    "url": "https://registry.npmjs.org/@narumitw/pi-caffeinate/-/pi-caffeinate-0.49.4.tgz",
+    "hash": "sha512-cpAD+NVwSJxQYO/dlHpxORWVJyiu+0ZVXxyMxH4etoZyerJUi3Fhh+S/fxjErnss522k29ozbSS6RFRas+v+HA==",
+    "bundled": false,
+    "entrypoints": [],
+    "skills": [],
+    "prompts": []
+  },
+  "@heyhuynhgiabuu/pi-pretty": {
+    "version": "0.6.21",
+    "url": "https://registry.npmjs.org/@heyhuynhgiabuu/pi-pretty/-/pi-pretty-0.6.21.tgz",
+    "hash": "sha512-Cyk+YvfOkahMQBB3+UxJCzHB6e37jJZJGiTL0p2KL4ov3Sfn3HRcZmeKHi8vDxZGPJKIKJdy21l/nPicCm5j1w==",
     "bundled": false,
     "entrypoints": [],
     "skills": [],
@@ -1132,9 +1340,7 @@ lib.mapAttrs' (name: pin: lib.nameValuePair "ext-${slugOf name}" (mkOne name pin
 }
 ```
 
-- [ ] **Step 6: Generate the lockfiles and fill in `npmDepsHash`**
-
-These are the exact values produced on 2026-08-18 by the procedure Task 4 turns into `nix run .#update-extensions`. Run the generator now so Task 3 can be verified before Task 4 exists:
+Now generate the per-pin `bun.lock` and `bun.nix`. This is the same procedure Task 4 turns into `nix run .#update-extensions`; run it here so Task 3 can be verified before Task 4 exists.
 
 Write the generator to a file first — the nested quoting of an inline `bash -c` string is a reliable source of silent breakage:
 
@@ -1149,6 +1355,9 @@ export HOME="$tmp/home"
 mkdir -p "$HOME"
 
 for name in $(jq -r 'keys[]' extensions.json); do
+  bundled=$(jq -r --arg n "$name" '.[$n].bundled' extensions.json)
+  [[ "$bundled" == "true" ]] && { echo "$name bundled, skipping"; continue; }
+
   slug=$(printf '%s' "$name" | sed -e 's|^@||' -e 's|/|-|g')
   url=$(jq -r --arg n "$name" '.[$n].url' extensions.json)
   work="$tmp/$slug"
@@ -1156,38 +1365,56 @@ for name in $(jq -r 'keys[]' extensions.json); do
   curl -fsSL "$url" | tar -xzf - -C "$work" --strip-components=1
   (
     cd "$work"
-    npm install --package-lock-only --omit=dev --omit=peer --omit=optional \
-      --ignore-scripts --no-audit --no-fund >/dev/null 2>&1
-    npm-lockfile-fix package-lock.json >/dev/null 2>&1
+    jq '(.peerDependenciesMeta // {}) as $meta
+        | .dependencies = ((.dependencies // {}) + ((.peerDependencies // {})
+            | with_entries(select(
+                (.key | startswith("@earendil-works/") | not)
+                and (($meta[.key].optional // false) | not)))))
+        | del(.devDependencies, .peerDependencies, .peerDependenciesMeta)' \
+      package.json > package.json.normalised
+    mv package.json.normalised package.json
+
+    # --os/--cpu force every platform variant of an optional native dependency
+    # into the lockfile, so the generated bun.nix is buildable on Darwin too.
+    bun install --lockfile-only --omit=dev --omit=peer --os='*' --cpu='*' >/dev/null 2>&1
   )
-  h=$(prefetch-npm-deps "$work/package-lock.json" | tail -n1)
   mkdir -p "packages/extensions/$slug"
-  cp "$work/package-lock.json" "packages/extensions/$slug/package-lock.json"
-  jq --arg n "$name" --arg h "$h" '.[$n].npmDepsHash = $h' extensions.json > "$tmp/next.json"
-  mv "$tmp/next.json" extensions.json
-  echo "$slug $h"
+  cp "$work/bun.lock" "packages/extensions/$slug/bun.lock"
+  bun2nix -l "$work/bun.lock" -o "packages/extensions/$slug/bun.nix"
+  echo "$slug $(grep -c 'fetchurl {' "packages/extensions/$slug/bun.nix") deps"
 done
 SCRIPT
 chmod +x /tmp/pin-extensions.sh
-nix shell nixpkgs#nodejs nixpkgs#npm-lockfile-fix nixpkgs#prefetch-npm-deps \
-  nixpkgs#jq nixpkgs#curl nixpkgs#gnutar nixpkgs#gzip -c /tmp/pin-extensions.sh
+nix shell nixpkgs#bun nixpkgs#jq nixpkgs#curl nixpkgs#gnutar nixpkgs#gzip nixpkgs#gnused \
+  'github:nix-community/bun2nix?ref=2.1.0' -c /tmp/pin-extensions.sh
 ```
 
-Expected output — these hashes were computed and verified while writing this plan, so any divergence means the upstream package was republished and the pin needs re-verifying, not that the command is wrong:
+Expected output. These counts were produced and verified while writing this plan, so a divergence means an upstream package was republished and the pin needs re-verifying, not that the command is wrong:
 
 ```
-pi-mcp-adapter sha256-yi4B+q1DNTTgiUspCnjyYaS7Wii3RmwpFF8BIN63UHQ=
-pi-subagents sha256-n3GBMwldJ4siD28o7eQcHLmE0ccU1tWPtISVgkVPpVg=
-pi-background-tasks sha256-3APHrC7eEU0cQ+hXpZOiic5i9iZmjcJrt3IIDCaVNhc=
-plannotator-pi-extension sha256-iCuYF1cDsCOlseb9J1QtpOHk5EDXroleUUxl+Fcw19k=
-juicesharp-rpiv-todo sha256-nu9wuAq/UIATsgCMDKssfEFIPbUgrdlDntADQFyjjlg=
-gotgenes-pi-permission-system sha256-n90c2T6apiXbI51r2gYN9Gj6SiHgz09qIvnk/jjpD18=
+@gotgenes/pi-permission-system gotgenes-pi-permission-system 5 deps
+@heyhuynhgiabuu/pi-pretty heyhuynhgiabuu-pi-pretty 78 deps
+@juicesharp/rpiv-ask-user-question juicesharp-rpiv-ask-user-question 2 deps
+@juicesharp/rpiv-todo juicesharp-rpiv-todo 2 deps
+@narumitw/pi-btw narumitw-pi-btw 137 deps
+@narumitw/pi-caffeinate narumitw-pi-caffeinate 141 deps
+@narumitw/pi-goal narumitw-pi-goal 138 deps
+pi-background-tasks pi-background-tasks 3 deps
+pi-cache-optimizer bundled, skipping
+pi-mcp-adapter pi-mcp-adapter 130 deps
+pi-subagents pi-subagents 4 deps
 ```
 
-Then confirm no pin was left incomplete:
+Then confirm every unbundled pin got both files, and no bundled pin got either:
 
 ```bash
-cd /home/joe/Development/pi-nix && jq -r 'to_entries[] | select(.value.npmDepsHash == null) | .key' extensions.json
+cd /home/joe/Development/pi-nix && jq -r 'to_entries[] | "\(.value.bundled) \(.key)"' extensions.json | \
+  sed -e 's|@||' -e 's|/|-|2' | while read -r bundled slug; do
+    for f in bun.lock bun.nix; do
+      if [ "$bundled" = false ] && [ ! -f "packages/extensions/$slug/$f" ]; then echo "MISSING $slug/$f"; fi
+      if [ "$bundled" = true ] && [ -f "packages/extensions/$slug/$f" ]; then echo "UNEXPECTED $slug/$f"; fi
+    done
+  done
 ```
 
 Expected: no output.
@@ -1207,11 +1434,11 @@ Replace exactly those three lines with:
 ```nix
               '';
         }
-        // import ./packages/extensions { inherit pkgs; }
+        // import ./packages/extensions { inherit pkgs bunPkgs; }
       );
 ```
 
-`rec { ... } // extras` keeps every existing attribute and its internal recursion intact while adding the `ext-*` set alongside. Nothing inside the `rec` block is touched.
+`rec { ... } // extras` keeps every existing attribute and its internal recursion intact while adding the `ext-*` set alongside. Nothing inside the `rec` block is touched, and `bunPkgs` is the binding upstream already computes a few lines above for `coding-agent-bun`, so no second overlay application appears anywhere.
 
 - [ ] **Step 8: Run the test to verify it passes**
 
@@ -1220,9 +1447,12 @@ Run:
 cd /home/joe/Development/pi-nix && nix build .#checks.x86_64-linux.extensions -L && echo EXTENSIONS-OK
 ```
 
-Expected: `EXTENSIONS-OK`. This builds all six extensions; the first run downloads roughly 1.5 GB of npm tarballs and takes several minutes.
+Expected: `EXTENSIONS-OK`. This builds all eleven extensions. The first run fetches every tarball in every `bun.nix` and takes several minutes; `ext-pi-mcp-adapter` (83 MB of node_modules) and `ext-heyhuynhgiabuu-pi-pretty` (66 MB) dominate.
 
-If `ext-plannotator-pi-extension` fails at the `jq -r '.pi.extensions[]' | test -e` assertion, its manifest declares `"./"` — the package root itself. `path.resolve(dir, "./")` is the directory, which exists, so the assertion should pass; but if jiti then cannot import a directory at runtime, set `"entrypoints": ["index.ts"]` for that pin in `extensions.json` (the tarball does ship a root `index.ts`) and re-run. That override is exactly what the `entrypoints` field is for, and the update app never overwrites it.
+Two failure modes worth naming, because both were hit while writing this plan:
+
+- `error: Failed to resolve root dev dependency` from `bun install` means `del(.devDependencies)` did not run. Check that `postPatch` normalises before `bun2nix.hook` installs.
+- `auto-patchelf: N dependencies could not be satisfied` names the missing library. Add it to that pin's `extraBuildInputs` in `packages/extensions/default.nix`. No pin in the initial set needs one.
 
 - [ ] **Step 9: Verify the packages are visible on the flake**
 
@@ -1235,11 +1465,16 @@ cd /home/joe/Development/pi-nix && nix eval --raw --expr \
 Expected:
 ```
 ext-gotgenes-pi-permission-system
+ext-heyhuynhgiabuu-pi-pretty
+ext-juicesharp-rpiv-ask-user-question
 ext-juicesharp-rpiv-todo
+ext-narumitw-pi-btw
+ext-narumitw-pi-caffeinate
+ext-narumitw-pi-goal
 ext-pi-background-tasks
+ext-pi-cache-optimizer
 ext-pi-mcp-adapter
 ext-pi-subagents
-ext-plannotator-pi-extension
 ```
 
 - [ ] **Step 10: Format and commit**
@@ -1248,22 +1483,28 @@ ext-plannotator-pi-extension
 cd /home/joe/Development/pi-nix
 nix fmt
 git add -A
-git commit -m "feat(packages): pinned pi extensions with a passthru config contract
+git commit -m "feat(packages): pinned pi extensions built with bun2nix
 
-Design assumption A4 is false: none of the six pins ships bundled dist
-output. All publish raw TypeScript against unbundled npm dependencies with
-no lockfile, so mkPiExtension vendors a generated package-lock.json and
-builds node_modules with buildNpmPackage. The bundled branch is retained for
-future pins and covered by a synthetic eval case.
+Design assumption A4 is false: no pin ships a self-contained dist. Ten need a
+real dependency install and go through bun2nix, the same mechanism upstream
+already uses for coding-agent-bun. The bundled branch survives for a reason
+A4 did not anticipate — pi-cache-optimizer has zero runtime dependencies, so
+fetchurl plus tar is the whole build.
+
+Two package.json edits are required before bun install produces a usable
+tree, and both were found by running it. --omit=peer drops typebox, which
+pi-background-tasks and @narumitw/pi-goal declare as plain peers and both
+import; leaving devDependencies in place makes --frozen-lockfile die on
+pi-subagents. normalise-package-json.nix defines the fix once so the update
+app and the builder cannot drift.
 
 piEntrypoint is a list, not a scalar: pi-background-tasks declares two
-entrypoints and plannotator declares a directory. Handing pi the package root
-lets resolveExtensionEntries read each package's own pi manifest, so the pin
-file records no entrypoints at all in the normal case.
+entrypoints. Handing pi the package root lets resolveExtensionEntries read
+each package's own pi manifest, so the pin file records no entrypoints at all
+in the normal case.
 
-npm's dist.integrity is used verbatim as the Nix SRI hash."
-```
-
+npm's dist.integrity is used verbatim as the Nix SRI hash, at the tarball
+layer and inside every fetchurl bun2nix generates."
 ---
 
 ### Task 4: Extend `nix run .#update` to bump extension pins
@@ -1276,11 +1517,11 @@ One command bumps `VERSION.json` *and* every entry in `extensions.json`, so pins
 - Modify: `flake.nix` (instantiate and expose the new app)
 
 **Interfaces:**
-- Consumes: `extensions.json` from Task 3
+- Consumes: `extensions.json` and `packages/extensions/normalise-package-json.nix` from Task 3
 - Produces:
   - `apps.<system>.update-extensions` — `${updateExtensions}/bin/pi-update-extensions`
   - `apps.<system>.update` now runs `pi-sync-upstream`, `pi-regenerate-models`, `pi-update-extensions` in that order
-  - `pi-update-extensions` rewrites `extensions.json` (`version`, `url`, `hash`, `npmDepsHash`, `skills`, `prompts`) and `packages/extensions/<slug>/package-lock.json`. It never touches `bundled` or `entrypoints`, which are human decisions.
+  - `pi-update-extensions` rewrites `extensions.json` (`version`, `url`, `hash`, `skills`, `prompts`) and, for unbundled pins, `packages/extensions/<slug>/bun.lock` and `bun.nix`. It never touches `bundled` or `entrypoints`, which are human decisions.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1289,8 +1530,9 @@ Create `tests/update-app-test.nix`:
 ```nix
 # The updater is network-bound, so the check is a contract test rather than a
 # run: it proves the app exists, is shellcheck-clean (writeShellApplication
-# enforces that at build time), and preserves the two fields that are human
-# decisions rather than registry facts.
+# enforces that at build time), preserves the two fields that are human
+# decisions rather than registry facts, and carries the normalisation and
+# platform flags whose absence produces failures that only appear later.
 { pkgs, ... }:
 let
   updateExtensions = import ../update-extensions.nix { inherit pkgs; };
@@ -1305,10 +1547,22 @@ pkgs.runCommand "pi-nix-update-app-tests" { } ''
   ! grep -q '\.bundled *=' "$script"
   ! grep -q '\.entrypoints *=' "$script"
 
-  # The fields it must write.
-  grep -q 'npmDepsHash' "$script"
+  # No npm may reappear here by accident.
+  ! grep -q 'npmDepsHash' "$script"
+  ! grep -q 'prefetch-npm-deps' "$script"
+
+  # The fields and mechanisms it must carry.
   grep -q 'dist.integrity' "$script"
   grep -q 'dist-tags' "$script"
+  grep -q 'bun2nix' "$script"
+  # Without --os/--cpu the generated bun.nix omits every non-host platform
+  # variant and the Darwin build of ext-heyhuynhgiabuu-pi-pretty fails.
+  grep -q -- "--os='\*'" "$script"
+  grep -q -- "--cpu='\*'" "$script"
+  # The normalisation must be the same string mkPiExtension applies, or
+  # --frozen-lockfile rejects the lockfile this app just wrote.
+  grep -q 'peerDependenciesMeta' "$script"
+  grep -q 'del(.devDependencies' "$script"
 
   touch $out
 ''
@@ -1334,9 +1588,18 @@ Expected: `error: path '/home/joe/Development/pi-nix/update-extensions.nix' does
 ```nix
 { pkgs }:
 
+let
+  # The identical string mkPiExtension runs in postPatch. Sharing it is not
+  # tidiness: bun install --frozen-lockfile compares the lockfile against the
+  # manifest, so a generator that normalises differently from the builder
+  # produces a lockfile the builder rejects.
+  normalisePackageJson = pkgs.callPackage ./packages/extensions/normalise-package-json.nix { };
+in
 pkgs.writeShellApplication {
   name = "pi-update-extensions";
   runtimeInputs = with pkgs; [
+    bun
+    bun2nix
     cacert
     coreutils
     curl
@@ -1344,9 +1607,6 @@ pkgs.writeShellApplication {
     gnutar
     gzip
     jq
-    nodejs
-    npm-lockfile-fix
-    prefetch-npm-deps
   ];
   text = # bash
     ''
@@ -1370,6 +1630,8 @@ pkgs.writeShellApplication {
         url=$(jq -r '.dist.tarball' <<< "$vjson")
         # npm publishes dist.integrity as an SRI string, which Nix accepts
         # verbatim. No prefetch needed, and no chance of a sha256/sha512 mixup.
+        # bun2nix writes the same string into the fetchurl for every dependency
+        # below, so one convention covers both layers.
         hash=$(jq -r '.dist.integrity' <<< "$vjson")
 
         # Skill and prompt directories come straight from the package's own pi
@@ -1380,30 +1642,28 @@ pkgs.writeShellApplication {
 
         bundled=$(jq -r --arg n "$name" '.[$n].bundled' extensions.json)
 
-        deps_hash=null
         if [[ "$bundled" != "true" ]]; then
           work="$tmpdir/$slug"
           mkdir -p "$work"
           curl -fsSL "$url" | tar -xzf - -C "$work" --strip-components=1
 
-          # These packages publish no lockfile, so generate one from the
-          # published package.json. The omissions must match mkPiExtension's
-          # npmFlags exactly, or `npm ci --offline` will want a tarball the
-          # prefetched cache does not hold.
           (
             cd "$work"
-            npm install --package-lock-only \
-              --omit=dev --omit=peer --omit=optional \
-              --ignore-scripts --no-audit --no-fund >/dev/null
-            # Upstream npm omits integrity for some resolved entries, which
-            # makes prefetch-npm-deps panic. Same fix sync-upstream.nix applies
-            # to pi's own lockfile.
-            npm-lockfile-fix package-lock.json >/dev/null
+            ${normalisePackageJson}
+
+            # --omit flags must match mkPiExtension's bunInstallFlags exactly.
+            # --os/--cpu force every platform variant of an optional native
+            # dependency into the lockfile; the build then installs only the
+            # host's. Without them a lockfile generated on Linux omits the
+            # Darwin tarballs and the Darwin build of that pin fails.
+            bun install --lockfile-only \
+              --omit=dev --omit=peer \
+              --os='*' --cpu='*' >/dev/null
           )
 
-          deps_hash="\"$(prefetch-npm-deps "$work/package-lock.json" | tail -n1)\""
           mkdir -p "packages/extensions/$slug"
-          cp "$work/package-lock.json" "packages/extensions/$slug/package-lock.json"
+          cp "$work/bun.lock" "packages/extensions/$slug/bun.lock"
+          bun2nix -l "$work/bun.lock" -o "packages/extensions/$slug/bun.nix"
         fi
 
         jq \
@@ -1411,13 +1671,11 @@ pkgs.writeShellApplication {
           --arg v "$version" \
           --arg u "$url" \
           --arg h "$hash" \
-          --argjson d "$deps_hash" \
           --argjson s "$skills" \
           --argjson p "$prompts" \
           '.[$n].version = $v
            | .[$n].url = $u
            | .[$n].hash = $h
-           | .[$n].npmDepsHash = $d
            | .[$n].skills = $s
            | .[$n].prompts = $p' \
           "$tmpdir/extensions.json" > "$tmpdir/next.json"
@@ -1473,7 +1731,22 @@ pkgs.writeShellApplication {
 
 - [ ] **Step 6: Wire it into `flake.nix`**
 
-In the `apps = forEachSystem (...)` block, add an instantiation after `regenerateModels`:
+The `apps = forEachSystem (...)` block computes `pkgs` from plain nixpkgs. `update-extensions.nix` needs `pkgs.bun2nix`, so give that block the same overlay-applied nixpkgs the `packages` block already builds. Inside `apps`, change:
+
+```nix
+          pkgs = import nixpkgs { inherit system; };
+```
+
+to:
+
+```nix
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = [ bun2nix.overlays.default ];
+          };
+```
+
+This is a widening, not a rewrite: every existing consumer in that block keeps working, because the overlay only adds `bun2nix`. Then add an instantiation after `regenerateModels`:
 
 ```nix
           updateExtensions = import ./update-extensions.nix {
@@ -1502,10 +1775,16 @@ and add the app to the returned attrset, after the `regenerate-models` entry:
 
 Run:
 ```bash
-cd /home/joe/Development/pi-nix && cp extensions.json /tmp/extensions-before.json && nix run .#update-extensions && diff /tmp/extensions-before.json extensions.json && echo PINS-STABLE
+cd /home/joe/Development/pi-nix
+cp extensions.json /tmp/extensions-before.json
+cp -r packages/extensions /tmp/extensions-dir-before
+nix run .#update-extensions
+diff /tmp/extensions-before.json extensions.json
+diff -r /tmp/extensions-dir-before packages/extensions
+echo PINS-STABLE
 ```
 
-Expected: `PINS-STABLE`, plus six `pinned <name>@<version>` lines. A non-empty diff means a pinned package was republished since this plan was written — inspect the diff, re-run `nix build .#checks.x86_64-linux.extensions -L`, and commit the bump with the rest of the task.
+Expected: `PINS-STABLE`, plus eleven `pinned <name>@<version>` lines. Both diffs must be empty. The second one is the load-bearing check: it proves the app regenerates byte-identical `bun.lock` and `bun.nix` files, which is only true if its normalisation and flags match Task 3's generator exactly. A non-empty diff on `extensions.json` alone means a pinned package was republished — inspect it, re-run `nix build .#checks.x86_64-linux.extensions -L`, and commit the bump with the rest of the task.
 
 Also confirm the human-owned fields survived:
 
@@ -1513,7 +1792,7 @@ Also confirm the human-owned fields survived:
 cd /home/joe/Development/pi-nix && jq -c 'to_entries | map({key, bundled: .value.bundled, entrypoints: .value.entrypoints})' extensions.json
 ```
 
-Expected: every entry shows `"bundled":false` and `"entrypoints":[]` (or `["index.ts"]` for plannotator if Task 3 Step 8 required that override).
+Expected: `"entrypoints":[]` everywhere, `"bundled":true` for `pi-cache-optimizer` alone.
 
 - [ ] **Step 8: Format and commit**
 
@@ -1526,16 +1805,18 @@ git commit -m "feat(update): bump every extension pin from nix run .#update
 
 pi-update-extensions reads each package's latest version, tarball URL, and
 dist.integrity straight off the registry — integrity is an SRI string Nix
-accepts verbatim — regenerates the vendored lockfile, and recomputes
-npmDepsHash with the same omissions mkPiExtension builds with. bundled and
-entrypoints are human overrides and are never rewritten."
-```
-
+accepts verbatim — then regenerates the vendored bun.lock and the bun.nix
+bun2nix builds from it. It shares normalise-package-json.nix with
+mkPiExtension, so the lockfile it writes is the one --frozen-lockfile
+accepts. --os='*' --cpu='*' keep every platform variant of a native optional
+dependency in the lockfile, which is what makes the Darwin build of
+pi-pretty possible from a Linux-generated pin. bundled and entrypoints are
+human overrides and are never rewritten."
 ---
 
 ### Task 5: `extra-options.nix` and the `systemPrompt` option
 
-Upstream only has `rules` → `--append-system-prompt`. Replacement of pi's default prompt is a stated goal of the design, and it needs `--system-prompt`. This task also establishes the additive module that Tasks 6–8 extend.
+Upstream only has `rules` → `--append-system-prompt`. Replacement of pi's default prompt is a stated goal of the design, and it needs `--system-prompt`. This task also flips the default package to the Bun build, and establishes the additive module that Tasks 6–8 extend.
 
 **Files:**
 - Create: `coding-agent/extra-options.nix`
@@ -1551,7 +1832,8 @@ Upstream only has `rules` → `--append-system-prompt`. Replacement of pi's defa
   - `pi.coding-agent.systemPrompt` — `nullOr (either lines path)`, default `null`
   - `pi.coding-agent.finalSystemPrompt` — internal, readOnly, `nullOr path`
   - `pi.coding-agent.extraArgs` gains `[ "--system-prompt" "<path>" ]` via `mkAfter`, so it lands after upstream's `resourceArgs` and after any `extraArgs` the user set
-  - The module contributes **only** through `extraArgs`, `extensions`, `skills`, `promptTemplates`, `settings`, and `environment` — all list- or attr-typed, so definitions merge and `coding-agent/options.nix` never has to change
+  - `pi.coding-agent.package` now resolves to `coding-agent-bun` instead of `coding-agent`, via `lib.mkDefault` from this module rather than an edit to the option that declares it
+  - The module contributes **only** through `package`, `extraArgs`, `extensions`, `skills`, `promptTemplates`, `settings`, and `environment`. The last six are list- or attr-typed and merge across definitions; `package` is a plain `package` option whose upstream `default` a `mkDefault` here outranks. `coding-agent/options.nix` never has to change either way
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1583,7 +1865,12 @@ let
   };
 
   selfStub = {
-    packages.${system}.coding-agent = pkgs.hello;
+    packages.${system} = {
+      coding-agent = pkgs.hello;
+      # Distinguishable from coding-agent so the default-package assertion
+      # below cannot pass by accident.
+      coding-agent-bun = pkgs.cowsay;
+    };
     inputs.agent-statusline = {
       lib.${system} = statuslineStub;
       packages.${system} = {
@@ -1644,6 +1931,12 @@ let
     };
   };
 in
+# The fork ships the Bun build by default. Upstream's option declares
+# `default = coding-agent`; a mkDefault from extra-options.nix outranks it
+# without options.nix changing.
+assert bare.package == pkgs.cowsay;
+# An explicit choice still wins, so the npm build stays reachable.
+assert (evalPi { pi.coding-agent.package = pkgs.hello; }).package == pkgs.hello;
 assert !(lib.elem "--system-prompt" bare.finalArgs);
 assert bare.finalSystemPrompt == null;
 assert lib.elem "--system-prompt" inline.finalArgs;
@@ -1705,6 +1998,13 @@ Expected: `error: path '/home/joe/Development/pi-nix/coding-agent/extra-options.
 # `environment`. Keeping the diff to three one-line `imports` additions is what
 # makes `git rebase upstream/master` a fast-forward.
 let
+  inherit (pkgs.stdenv.hostPlatform) system;
+  # Upstream's options.nix inherits `coding-agent` from the same attrset and
+  # makes it the option default. Taking the sibling here and handing it back
+  # through mkDefault is how the fork changes that answer without touching the
+  # file that asks the question.
+  inherit (self.packages.${system}) coding-agent-bun;
+
   cfg = lib.attrByPath optionPath { } config;
 
   toFile =
@@ -1750,6 +2050,12 @@ in
   };
 
   config = lib.setAttrByPath optionPath {
+    # Everything JavaScript in this stack runs on Bun, pi included. Upstream
+    # builds both and defaults to the npm one; mkDefault flips that answer at
+    # the lowest possible priority, so any explicit `package = ...` from a
+    # consumer still wins and `packages.coding-agent` stays buildable.
+    package = lib.mkDefault coding-agent-bun;
+
     finalSystemPrompt = systemPromptPath;
 
     # mkAfter so our flags land behind anything the user set, and behind
@@ -1818,7 +2124,46 @@ cd /home/joe/Development/pi-nix && nix eval --impure --raw --expr '
 
 Expected: `--system-prompt /nix/store/…-pi-SYSTEM.md`.
 
-- [ ] **Step 7: Confirm `options.nix` is still byte-identical to upstream**
+- [ ] **Step 7: Verify the default package really is the Bun build**
+
+The eval test asserts this against a stub. Assert it once against the real
+flake, because a stub cannot catch a wrong attribute name in
+`self.packages.${system}`:
+
+```bash
+cd /home/joe/Development/pi-nix && nix eval --impure --raw --expr '
+  let
+    flake = builtins.getFlake (toString ./.);
+    pkgs = import flake.inputs.nixpkgs { system = "x86_64-linux"; };
+    agent = flake.lib.mkCodingAgent { inherit pkgs; modules = [ ]; };
+  in
+  agent.config.pi.coding-agent.package.pname'
+```
+
+Expected: `pi-coding-agent-bun`. If it prints `pi-coding-agent`, the
+`mkDefault` is not reaching the option — check that `extra-options.nix` is in
+the module list of whichever entrypoint the command exercised.
+
+Then confirm the npm build is still reachable on request, so the fork narrows
+nothing:
+
+```bash
+cd /home/joe/Development/pi-nix && nix eval --impure --raw --expr '
+  let
+    flake = builtins.getFlake (toString ./.);
+    system = "x86_64-linux";
+    pkgs = import flake.inputs.nixpkgs { inherit system; };
+    agent = flake.lib.mkCodingAgent {
+      inherit pkgs;
+      modules = [ { pi.coding-agent.package = flake.packages.${system}.coding-agent; } ];
+    };
+  in
+  agent.config.pi.coding-agent.package.pname'
+```
+
+Expected: `pi-coding-agent`.
+
+- [ ] **Step 8: Confirm `options.nix` is still byte-identical to upstream**
 
 Run:
 ```bash
@@ -1827,19 +2172,25 @@ cd /home/joe/Development/pi-nix && git diff upstream/master --stat -- coding-age
 
 Expected: `OPTIONS-NIX-UNTOUCHED` with no diffstat lines above it.
 
-- [ ] **Step 8: Format and commit**
+- [ ] **Step 9: Format and commit**
 
 ```bash
 cd /home/joe/Development/pi-nix
 nix fmt
 nix flake check -L
 git add -A
-git commit -m "feat(options): systemPrompt, wiring pi's --system-prompt
+git commit -m "feat(options): systemPrompt, and the Bun build as the default
 
 Upstream only has rules -> --append-system-prompt; replacing pi's default
 prompt needs the other flag. Verified against pi v0.84.2: --system-prompt
 takes text, and resolvePromptInput reads it as a file when the argument is an
 existing path, so a store path works exactly as rules already does.
+
+The same module sets package = lib.mkDefault coding-agent-bun. Upstream
+builds both variants and defaults to the npm one; mkDefault flips that at the
+lowest priority, so an explicit package= still wins and packages.coding-agent
+stays buildable. options.nix, which declares the option and its default, is
+not touched.
 
 All of pi-nix's additions live in a second module merged alongside
 options.nix, which stays byte-identical to upstream. The module reaches the
@@ -1852,6 +2203,8 @@ resourceArgs."
 ### Task 6: `extensionPackages` — consuming the passthru contract
 
 Enabling an extension becomes a single list edit. Its entrypoints, skills, prompts, settings, and prompt fragment all follow from the derivation, so there is no dangling config when one is removed.
+
+The option takes `listOf package` and reads only `passthru`, which is what lets it accept two kinds of derivation without knowing the difference. A pinned npm tarball built by `mkPiExtension` (Task 3) and a package built from in-repo source by `mkPiPlugin` (Task 2) carry the identical passthru contract. That matters beyond this phase: the fork will host first-party extensions of its own — `pi-auto-mode` and `pi-notify` in phase 3, `pi-voice` alongside them — and each will live in its own `packages/<name>/` directory with a `default.nix` that ends in `mkPiPlugin`, then appear in `extensionPackages` next to the `ext-*` pins with no change on this side. Nothing in Task 6 references `extensions.json`, `packages/extensions/`, or the `ext-` prefix. Keep it that way; the moment this option learns where a derivation came from, the first-party extensions need a second code path.
 
 **Files:**
 - Modify: `coding-agent/extra-options.nix`
@@ -2161,7 +2514,10 @@ let
   statuslineLib = self.inputs.agent-statusline.lib.${system};
 
   selfStub = {
-    packages.${system}.coding-agent = pkgs.hello;
+    packages.${system} = {
+      coding-agent = pkgs.hello;
+      coding-agent-bun = pkgs.cowsay;
+    };
     inputs.agent-statusline = self.inputs.agent-statusline;
   };
 ```
@@ -2224,11 +2580,10 @@ Expected: `error: The option 'pi.coding-agent.statusline' does not exist.`
 
 - [ ] **Step 4: Implement in `coding-agent/extra-options.nix`**
 
-Add to the `let` block, near the top:
+Add to the `let` block, near the top. `system` is already bound there from
+Task 5, so add only these two:
 
 ```nix
-  inherit (pkgs.stdenv.hostPlatform) system;
-
   # The shared schema lives in agent-statusline so claude-nix and pi-nix cannot
   # drift. Each consumer mounts it under its own namespace.
   statuslineLib = self.inputs.agent-statusline.lib.${system};
@@ -2758,6 +3113,7 @@ This fork adds:
 
 | Option | Type | Default | What it does |
 | --- | --- | --- | --- |
+| `package` | package | `coding-agent-bun` | Upstream declares this option with `coding-agent` as the default; the fork lowers a `mkDefault` onto it so the Bun build wins. Set it explicitly for the npm build. |
 | `systemPrompt` | `null \| lines \| path` | `null` | `--system-prompt`, **replacing** pi's default prompt. Composes with `rules`, which still appends. |
 | `extensionPackages` | `[package]` | `[ ]` | Enable pinned extensions. Entrypoints, skills, prompts, and settings all follow from each derivation's `passthru`. |
 | `statusline.*` | submodule | `{ }` | The shared agent-statusline schema, mounted under pi's namespace. |
@@ -2775,9 +3131,14 @@ Pinned extensions are exposed as `packages.<system>.ext-<slug>`:
 | `ext-pi-mcp-adapter` | `pi-mcp-adapter` — MCP, which pi omits |
 | `ext-pi-subagents` | `pi-subagents` — subagents |
 | `ext-pi-background-tasks` | `pi-background-tasks` — background bash |
-| `ext-plannotator-pi-extension` | `@plannotator/pi-extension` — plan mode |
+| `ext-juicesharp-rpiv-ask-user-question` | `@juicesharp/rpiv-ask-user-question` — AskUserQuestion |
+| `ext-narumitw-pi-goal` | `@narumitw/pi-goal` — `/goal`, pushing rather than vetoing |
 | `ext-juicesharp-rpiv-todo` | `@juicesharp/rpiv-todo` — todos |
 | `ext-gotgenes-pi-permission-system` | `@gotgenes/pi-permission-system` — deterministic permissions |
+| `ext-narumitw-pi-btw` | `@narumitw/pi-btw` — side questions off the main thread |
+| `ext-pi-cache-optimizer` | `pi-cache-optimizer` — prefix-cache hit rate |
+| `ext-narumitw-pi-caffeinate` | `@narumitw/pi-caffeinate` — inhibits sleep during runs |
+| `ext-heyhuynhgiabuu-pi-pretty` | `@heyhuynhgiabuu/pi-pretty` — TUI syntax highlighting |
 
 Bump every pin, and pi itself, with one command:
 
@@ -2785,9 +3146,10 @@ Bump every pin, and pi itself, with one command:
 nix run .#update
 ```
 
-`nix run .#update-extensions` bumps only the extension pins. Neither ever
-rewrites the `bundled` or `entrypoints` fields in `extensions.json` — those are
-human decisions about a package, not facts read off the registry.
+`nix run .#update-extensions` bumps only the extension pins, regenerating each
+one's `bun.lock` and `bun.nix` as it goes. Neither ever rewrites the `bundled`
+or `entrypoints` fields in `extensions.json` — those are human decisions about
+a package, not facts read off the registry.
 
 Generate the full reference:
 
@@ -2801,10 +3163,10 @@ nix build .#docs-html
 
 Run:
 ```bash
-cd /home/joe/Development/pi-nix && nix build .#docs-md --no-link --print-out-paths | xargs -I{} grep -c -E '^## (pi\.coding-agent\.(systemPrompt|extensionPackages|statusline|notifications))' {}
+cd /home/joe/Development/pi-nix && nix build .#docs-md --no-link --print-out-paths | xargs -I{} grep -c -E '^## (pi\.coding-agent\.(package|systemPrompt|extensionPackages|statusline|notifications))' {}
 ```
 
-Expected: `4` or more (`statusline` and `notifications` expand into several sub-entries, so a larger number is correct; anything below 4 means an option is missing from the docs output).
+Expected: `5` or more (`statusline` and `notifications` expand into several sub-entries, so a larger number is correct; anything below 5 means an option is missing from the docs output).
 
 - [ ] **Step 6: Full check**
 
@@ -2840,20 +3202,34 @@ git push -u origin master
 
 ## Self-Review
 
-**Spec coverage.** Design §7's addition table is covered row for row: `systemPrompt` → `--system-prompt` (Task 5), `packages/extensions/` + `packages.ext-*` (Task 3), `extensions.json` + extended `update` app (Tasks 3 and 4), `statusline` (Task 7), `notifications` (Task 8), `lib/` builders (Task 2). §8's `mkPiExtension` shape, `extensions.json` schema, `passthru.settings` rationale, and the "pin by verified repository URL, not remembered author name" instruction are all honoured — the pin table records the registry's repository URLs, and finding 6 records the correction (`nicobailon`, not `nicopreme`). §7's "known upstream behaviour, retained" paragraph about the `settings.json` jq-merge is reproduced in the README rather than being fixed. The `autoMode` row of §7's table is deliberately **not** here: it belongs to phase 3 with `pi-auto-mode` and the permission layers, and landing the option without either layer would ship a lie.
+**Spec coverage.** Design §7's addition table is covered row for row: `systemPrompt` → `--system-prompt` (Task 5), `packages/extensions/` + `packages.ext-*` (Task 3), `extensions.json` + extended `update` app (Tasks 3 and 4), `statusline` (Task 7), `notifications` (Task 8), `lib/` builders (Task 2). §8's `mkPiExtension` shape, `extensions.json` schema, `passthru.settings` rationale, and the "pin by verified repository URL, not remembered author name" instruction are all honoured: the pin table records the registry's repository URLs, and verified fact 10 records three corrections (`nicobailon` not `nicopreme`, `narumiruna/pi-extensions` for the `@narumitw` scope, `jiangge` for `pi-cache-optimizer`). §7's "known upstream behaviour, retained" paragraph about the `settings.json` jq-merge is reproduced in the README rather than being fixed. The `autoMode` row of §7's table is deliberately **not** here: it belongs to phase 3 with `pi-auto-mode` and the permission layers, and landing the option without either layer would ship a lie.
 
-**Placeholder scan.** No `TBD`, no "similar to Task N", no "add error handling". Every hash in `extensions.json` is a real value read off the npm registry on 2026-08-18; every `npmDepsHash` was computed and is reproduced in Task 3 Step 6's expected output. The one synthetic hash in `tests/extensions-test.nix` is a deliberate all-`A` sha512 on a derivation that is never built, and the comment says so. Two steps have the operator transcribe values a prior command printed — Task 3 Step 6's `npmDepsHash` set (whose expected output is reproduced verbatim, so it is a comparison, not a blank) and Task 9 Step 2's eight upstream-file hashes. Both give the exact command and the exact expected shape. That is the standard Nix pin workflow, not a gap.
+**The pin set is the one design §8 settles on.** Eleven third-party packages. `@plannotator/pi-extension` is gone, so nothing in this plan references plan mode. `remote-pi` is phase 7's and is not pinned here. `@juicesharp/rpiv-voice` was in an earlier draft of this plan and was removed when voice moved to a first-party extension over `audiomemo`; its sherpa-onnx/decibri native binaries and its 157 MB runtime Whisper model are no longer this phase's problem.
 
-**Validated while writing, not just asserted.** Task 2's four files and its full test were built and run: `pi-nix-lib-tests` passes against the exact code in this plan. Task 5's `extra-options.nix` and its test were run against the real `coding-agent/options.nix` from the fork, confirming that `extraArgs = lib.mkAfter …` from a second module lands in `finalArgs` and coexists with `rules`. Task 6's and Task 8's additions were assembled on top and run the same way, including a deliberate tamper to prove the `--extension` ordering assertion and the `notifications`-without-a-package `tryEval` assertion both actually fire. Every `nix` code block in this document parses under `nix-instantiate --parse`. The `grep -qxF` in the builder tests is `-F` deliberately: with plain `-qx`, `[file-pattern]` reads as a character class and `log:*)` as a repetition, and both assertions pass vacuously against the wrong content.
+**Placeholder scan.** No `TBD`, no "similar to Task N", no "add error handling". Every `version`, `url`, and `hash` in `extensions.json` is a value read off the npm registry on 2026-08-18. There is no dependency hash to leave blank: `bun2nix` writes one `fetchurl` per dependency into the per-pin `bun.nix`, so the thing that used to be a transcribed `npmDepsHash` is now a generated file with a shape assertion on it (Task 3 Step 6). The one synthetic hash in `tests/extensions-test.nix` is a deliberate all-`A` sha512 on a derivation that is never built, and the comment says so. One step still has the operator transcribe values a prior command printed, Task 9 Step 2's eight upstream-file hashes, and it gives the exact command and the exact expected shape.
 
-**Type consistency.** `passthru.piEntrypoint` is `list of str` in `mkPiExtension` (Task 3), `mkPiPlugin` (Task 2), the fake extensions in the Task 6 test, and the `notificationArgs` consumer in Task 8. `passthru.piSkills` / `piPrompts` are likewise `list of str` everywhere and feed `skills` / `promptTemplates`, whose upstream types (`listOf path`, `listOf path`) accept `/nix/store/…` strings. `passthru.settings` is `attrs` and is folded with `recursiveUpdate` in both Task 6 and Task 8. `passthru.promptFragment` is `null | str` in all four places. `extensions.json` fields are read by exactly two consumers — `packages/extensions/default.nix` and `update-extensions.nix` — and the field list matches between them, with `bundled` and `entrypoints` written by neither.
+**Validated while writing, not just asserted.** Task 2's four files and its full test were built and run: `pi-nix-lib-tests` passes against the exact code in this plan. Task 5's `extra-options.nix` and its test were run against the real `coding-agent/options.nix` from the fork, confirming that `extraArgs = lib.mkAfter …` from a second module lands in `finalArgs` and coexists with `rules`. Task 6's and Task 8's additions were assembled on top and run the same way, including a deliberate tamper to prove the `--extension` ordering assertion and the `notifications`-without-a-package `tryEval` assertion both actually fire.
+
+Task 3's Bun mechanism was validated by building it, not by reading `bun2nix`'s README. The `dist.integrity`-as-SRI convention was re-checked with a bare `fetchurl` for three pins. Every pin in the set was run through the exact normalise → `--lockfile-only` → `bun2nix` → `--frozen-lockfile` sequence, and the dependency counts in the pin-set table are the measured output. An `autoPatchelfHook` build of the hardest case available at the time finished with `auto-patchelf: 0 dependencies could not be satisfied`, and the resulting native modules loaded under `node` straight from the store, which is what establishes that the hook plus `stdenv.cc.cc.lib` is enough and no pin needs `extraBuildInputs`.
+
+Both `package.json` edits in verified fact 5 came out of that run rather than out of a document. Each was found as a failure first: `node_modules/typebox` missing, and `error: Failed to resolve root dev dependency '@earendil-works/pi-coding-agent'`.
+
+Every `nix` code block in this document parses under `nix-instantiate --parse`. The `grep -qxF` in the builder tests is `-F` deliberately: with plain `-qx`, `[file-pattern]` reads as a character class and `log:*)` as a repetition, and both assertions pass vacuously against the wrong content.
+
+**Type consistency.** `passthru.piEntrypoint` is `list of str` in `mkPiExtension` (Task 3), `mkPiPlugin` (Task 2), the fake extensions in the Task 6 test, and the `notificationArgs` consumer in Task 8. `passthru.piSkills` / `piPrompts` are likewise `list of str` everywhere and feed `skills` / `promptTemplates`, whose upstream types (`listOf path`, `listOf path`) accept `/nix/store/…` strings. `passthru.settings` is `attrs` and is folded with `recursiveUpdate` in both Task 6 and Task 8. `passthru.promptFragment` is `null | str` in all four places. `extensions.json` fields are read by exactly two consumers, `packages/extensions/default.nix` and `update-extensions.nix`, and the field list matches between them, with `bundled` and `entrypoints` written by neither.
 
 **Deviations from the spec, with reasons.**
-1. **`piEntrypoint` is a list, not the scalar `"…/dist/index.js"` §8 sketches.** `pi-background-tasks` declares two entrypoints and `@plannotator/pi-extension` declares a directory, so a scalar cannot represent the pin set. The default value is a one-element list holding the package root, which lets pi's `resolveExtensionEntries` read each package's own `pi` manifest.
-2. **`piSkills` and `piPrompts` added to the passthru contract.** `pi-mcp-adapter` ships skills and `pi-subagents` ships skills *and* prompt templates. `--extension` does not load either — only `--skill` and `--prompt-template` do. Without these two fields those resources would silently never load, which is the kind of failure nobody notices.
+1. **`piEntrypoint` is a list, not the scalar `"…/dist/index.js"` §8 sketches.** `pi-background-tasks` declares two entrypoints, so a scalar cannot represent the pin set. The default value is a one-element list holding the package root, which lets pi's `resolveExtensionEntries` read each package's own `pi` manifest.
+2. **`piSkills` and `piPrompts` added to the passthru contract.** `pi-mcp-adapter` ships skills and `pi-subagents` ships skills *and* prompt templates. `--extension` does not load either; only `--skill` and `--prompt-template` do. Without these two fields those resources would silently never load, which is the kind of failure nobody notices.
+3. **`extensions.json` has no `npmDepsHash` field, and §8's `mkPiExtension` sketch names one.** With `bun2nix` there is no aggregate hash to record. Each dependency gets its own `fetchurl` in the generated `bun.nix`, carrying npm's `dist.integrity` verbatim, which is the same convention the tarball pin already uses. The field disappears rather than going null.
+4. **`mkPiExtension` gained `extraBuildInputs`.** No pin in the initial set sets it. It exists so the fix for `auto-patchelf: N dependencies could not be satisfied` on a future pin is one line in `packages/extensions/default.nix` rather than a change to the builder.
 
 **Spec gaps and contradictions found.**
-1. **Assumption A4 is false for every package in the pin set.** §8 expected `bundled = true` — "fetchurl npm tarball, use `dist/` as-is" — to be the common case. Zero of the six ship a `dist`; all publish raw TypeScript against unbundled dependencies, and none ships a lockfile, so `buildNpmPackage` alone is not enough either. The documented fallback ("build that package with `buildNpmPackage` and an `npmDepsHash`") is now the *only* path, and it needed a vendored generated lockfile the spec did not anticipate. That lockfile generation is why Task 4 exists in the shape it does.
-2. **`passthru.settings` will be empty for the entire initial pin set.** §8 calls it "load-bearing" and names `pi-mcp-adapter` needing the MCP server list as the motivating case. Verified: `pi-mcp-adapter` reads `~/.config/mcp/mcp.json` and `~/.agents/mcp.json`, not pi's `settings.json`; `@juicesharp/rpiv-todo` reads its own `rpiv-todo` config file. §9's plan to fan `programs.agent-skills.mcpServers` into `pi-mcp-adapter` therefore needs a **config-file** mechanism (`passthru.configFiles`, or home-manager writing `~/.agents/mcp.json`), not `settings.json` merging. Phase 3 should add that; this plan ships the `settings` mechanism as specified, tested against a synthetic case, so the contract exists when a pin does use it.
-3. **§7's `autoMode` row has no phase.** §15's rollout order puts `pi-auto-mode` in phase 3 but §7 lists `autoMode` as a pi-nix option alongside `statusline` and `notifications`. Treated here as phase 3, since the option is meaningless without at least one of the two layers §9 describes.
-4. **§6 gives `agent-statusline.lib.statuslineOptions` without a system dimension; §15 and the phase-1 plan give `lib.${system}`.** This plan uses `lib.${system}`, matching the phase-1 plan's Task 7, which is the definition that will actually exist.
+1. **Assumption A4 is false for every package in the pin set, and its documented fallback is also insufficient.** §8 expected `bundled = true` — "fetchurl npm tarball, use `dist/` as-is" — to be the common case. No pin ships a self-contained `dist`. `@heyhuynhgiabuu/pi-pretty` comes closest and still `require`s `@shikijs/cli` and `@ff-labs/fff-node` out of `node_modules` at runtime. §8's fallback ("build that package with `buildNpmPackage` and an `npmDepsHash`") does not work either, because none of these packages publishes a lockfile. The mechanism that does work is a vendored lockfile plus a generated dependency set, which is why Task 4 has the shape it does. The `bundled` branch survives, but for `pi-cache-optimizer`, which has zero runtime dependencies, rather than for anything A4 predicted.
+2. **npm and Bun disagree about peer dependencies, and the disagreement is a correctness bug rather than a preference.** Under `npm ci --omit=peer`, `pi-background-tasks` installs cleanly without `typebox` and throws on first load; the same is true of `@narumitw/pi-goal`. Under `bun install` with no omission, both work but each drags in the whole `@earendil-works/pi-coding-agent` tree that pi already supplies. Neither default is right. `normalise-package-json.nix` hoists exactly the peers that are not pi's, which is the only rule that produces a correct and small tree. Any future pin that declares a plain peer it imports gets this for free; a pin that declares an *optional* peer it imports would not, and would need the rule widened.
+3. **`passthru.settings` will be empty for the entire initial pin set.** §8 calls it "load-bearing" and names `pi-mcp-adapter` needing the MCP server list as the motivating case. Verified: `pi-mcp-adapter` reads `~/.config/mcp/mcp.json` and `~/.agents/mcp.json`, not pi's `settings.json`; the `@juicesharp/*` packages read their own `rpiv-*` config; `pi-caffeinate`, `pi-pretty`, and `pi-cache-optimizer` write under `getAgentDir()`. §9's plan to fan `programs.agent-skills.mcpServers` into `pi-mcp-adapter` therefore needs a **config-file** mechanism (`passthru.configFiles`, or home-manager writing `~/.agents/mcp.json`), not `settings.json` merging. Phase 3 should add that; this plan ships the `settings` mechanism as specified and tested against a synthetic case, so the contract exists when a pin does use it.
+4. **§7's `autoMode` row has no phase.** §15's rollout order puts `pi-auto-mode` in phase 3 but §7 lists `autoMode` as a pi-nix option alongside `statusline` and `notifications`. Treated here as phase 3, since the option is meaningless without at least one of the two layers §9 describes.
+5. **§6 gives `agent-statusline.lib.statuslineOptions` without a system dimension; §15 and the phase-1 plan give `lib.${system}`.** This plan uses `lib.${system}`, matching the phase-1 plan's Task 7, which is the definition that will actually exist.
+6. **`@narumitw/pi-caffeinate` needs a jail permission nobody has written down yet.** It talks to `org.freedesktop.ScreenSaver` over the session bus, and prefers spawning `systemd-inhibit` on Linux. Neither is reachable under upstream's default `jail.permissions`. Design §9 already records the same shape of problem for `pi-notify`; the pin-set section above records this one so phase 3 fixes both at once.
+
+**What I would reconsider before phase 3.** `@narumitw/pi-btw` and `@narumitw/pi-caffeinate` each pull ~137 dependency tarballs and 11-14 MB of `node_modules` through `@narumitw/pi-tui-kit`, which exists to render TUI widgets pi already renders. `pi-caffeinate` in particular buys sleep inhibition that `systemd-inhibit` provides directly and that is inert inside the jail without new permissions. Neither is wrong, and both are pinned as the design says; if the closure size or the jail work turns out to cost more than the feature, `pi-caffeinate` is the first pin to drop.

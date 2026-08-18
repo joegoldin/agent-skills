@@ -36,7 +36,7 @@ Status values: `todo` · `wip` · `done` · `blocked` · `dropped`
 | 4 | agent-skills pi target | agent-skills | 9 | todo |
 | 5 | system prompt layers | agent-skills | 8 | wip |
 | 6 | dotfiles wiring | dotfiles | 7 | todo |
-| 7 | inter-instance messaging | pi-nix | 11 | todo (plan in revision) |
+| 7 | inter-instance messaging | pi-nix, dotfiles | 11 | todo |
 | 8 | pi-voice over audiomemo | audiomemo, pi-nix | TBD | todo (planning) |
 
 ## Phase 1: agent-statusline — DONE
@@ -73,13 +73,24 @@ spacers; nothing ticks, so the spinner and clocks freeze.
 
 | Task | What | Status |
 | --- | --- | --- |
-| 1-5 | Go: spans, widget conversion, activity snapshot, `--emit json` | wip |
+| 1 | Go: `render.Span` + intent table, ANSI as one encoding | done (d329430) |
+| 2 | Go: eleven text widgets render spans | done (66ed8f9) |
+| 3 | Go: bar + threshold widgets render spans | done (ff460a6) |
+| 4 | Go: structured activity snapshot | done (305102d) |
+| 5 | Go: `--emit json` | done (9dfa6db) |
 | 6 | TS: migrate to `bun test` | todo |
 | 7-9 | TS: component, theme tokens, tick + teardown | todo |
 | 10 | Integration test that catches the sanitize bug | todo |
 | 11 | Nix packaging via bun2nix | todo |
 
-Hard gate: the three Claude golden files stay byte-identical.
+Hard gate: the three Claude golden files stay byte-identical. **Held through
+task 5**: `git diff --stat internal/e2e/testdata/` empty, and the sha256 of
+`idle/full/narrow.golden` unchanged across the one `-update` run (which was
+filtered to `TestGolden/pi-full.json` and created exactly one new file).
+
+The Go side is done. `--emit json` ships the wire format tasks 7-9 consume;
+`--emit ansi` remains the default and is byte-identical to no flag at all in
+both modes.
 
 ## Phase 2: pi-nix fork — TODO
 
@@ -138,17 +149,32 @@ Plan: `2026-08-18-system-prompt-layers.md` (8 tasks, 58 steps). Owner: delegated
 
 | Task | What | Status |
 | --- | --- | --- |
-| 1 | `lib/prompt.nix` layer composition | wip |
-| 2 | `lib/prompt-lint.nix` inventory lint | todo |
-| 3 | `core/` fragments | todo |
-| 4 | `shared/` fragments | todo |
-| 5 | `pi/` fragment, lint as build gate | todo |
-| 6 | Verify Antigravity rules path | todo |
+| 1 | `lib/prompt.nix` layer composition | **done** (7a776b3) |
+| 2 | `lib/prompt-lint.nix` inventory lint | **done** (3962e0e) |
+| 3 | `core/` fragments | **done** (2f732eb, 78 lines) |
+| 4 | `shared/` fragments | **done** (635d2a6, 84 lines) |
+| 5 | `pi/` fragment, lint as build gate | wip (fragment 36fcc62; gate pending) |
+| 6 | Verify Antigravity rules path | **done** (no diff; see F21) |
 | 7 | codex-nix `agentsMd` → `types.lines` | **done** (060e548, pushed) |
-| 8 | Four-arm fan-out, module eval test | todo |
+| 8 | Four-arm fan-out, module eval test | wip |
 
 The lint is the load-bearing deliverable: fragments state policy, never
 inventory. It must be seen to fail on a deliberate violation.
+
+**The lint has been watched failing.** Appending `You are Claude; use the Read
+tool and start with brainstorming.` to `prompt/shared/00-tone.md` returns all
+three hits and nothing else:
+
+    [ { rule = "skill-name"; term = "brainstorming"; }
+      { rule = "tool-phrase"; term = "Read tool"; }
+      { rule = "identity";    term = "claude"; } ]
+
+Skill names come from `discoverSkills ./skills` ∪ `discoverPlugins ./plugins`,
+so adding a skill widens the ban the same day. The `nix flake check` gate is
+proven separately once task 5's `checks.prompt-inventory` lands.
+
+All `flake.nix` and `modules/agent-skills.nix` edits are held back to a single
+commit at the end of task 8, to keep the conflict window with phase 4 short.
 
 ## Phase 6: dotfiles wiring — TODO
 
@@ -167,15 +193,39 @@ Last phase; depends on 2, 3, 5.
 
 ## Phase 7: inter-instance messaging — TODO
 
-Plans: `2026-08-18-pi-messaging-addendum.md`, `2026-08-18-pi-messaging.md`
-(11 tasks). Being revised from `pi-intercom` to `remote-pi`. Owner: unassigned.
+Plans: `2026-08-18-pi-messaging-addendum.md` (§17, decision + security),
+`2026-08-18-pi-messaging.md` (11 tasks, 67 steps). Owner: unassigned.
 
-Decision: `remote-pi` in local mode. Relay on erdtree deferred to Tier 2 for
-phone control and cross-machine.
+Decision: `remote-pi` 0.7.0 in local mode, `auto_start_relay: false`. The relay
+on erdtree is deferred to Tier 2 (tasks 10-11) for phone control and
+cross-machine peers. `pi-intercom` rejected; `pi-agents-talk-to-each-other`
+retained only as a documented fallback blueprint (addendum §17.13).
 
-Hardening that is not optional: `inboundTrigger` defaults to `"replies"`. With
-`"always"`, any same-uid process can start a turn in any session, with text
-arriving as a user message.
+Hardening that is not optional, all three measured against the shipped broker
+(F23-F25): inbound peer messages do not start a model turn by default,
+`takeover` is refused unconditionally, and the launcher runs at `umask 0077`.
+Task 3 owns the first two and Task 6 the third; Task 5 asserts all three at
+runtime and fails against the unpatched tarball.
+
+| Task | What | Status |
+| --- | --- | --- |
+| 1 | `mkPiExtension`: bun2nix branch, `keepDependencies`, contract test | todo |
+| 2 | Pin `remote-pi` 0.7.0, generate `bun.lock`/`bun.nix`, build `ext-remote-pi` | todo |
+| 3 | Harden the broker: refuse `takeover`, gate the turn trigger, two tests | todo |
+| 4 | Patch the `session_start` gate so local-only sessions join (A11) | todo |
+| 5 | End-to-end smoke test over the real wire protocol, under bun | todo |
+| 6 | `messaging` option, env-driven, `umask 0077` + `0700` repair | todo |
+| 7 | Prove the socket crosses two jails (A8); nothing added to the jail | todo |
+| 8 | Untrusted-peer-input prompt fragment + §12 inventory lint | todo |
+| 9 | dotfiles `modules/ai/pi.nix`, two-terminal acceptance run (tests A7) | todo |
+| 10 | *(Tier 2, deferred)* relay as a NixOS module on erdtree, tailnet-only | todo |
+| 11 | *(Tier 2, deferred)* turn the relay arm on, pair a phone | todo |
+
+The passthru contract is consumed, not widened: `remote-pi` uses `piEntrypoint`
+(the package root, so pi reads its own `pi` manifest) and `promptFragment`, and
+needs neither `configFiles` nor `runtimeInputs`. What it lost against
+`pi-intercom` is written up in addendum §17.6.3; the item that will be felt is
+blocking ask/answer as a single tool result.
 
 ## Phase 8: pi-voice over audiomemo — TODO
 
@@ -211,6 +261,16 @@ them; this table is why the plans are trustworthy.
 | F17 | dotfiles has no `homeConfigurations`; agent repos arrive through `agent-skills`. | Build target is the nixosConfiguration activation package; no new inputs needed. |
 | F18 | pi's `--mode` flag is taken (`text|json|rpc`). | No pi extension may register one. |
 | F19 | `/tmp/.git` exists on this machine. | `TestQueryNotARepoReturnsNil` states its precondition and skips. |
+| F20 | `git.go`'s worktree glyph comment says `nf-fa-tree (U+F1BB)`; the literal in the string is U+E5FB. | Under a byte-identical gate, glyph literals must be copied from source, never retyped from the comment that names them. The plan said so; this is the case that proves it. |
+| F21 | `antigravity-cli-nix` exposes no instruction-file option and does not package the CLI at all, so the plan's `nix build …#default` step cannot run. The path had to come from the installed `agy` 1.1.11 binary's embedded docs: `~/.gemini/config/` is the global customization root and rules are markdown files under `rules/` beneath it. | `home.file.".gemini/config/rules/agent-skills-shared.md"` is the route, written directly rather than through any module option. Corroborated by `mcpConfigPaths`, which already defaults to `.gemini/config/mcp_config.json`. |
+| F22 | The same binary documents progressive disclosure for rules: "Only `always_on` rules are loaded unconditionally." Its own rule template is `---` / `trigger: always_on` / `glob:` / `description:`. | A plain-markdown rule, which is what the plan and `agyLib.mkRule` both emit, is not guaranteed to load. The Antigravity arm prepends `trigger: always_on` frontmatter, so its file is the shared text plus a header rather than byte-identical to `packages.prompt-shared`. The fan-out test asserts suffix plus frontmatter instead of equality. |
+| F23 | `remote-pi`'s local broker authenticates nobody, and it is worse than `pi-intercom` on two counts rather than equal. `_handleRegister` does no `SO_PEERCRED`, no uid check, nothing; the `cwd` a client declares is never verified yet is half the routing address (`<cwd>@<name>`); and a client-set `takeover: true` destroys the incumbent peer's socket and hands the caller its exact address. Since the broker then forces `env.from` to the registered address, the anti-spoofing measure becomes the impersonation guarantee. Reproduced against the shipped `dist/session/broker.js`: the attacker got `/home/joe/secret-repo@planner` and the victim was dropped. | Not a reason `remote-pi` beat intercom. It is the risk the hardening task exists to contain. Phase 7 task 3 patches `takeover` to `false` unconditionally; after the patch the attacker is demoted to `…@planner#2` and the victim stays connected. The unverified `cwd` survives hardening and is unfixable without `SO_PEERCRED`, so the task-8 prompt fragment tells the model the sender name is a claim, not a fact. |
+| F24 | An inbound peer message calls `sendMessage(..., {triggerTurn: true})` with a `customType` that pi's `convertToLlm` maps to a **user-role** LLM message. `grep -rn triggerTurn` over the whole `dist/` returns two lines and one comment: unlike `pi-intercom`'s `inboundTrigger`, there is no configuration option to disable it. | Any process that can open the socket could start a turn in any session with text the model reads as the operator's, routing around design §9 entirely. Phase 7 task 3 patches it to an env gate defaulting to off, using upstream's own `triggerTurn: false` batching path so the message is still delivered and rendered. |
+| F25 | `ensureGlobalDirs()` calls `mkdirSync` with no `mode`, and the socket's permissions come from the umask at `bind()` time. Measured: `0755` on the whole tree under `umask 022`, `0775` under `umask 002`. `broker.js:502` also appends every routed envelope, bodies included, to `audit.jsonl` with no mode. `pi-intercom` sets `0700`/`0600` explicitly. | No patch target exists, so the fix is `umask 0077` in the launcher plus a `chmod 0700` repair for trees left behind by a pre-Nix run. Measured to give `0700` on every directory and on the socket. |
+| F26 | `remote-pi`'s local broker is **not** a spawned process. `leader_election.js` races `connect()` against `bind()`; the winner constructs `new Broker(...)` inside its own pi process and a follower re-elects when it exits. | The strongest packaging reason it beat `pi-intercom`, whose broker launches via `npx --no-install tsx`. Nothing to spawn means no `brokerCommand` to rewrite, no `passthru.runtimeInputs`, and no Node+tsx interpreter to fold into the jail, which is also why the bun switch costs phase 7 nothing. |
+| F27 | `REMOTE_PI_DIRECT_CONFIG` carries the entire per-directory config as inline JSON and takes precedence over `<cwd>/.pi/remote-pi/config.json`, making `localConfigExists()` true everywhere. `saveLocalConfig` is reachable only from the wizard, `/remote-pi rename`, `/remote-pi setup`, and `remote-pi create`. | The setup wizard never fires and nothing is written into any repository working tree, so the phase-2 passthru contract needs no `configFiles` field. Retires the old assumption A11 about needing to run the wizard once per host. `saveLocalConfig`'s own comment names "NixOS/Home Manager symlink into the immutable Nix store" as a supported case. |
+| F28 | `_cmdRootInner` treats `auto_start_relay` as relay-only and says so in its own comment, but the `session_start` auto-init gates the whole lifecycle on it. | With the relay off, which is the configuration phase 7 ships, nothing auto-joins and the user must type `/remote-pi` once per session. Task 4 drops the relay term from that one gate; the `isPrintMode` and `localConfigExists` guards stay. |
+| F29 | `remote-pi` declares ten runtime dependencies; a static import-graph walk of `dist/index.js` reaches 42 files and four of them. `@napi-rs/keyring` is a dynamic import that upstream made lazy because it "resolves under Node and not under Bun" (issue #113); `@modelcontextprotocol/sdk` and `zod` belong to the `remote-pi claude` path; `noise-protocol` is imported but **not declared at all**. | `bun install` on the declared set costs 216 packages including `@aws-sdk` and `@anthropic-ai`; the reachable set is 4 packages and 708 KB. `mkPiExtension` gains a `keepDependencies` allowlist. On a Bun-built pi, Tier 2 pairing falls back to a plaintext `0600` `~/.pi/remote/identity.json` rather than the OS keyring. |
 
 ## Decisions
 

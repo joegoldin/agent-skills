@@ -1,7 +1,7 @@
 # Design addendum: inter-instance messaging for pi
 
 Date: 2026-08-18
-Status: **decided** — `remote-pi`, local mode. Revised 2026-08-18 after triage.
+Status: **decided**. `remote-pi`, local mode. Revised 2026-08-18 after triage.
 Extends: `docs/plans/2026-08-18-pi-nix-agent-stack-design.md` as **§17**, a
 seventh subsystem alongside `agent-statusline`, `pi-nix`, permissions/sandbox,
 `pi-notify`, the `agent-skills` pi target, and the prompt fragments.
@@ -10,8 +10,8 @@ seventh subsystem alongside `agent-statusline`, `pi-nix`, permissions/sandbox,
 > `pi-intercom`. That recommendation was **overruled**: the user chose
 > **`remote-pi` in its local mode** and explicitly rejected `pi-intercom`.
 > The comparison, the measurements, and the reasoning that produced the
-> original recommendation are all retained below — deleting them would hide
-> the trade — but §17.6 now records the decision that was actually taken,
+> original recommendation are all retained below, because deleting them would
+> hide the trade. But §17.6 now records the decision that was actually taken,
 > §17.6.3 states plainly what `pi-intercom` was better at, and §17.9 is
 > rewritten around `remote-pi`'s **own** authentication model, read out of its
 > shipped source rather than assumed from intercom's.
@@ -22,7 +22,7 @@ seventh subsystem alongside `agent-statusline`, `pi-nix`, permissions/sandbox,
 
 The main spec catalogues six things pi omits and assigns each an ecosystem
 answer (§1, §8). It misses a seventh, because the gap is not one of pi's
-documented omissions — it is a capability Claude Code has that no one thinks to
+documented omissions. It is a capability Claude Code has that no one thinks to
 enumerate: **separately launched agent processes can address each other by
 name.**
 
@@ -48,7 +48,7 @@ pi has none of the three natively. §8 covers the first with `pi-subagents`. The
 second and third have no assignment at all.
 
 **A correction to the brief, stated plainly.** `dispatching-parallel-agents` and
-`subagent-driven-development` do **not** name `SendMessage` or `ListAgents` —
+`subagent-driven-development` do **not** name `SendMessage` or `ListAgents`.
 `grep -rn "SendMessage\|ListAgents" --include='*.md'` over `agent-skills`
 returns zero hits. Their hard dependency is fan-out dispatch, which §11 already
 assigns to `pi-subagents`. So the skills do not break without messaging.
@@ -57,7 +57,7 @@ What they lose is the mid-flight half, and it is not small:
 
 - `subagent-driven-development` runs implementer → reviewer → fix subagent in a
   loop and tells the coordinator not to pause between tasks. Without a peer
-  channel, an implementer that hits genuine ambiguity has exactly one move:
+  channel, an implementer that hits real ambiguity has exactly one move:
   fail the task and report BLOCKED. It cannot ask.
 - `dispatching-parallel-agents` dispatches N agents concurrently and reviews
   them only on return. Without a peer channel, an agent visibly heading the
@@ -76,7 +76,7 @@ Everything below was measured on **2026-08-18**. npm figures are the week
 2026-08-09 → 2026-08-15 from `api.npmjs.org/downloads/point/last-week`;
 repository figures from `gh repo view` and the `Link: … rel="last"` header on
 `/commits?per_page=1`. `pi-subagents` (56,532 dl/wk) is included only as a
-scale reference — it is the phase-3 pin, not a messaging candidate.
+scale reference; it is the phase-3 pin, not a messaging candidate.
 
 | Package | Transport | External infra | dl/wk | ★ | Last publish | Ver. | Commits | License | Outcome |
 | --- | --- | --- | ---: | ---: | --- | ---: | ---: | --- | --- |
@@ -97,7 +97,7 @@ scale reference — it is the phase-3 pin, not a messaging candidate.
 
 ### 17.4 The flagged candidates, individually
 
-#### 17.4.1 `remote-pi` — chosen. What it actually is, read from its source.
+#### 17.4.1 `remote-pi`: chosen. What it actually is, read from its source.
 
 Registry facts, `curl -s https://registry.npmjs.org/remote-pi`, 2026-08-18:
 
@@ -115,7 +115,7 @@ Registry facts, `curl -s https://registry.npmjs.org/remote-pi`, 2026-08-18:
 | repo | 261★, 71 forks, 822 commits, created 2026-05-22, last push `2026-08-18T21:14:43Z`, primary language **Dart** (the mobile app dominates the line count; the extension is the `pi-extension/` subdirectory) |
 
 **The local transport is an in-process Unix-domain-socket broker with leader
-election — there is no broker process.** This is the single most important
+election. There is no broker process.** This is the single most important
 structural fact and it is not what the first draft of this addendum assumed.
 `session/leader_election.js` `joinOrLead(sockPath)` first tries to *connect* to
 `~/.pi/remote/sessions/local/broker.sock`; on failure it tries to *bind* it,
@@ -124,21 +124,20 @@ race. Whoever wins the bind becomes the **leader** and constructs
 `new Broker({ server, auditPath })` *inside its own pi process*; everyone else
 is a **follower** holding a client socket. When the leader exits, a follower
 re-runs the election and takes over. `session/global_config.js` fixes the
-session name at `LOCAL_SESSION_NAME = "local"` — one broker per machine, no
+session name at `LOCAL_SESSION_NAME = "local"`: one broker per machine, no
 named rooms, no multi-session UX.
 
 Consequences, all of which matter under Nix:
 
 - **Nothing is spawned.** No `npx`, no `tsx`, no `brokerCommand`, no daemon,
   no interpreter to inject into the sandbox. `pi-intercom`'s packaging problem
-  — replacing `npx --no-install tsx` with a store path — simply does not exist
+  (replacing `npx --no-install tsx` with a store path) simply does not exist
   here. This is also why the bun switch is cheap: there is no second runtime.
 - **The broker's lifetime is a pi session's lifetime.** No 5s linger, no
   orphaned process, no PID file.
 - **`passthru.runtimeInputs` is unnecessary.** §17.8.
 
-**Local mode genuinely needs no relay — verified in code, not quoted from the
-README.** `_cmdRootInner` in `dist/index.js` reads, verbatim:
+**Local mode needs no relay. Verified in code, not quoted from the README.** `_cmdRootInner` in `dist/index.js` reads, verbatim:
 
 ```js
 // Returning user with config: ALWAYS join the local UDS mesh on connect; the
@@ -168,8 +167,8 @@ package needs **no `passthru.configFiles` and no file written into any repo**.
 
 **What it writes to disk, exhaustively.** With `REMOTE_PI_DIRECT_CONFIG` set,
 `saveLocalConfig` is reachable only from `/remote-pi rename`, `/remote-pi
-setup`, the first-run wizard, and `remote-pi create` — none of which run
-automatically — so **nothing is written into any repository working tree**.
+setup`, the first-run wizard, and `remote-pi create`. None of those run
+automatically, so **nothing is written into any repository working tree**.
 Under `$REMOTE_PI_HOME` (default `$HOME`) it writes:
 
 | Path | What | Written by |
@@ -182,11 +181,11 @@ Under `$REMOTE_PI_HOME` (default `$HOME`) it writes:
 | `.pi/remote/identity.json` *(relay only, 0600)* | Ed25519 identity fallback | `pairing/storage.js` |
 
 Note `.pi/remote/identity.json` resolves through `homedir()`, **not**
-`REMOTE_PI_HOME` — an inconsistency that only matters in Tier 2.
+`REMOTE_PI_HOME`. That inconsistency only matters in Tier 2.
 
 **pi APIs and events it hooks.** Three tools via `pi.registerTool` in
-`session/tools.js` — `agent_send`, `list_peers`, and the deprecated
-`agent_request`; ~30 slash commands via `pi.registerCommand`; and these
+`session/tools.js`: `agent_send`, `list_peers`, and the deprecated
+`agent_request`. Around 30 slash commands via `pi.registerCommand`. And these
 lifecycle events in `index.js`: `resources_discover`, `context`, `input`,
 `model_select`, `thinking_level_select`, `agent_start`, `message_start`,
 `message_update`, `tool_execution_start`, `tool_execution_end`, `message_end`,
@@ -203,7 +202,7 @@ layer.** `session/tool_gate.js` does hard-code `Read`/`Glob`/`Grep` as
 auto-approved and everything else as `ask`, but it is consumed only by
 `session/agent_bridge.js`, and a static import-graph walk from `dist/index.js`
 (42 files reached) shows **neither `agent_bridge` nor `tool_gate` is
-reachable from the extension entrypoint** — `index.js`'s own header comment
+reachable from the extension entrypoint**. `index.js`'s own header comment
 says so: "why we don't use AgentBridge directly here". The gate belongs to the
 mobile-app bridge, which Tier 1 never constructs. The earlier claim that it
 "lands a fourth uncoordinated permission layer underneath §9's three" was
@@ -223,7 +222,7 @@ the extension's static import graph from `dist/index.js` needs only:
 Installing the declared set with `bun install --production` pulls **216
 packages** (the `@earendil-works` and MCP trees drag in `@aws-sdk`,
 `@anthropic-ai`, `@google/genai`). Pruning `dependencies` to the four gives
-**4 packages, 708 KB, zero transitive deps** — measured. §17.8.
+**4 packages, 708 KB, zero transitive deps**, measured. §17.8.
 
 **It is already Bun-aware, and says so.** `pairing/storage.js` carries a long
 comment on issue #113 explaining that a *static* `import { AsyncEntry } from
@@ -241,7 +240,7 @@ guards both `mkdirSync` and `writeFileSync` so it warns instead of taking pi
 down. Upstream has thought about us.
 
 **What is weak, stated up front.** Its authentication model is *worse* than
-`pi-intercom`'s — unauthenticated registration with a **client-supplied `cwd`
+`pi-intercom`'s. Unauthenticated registration with a **client-supplied `cwd`
 that becomes half the routing address**, an unauthenticated `takeover` flag
 that evicts a live peer, a hardcoded `triggerTurn: true` with **no
 configuration knob**, and `0755` on the whole socket tree because no `mode` is
@@ -249,7 +248,7 @@ ever passed to `mkdirSync`. All four are demonstrated with running code in
 §17.9, and all four are fixed by an explicit, tested hardening task in the
 implementation plan. That plan does not ship this package unhardened.
 
-#### 17.4.2 `pi-intercom` — the overruled recommendation, kept on the record.
+#### 17.4.2 `pi-intercom`: the overruled recommendation, kept on the record.
 
 The measurements that produced the original recommendation stand and are worth
 keeping, because they are the price of the decision:
@@ -260,7 +259,7 @@ keeping, because they are the price of the decision:
 - **Same maintainer as `pi-mcp-adapter` and `pi-subagents`** (`nicobailon`),
   both already pinned by §8. Adopting it added no new author to the trust
   surface. Adopting `remote-pi` does add one.
-- **Zero runtime dependencies on the broker path** — its broker's transitive
+- **Zero runtime dependencies on the broker path.** Its broker's transitive
   import set is node builtins only.
 - **Explicit `0700` directory / `0600` runtime files** in `broker/paths.ts`.
 - **A configurable `inboundTrigger`** with a `"replies"` setting, which is
@@ -271,13 +270,13 @@ Its costs, equally on the record: it ships **raw TypeScript with no `dist/`**
 and **no `package-lock.json`**, and launches its broker as a **separate process
 via `npx --no-install tsx`**. Under the phase-2 decision to build
 `coding-agent-bun` and package extensions with **bun2nix**, both of those are
-now active liabilities rather than neutral facts — the packaging would have to
+now active liabilities rather than neutral facts: the packaging would have to
 supply a Node+tsx interpreter inside the jail purely to run a sidecar that
 `remote-pi` does not need at all.
 
 §17.6.3 states what was given up.
 
-#### 17.4.3 `pi-chat` — rejected, and preserved as the pin-by-verified-repo exemplar.
+#### 17.4.3 `pi-chat`: rejected, preserved as the pin-by-verified-repo exemplar.
 
 Keep this finding. It is the live example of §8's rule, and the rule is only as
 memorable as its counter-example.
@@ -290,8 +289,8 @@ unlicensed-by-Unlicense, **not published to npm**, and requires a server for
 the same-machine case a socket solves for free. Rejected on those grounds.
 
 **The npm package named `pi-chat` is a different project by a different
-author.** One version, published **2026-03-24 — three and a half months before
-the GitHub repo was created** — no `repository` field, no license, a README
+author.** One version, published **2026-03-24, three and a half months before
+the GitHub repo was created**. No `repository` field, no license, a README
 pointing at `/Users/vegard/dev/irc-clone`, **no `pi` key in `package.json`** (so
 it is not a pi package at all), and a client whose `DEFAULT_SERVER` is
 hardcoded to a stranger's Cloudflare Worker. Anyone who pinned "the pi-chat I
@@ -302,16 +301,16 @@ name. This is that rule with a name attached, and it is why the implementation
 plan's first pin step prints the registry's `repository` field and **stops** if
 it does not read `jacobaraujo7/remote_pi`.
 
-#### 17.4.4 `wowyuarm/pi-talk-to-sessions` — rejected, superseded.
+#### 17.4.4 `wowyuarm/pi-talk-to-sessions`: rejected, superseded.
 
 It does not do inter-instance messaging. It opens another session's `.jsonl`
 **read-only**, rebuilds that session's effective context in a throwaway
 in-memory sub-session with zero tools, asks it a question, and returns the
 answer. The target is a transcript on disk, not a running process; nothing is
 delivered to a live peer and a live peer cannot reply. 2 commits, not on npm.
-The idea — interrogating a dormant session's memory — is genuinely useful and
-orthogonal, but `remote-pi` supersedes the use case it was being considered
-for, and a retrieval feature over `.jsonl` files is not this capability.
+The idea (interrogating a dormant session's memory) is useful and orthogonal,
+but `remote-pi` supersedes the use case it was being considered for, and a
+retrieval feature over `.jsonl` files is not this capability.
 
 ### 17.5 Also-rans from the gallery and awesome-pi
 
@@ -320,38 +319,38 @@ awesome-pi's *Communication & Collaboration* section lists five entries:
 `pi-crew`, `pi-intercom`, `@cryptolibertus/pi-peer`, `@llblab/pi-telegram`, and
 `agent-comms`. The gallery's front page carries `pi-intercom` among 58 packages.
 
-- **`pi-mesh-extension` (6,447 dl/wk) — reject on unverifiable popularity.**
+- **`pi-mesh-extension` (6,447 dl/wk): reject on unverifiable popularity.**
   Downloads within 8% of `pi-intercom`, against **2 stars**, a repository
   created 2026-08-07, and 53 published versions in 11 days. Downloads with no
   corroborating signal are not evidence of use; that ratio is the shape of
   automated installs, not adoption. Revisit in a quarter.
-- **`pi-messenger` (684★) — reject on model and license.** A *shared broadcast
+- **`pi-messenger` (684★): reject on model and license.** A *shared broadcast
   room* with a file-based registry, for swarms working one task; we need
   targeted 1:1 addressing. It also has **no license field on npm and no license
   on the repository**, which is disqualifying for anything entering a Nix
   closure.
-- **`pi-crew` (1,708 dl/wk, 1,772 commits) — reject on scope.** Team/workflow
+- **`pi-crew` (1,708 dl/wk, 1,772 commits): reject on scope.** Team/workflow
   orchestration with worktrees and async task graphs, an 8.99 MB unpacked
   tarball, and 198 published versions. It subsumes plan mode, todos, and
-  subagents — colliding head-on with §8's `@plannotator/pi-extension`,
+  subagents, colliding head-on with §8's `@plannotator/pi-extension`,
   `@juicesharp/rpiv-todo`, and `pi-subagents`. Adopting it means re-deciding
   four pins at once.
-- **`agent-comms` (ExaDev) — reject, but flag it for later.** Cross-harness
+- **`agent-comms` (ExaDev): reject, but flag it for later.** Cross-harness
   rooms/DMs/presence over TCP for "Claude, Codex, Pi, Antigravity, and A2A
-  agents" — the only candidate that spans all four agents in this setup, which
-  is genuinely the right long-term shape. Today: 16★, 256 dl/wk, **no license
+  agents", the only candidate that spans all four agents in this setup, which
+  is the right long-term shape. Today: 16★, 256 dl/wk, **no license
   on npm or the repo**, and a TCP daemon where a socket suffices. Watch it.
-- **`@cryptolibertus/pi-peer` — reject on staleness and socket location.**
-  Last publish 2026-05-28, ~3 months stale, 9★. It does authenticate —
-  HMAC-SHA256 over a per-peer token — which is more than **either** finalist
+- **`@cryptolibertus/pi-peer`: reject on staleness and socket location.**
+  Last publish 2026-05-28, ~3 months stale, 9★. It does authenticate, with
+  HMAC-SHA256 over a per-peer token, which is more than **either** finalist
   does, and that is worth remembering when reading §17.9. But its discovery
   directory is `$TMPDIR/pi-peer-coms`, i.e. `/tmp`, which is world-traversable
   and shared with every other user and daemon on the machine. A 46-file
   `src/peers/` tree including `hive-supervisor`, `plan-adversary`, and
   `self-improve` is also far more surface than the capability needs.
-- **`pi-peer` (MinhDuyDEV) — reject.** Hard dependency on the HerdR workspace
+- **`pi-peer` (MinhDuyDEV): reject.** Hard dependency on the HerdR workspace
   mux (`herdr.ts` shells out to it for pane identity). 0★, 10 commits, 2 versions.
-- **`pi-agent-bus` — reject.** 25 dl/wk, last publish 2026-06-05, requires
+- **`pi-agent-bus`: reject.** 25 dl/wk, last publish 2026-06-05, requires
   `pi-link`.
 
 ### 17.6 Decision
@@ -365,88 +364,89 @@ new infrastructure of any kind in this phase.**
 1. **Nothing is spawned, which is the whole packaging problem gone.** The
    broker lives in the leader pi process (§17.4.1). There is no
    `brokerCommand`, no `npx`, no `tsx`, no sidecar interpreter to fold into
-   `jail.permissions`. Under the phase-2 move to `coding-agent-bun` that is
-   not a small convenience — it is the difference between packaging one
-   derivation and packaging a second runtime to serve it.
+   `jail.permissions`. Under the phase-2 move to `coding-agent-bun` that is the
+   difference between packaging one derivation and packaging a second runtime
+   to serve it.
 2. **It ships a real prebuilt `dist/` and a clean bun2nix path.** Pruned to
    the four reachable dependencies, `bun install` produces a 1,072-byte
-   `bun.lock` and `bun2nix -o bun.nix` produces four `fetchurl` entries —
-   both reproduced verbatim in the implementation plan. No `.ts` execution, no
+   `bun.lock` and `bun2nix -o bun.nix` produces four `fetchurl` entries, both
+   reproduced verbatim in the implementation plan. No `.ts` execution, no
    jiti reliance, no `buildNpmPackage` lockfile vendoring.
 3. **It is configurable entirely by environment.** `REMOTE_PI_DIRECT_CONFIG`
    (whole local config as inline JSON), `REMOTE_PI_RELAY` (relay URL),
    `REMOTE_PI_HOME` (state root). Nothing is written into a repository, and
-   the `passthru` contract needs **no `configFiles` field** — the plan consumes
+   the `passthru` contract needs **no `configFiles` field**, so the plan consumes
    phase 2's contract as it stands instead of widening it.
 4. **It is already Bun-aware and already Nix-aware**, in its own source
    comments, for the exact two reasons that would have bitten us (§17.4.1).
-5. **Real engineering, actively maintained.** 822 commits, last push the day
-   of this decision, 71 forks, MIT, `Cargo.lock` and `bun.lock` committed
-   upstream, a Flutter client and a Rust relay alongside the extension.
+5. **Actively maintained.** 822 commits, last push the day of this decision,
+   71 forks, MIT, `Cargo.lock` and `bun.lock` committed upstream, a Flutter
+   client and a Rust relay alongside the extension.
 6. **One package covers the growth path.** Standing up the relay later (§17.7)
    turns on phone control and cross-machine routing with **no second pin and
-   no second protocol** — Tier 2 is a configuration change, not an adoption
+   no second protocol**. Tier 2 is a configuration change, not an adoption
    decision. With `pi-intercom` it would have been a second package speaking a
    second wire format.
 7. **Sender attribution is in-band and honest.** A delivered message reaches
    the model as `[agent-network] message from "<address>" (id=…):` with a
    footer telling it how to reply, rendered in the *tool* timeline rather than
-   as the user's own message — `index.js` calls that last point out as a fixed
+   as the user's own message; `index.js` calls that last point out as a fixed
    bug. And `broker.js` forces `env.from = conn.address` on every routed
    envelope, so a registered peer cannot spoof another peer's address on a
    message it sends.
 
 #### 17.6.2 Why it is not chosen on popularity
 
-`remote-pi` has 837 dl/wk against `pi-intercom`'s 6,965 — an 8.3× gap — and
-261★ against 440★. On the corroboration test the first draft applied,
+`remote-pi` has 837 dl/wk against `pi-intercom`'s 6,965, an 8.3× gap, and 261★
+against 440★. On the corroboration test the first draft applied,
 `pi-intercom` wins and `remote-pi` places second. `remote-pi` clears the bar
 (261★ + 822 commits + 71 forks is corroborated adoption, unlike
 `pi-mesh-extension`'s 6,447 dl/wk against 2★) but it does not win on it. The
 decision rests on §17.6.1, not on the numbers, and pretending otherwise would
 be dishonest.
 
-#### 17.6.3 What was given up. `pi-intercom` was better at these five things.
+#### 17.6.3 What was given up: five things `pi-intercom` was better at
 
 The user is entitled to know the cost. Ranked by how much it will actually be
 felt:
 
-1. **Blocking ask/answer as a tool result — lost, and this is the real one.**
+1. **Blocking ask/answer as a tool result. Lost, and this is the one that will
+   hurt.**
    `intercom({action:"ask"})` blocks the caller's turn until the peer replies
    and returns the reply *as the tool result*. That is exactly the shape
-   `subagent-driven-development`'s implementer needs when it hits genuine
+   `subagent-driven-development`'s implementer needs when it hits real
    ambiguity mid-task: ask, get an answer, continue the same turn. `remote-pi`
-   has the shape — `agent_request` — but ships it **deprecated in its own
-   source**: "DEPRECATED — prefer `agent_send` + observing your inbox".
+   has the shape (`agent_request`) but ships it **deprecated in its own
+   source**: "DEPRECATED, prefer `agent_send` + observing your inbox".
    `agent_send` waits only for a 5s broker delivery ACK; the peer's actual
    answer arrives later as a separate inbound message correlated by `re`. So
    the ask/answer pattern becomes two turns and a correlation id instead of one
    tool call. It still works. It is worse, and it is the shape upstream is
    moving away from, so it will not improve.
-2. **A safe inbound default that upstream supports — lost, and we must build
-   it.** `pi-intercom` has an `inboundTrigger` config with `always` / `replies`
+2. **A safe inbound default that upstream supports. Lost; we build it
+   ourselves.** `pi-intercom` has an `inboundTrigger` config with `always` / `replies`
    / `never`, so the safe posture was a one-line config choice supported by the
    maintainer. `remote-pi` hardcodes `triggerTurn: true` with **no knob**
    (§17.9 Risk 1). We now have to carry a `substituteInPlace` patch, and that
    patch is a maintenance cost at every pin bump.
-3. **`pi-subagents` integration — lost entirely.** `pi-intercom` ships
+3. **`pi-subagents` integration. Lost entirely.** `pi-intercom` ships
    `contact_supervisor`, gated on `PI_SUBAGENT_*` env vars, so the phase-3
    child axis and this peer axis interlock. `grep -rni "subagent"` over
    `remote-pi`'s entire `dist/` returns **zero hits**. A `pi-subagents` worker
    cannot reach its spawning session through `remote-pi` unless that spawning
-   session happens to be a registered mesh peer in the same cwd — which,
-   because `remote-pi` keys identity on `(cwd, name)` and a subagent inherits
-   its parent's cwd, is actually *plausible* but is nowhere designed, tested,
-   or documented. Treat it as unavailable until measured. **This is a real
-   loss and phase 3 should re-open it**: if the subagent↔supervisor channel
+   session happens to be a registered mesh peer in the same cwd. Because
+   `remote-pi` keys identity on `(cwd, name)` and a subagent inherits its
+   parent's cwd, that is *plausible*, but it is nowhere designed, tested, or
+   documented. Treat it as unavailable until measured. **Phase 3 should re-open
+   this**: if the subagent↔supervisor channel
    turns out to matter more than the peer channel, adding `pi-intercom`
    *alongside* `remote-pi` purely for `contact_supervisor` is a legitimate
    later move, and the `messaging.package` option keeps it a one-line change.
-4. **Trust-surface consolidation — lost.** `nicobailon` already carries
+4. **Trust-surface consolidation. Lost.** `nicobailon` already carries
    `pi-mcp-adapter` (1,265★) and `pi-subagents` in this closure.
    `jacobaraujo7` is a new author on the trust surface, and `remote-pi`
    materialises four npm dependencies where `pi-intercom`'s broker needed none.
-5. **Corroborated popularity — lost.** §17.6.2.
+5. **Corroborated popularity. Lost.** §17.6.2.
 
 Two things people might expect to be on this list and are not: `pi-intercom`
 is **not** better on packaging purity (it ships no `dist/` and no lockfile, so
@@ -463,8 +463,8 @@ a research project. The user runs eleven Nix hosts and a phone; the want is
 plausible, not hypothetical.
 
 **A relay is required only for (a) phone control and (b) messaging between pi
-instances on different machines.** For the same-machine case — which is what
-`subagent-driven-development` and `dispatching-parallel-agents` actually need —
+instances on different machines.** For the same-machine case, which is what
+`subagent-driven-development` and `dispatching-parallel-agents` actually need,
 `remote-pi` operates over the local socket with no server (§17.4.1, verified in
 `_cmdRootInner`).
 
@@ -479,7 +479,7 @@ Hosting on `erdtree` entails:
 | State | SQLite at `REMOTEPI_MESH_DB_PATH`. Owner-signed membership metadata only, never message traffic. Rollback-journal mode, so `mesh.db` is the whole backup |
 | Client config | `REMOTE_PI_RELAY` env var (**not** `REMOTE_PI_RELAY_URL` — corrected), or `~/.pi/remote/config.json`, or the built-in default. Precedence in that order, `config.js:36-51`. The URL **must** be `http://` or `https://`; `ws://`/`wss://` are rejected at validation and converted internally |
 | CI | garnix already builds `erdtree`; a Rust derivation is one more `nix build` target |
-| Effort | Genuinely trivial — one systemd unit and one `StateDirectory`, comparable to `attic-cache.nix`, an order of magnitude below `garnix.nix` |
+| Effort | One systemd unit and one `StateDirectory`. Comparable to `attic-cache.nix`, an order of magnitude below `garnix.nix` |
 
 **The part that is not trivial, and must not be glossed:**
 
@@ -491,33 +491,33 @@ Hosting on `erdtree` entails:
 - **Therefore the network *is* the boundary.** The honest deployment is
   tailnet-only: bind to `erdtree`'s `tailscale0` address, no Caddy vhost, no
   public DNS record, and the existing `trustedInterfaces = [ "tailscale0" ]`
-  does the gating. Upstream agrees — its own README recommends putting the
+  does the gating. Upstream agrees: its own README recommends putting the
   self-hosted relay behind Tailscale/WireGuard "so **only your devices** can
   even reach the WebSocket port". Publishing it on `*.turnin.quest` behind
-  Caddy — the reflex for every other service on that host — would expose an
+  Caddy, the reflex for every other service on that host, would expose an
   unauthenticated routing service to the internet.
 - **agenix's real job here is the URL, not a credential.** House convention
   keeps hostnames in `dotfiles-secrets/domains.nix`; the client reads it into
-  `REMOTE_PI_RELAY`. The genuine key material — each host's Ed25519 pairing
+  `REMOTE_PI_RELAY`. The key material that matters, each host's Ed25519 pairing
   keypair, in the platform keyring or falling back to `~/.pi/remote/identity.json`
-  at `0600` — is generated on the client and must never enter the store or
+  at `0600`, is generated on the client and must never enter the store or
   agenix.
 - **Route eligibility is not proof of control.** The README, verbatim: a Pi↔Pi
   route is permitted when "any correctly signed Owner blob lists both canonical
   Pi keys", and "that does not prove the Owner paired with or controls either
-  Pi". Payloads are **not** end-to-end encrypted — "Fields such as `ct` are
+  Pi". Payloads are **not** end-to-end encrypted: "Fields such as `ct` are
   wire containers, not a systemwide end-to-end confidentiality guarantee… A
   relay operator can see routed plaintext protocol content and metadata".
   Self-hosting collapses "the operator" onto the user, which is the only reason
-  this is acceptable — and is precisely why the public
+  this is acceptable, and is why the public
   `relay-rp1.jacobmoura.work` must never be the default.
 - **On a Bun-built pi, pairing falls back to the file identity.** The platform
   keyring binding does not resolve under Bun (upstream issue #113, §17.4.1), so
   Tier 2 on `coding-agent-bun` will use `~/.pi/remote/identity.json` at `0600`
-  rather than the OS keyring. That is a documented, supported path — but it is
-  a plaintext key on disk, and it must be stated before anyone pairs a phone.
+  rather than the OS keyring. That path is documented and supported, but it is
+  a plaintext key on disk, and it must be said before anyone pairs a phone.
 
-### 17.8 Consequences for `mkPiExtension` (§8) — much smaller than first thought
+### 17.8 Consequences for `mkPiExtension` (§8): much smaller than first thought
 
 The first version of this addendum argued for three new `passthru` fields
 (`configFiles`, `piSkills`, `runtimeInputs`) and a redefinition of `bundled`.
@@ -547,7 +547,7 @@ and `mkPiPlugin`:
   `~/.pi/remote/skills/`. Passing `--skill` as well would double-register.
   Design assumption A3 is therefore decided *for this package* by controlling
   `REMOTE_PI_HOME`, not by a `--skill` flag.
-- **`bundled` keeps its §8 meaning.** `remote-pi` ships a genuine prebuilt
+- **`bundled` keeps its §8 meaning.** `remote-pi` ships a real prebuilt
   `dist/`, and still needs `node_modules` for four packages, so it takes the
   ordinary dependency-materialising branch. The proposed redefinition of
   `bundled` as "needs no npm build step" was an artefact of `pi-intercom`
@@ -575,7 +575,7 @@ and switches the build to bun2nix. If phase 2 also adds `configFiles` or
 phase 2 keeps `buildNpmPackage`, Task 1 of the implementation plan is the
 adapter and says so in its own header comment.
 
-### 17.9 Security analysis — `remote-pi`'s own model, measured
+### 17.9 Security analysis: `remote-pi`'s own model, measured
 
 **Assets.** The agent's tool authority (bash under a jail with `network` and
 `mount-cwd`), the session transcript, and the user's attention.
@@ -584,7 +584,7 @@ Everything in this section was verified by running `remote-pi 0.7.0`'s own
 shipped `dist/session/{global_config,leader_election,broker}.js` under
 `REMOTE_PI_HOME=/tmp/…` on 2026-08-18. The transcripts are reproduced.
 
-#### Risk 1 — inbound peer message → autonomous turn, with no knob. Most serious.
+#### Risk 1: inbound peer message starts a turn, with no knob. Most serious.
 
 `dist/index.js` delivers every inbound mesh envelope like this:
 
@@ -607,28 +607,26 @@ hardcoded.
 This routes around §9 completely: layers 2 and 3 gate tool *calls*, never the
 provenance of instructions.
 
-Two things are genuinely better than `pi-intercom` here, and are worth keeping:
-the body is wrapped in `[agent-network] message from "<address>" (id=…):` so
-provenance reaches the model in-band, and it is rendered in the app's *tool*
-timeline rather than as the user's own message.
-
-Neither changes the authority the text carries.
+Two things here beat `pi-intercom`. The body is wrapped in
+`[agent-network] message from "<address>" (id=…):`, so provenance reaches the
+model in-band, and it renders in the app's *tool* timeline rather than as the
+user's own message. Neither changes the authority the text carries.
 
 **Mitigation (Tier 1, mandatory, implemented as a plan task with tests):**
 patch `dist/index.js` so `triggerTurn` is read from the environment, defaulting
 to **`false`**. `triggerTurn: false` is upstream's own delivery path for every
 non-final message in a batch, so the message is still appended to the session
-and displayed — the agent sees it on its next turn, it just does not get to
+and displayed. The agent sees it on its next turn; it just does not get to
 *start* one. `REMOTE_PI_INBOUND_TRIGGER=always` restores upstream behaviour as
 an explicit per-host opt-in.
 
-#### Risk 2 — unauthenticated registration with a client-supplied address.
+#### Risk 2: unauthenticated registration with a client-supplied address.
 
 `broker.js` `_handleRegister` accepts `{ type: "register", name, cwd,
-takeover? }` and performs **no credential check of any kind** — no
-`SO_PEERCRED`, no `getPeerCredentials`, no uid comparison; `grep -rn
-"peerUid\|SO_PEERCRED\|process.getuid"` over `dist/` returns only an unrelated
-`systemctl --user` helper. The only validation is `isValidRegisteredCwd` (a
+takeover? }` and performs **no credential check**. No `SO_PEERCRED`, no
+`getPeerCredentials`, no uid comparison: `grep -rn
+"peerUid\|SO_PEERCRED\|process.getuid"` over `dist/` returns one unrelated
+`systemctl --user` helper and nothing else. The only validation is `isValidRegisteredCwd` (a
 length/shape bound) and `sanitizeMeshName`.
 
 Measured, against the real broker:
@@ -638,12 +636,12 @@ register reply: {"type":"register_ack","address_assigned":"/tmp@attacker","name_
 ```
 
 The `cwd` is **client-supplied and never verified against the peer's actual
-working directory**, and it is *half the routing address* — `composeAddress`
+working directory**, and it is *half the routing address*: `composeAddress`
 yields `<cwd>@<name>`. So a process can register as
 `/home/joe/some-other-repo@planner` from anywhere on the machine. `broker.js`
-does force `env.from = conn.address` on routed envelopes, which prevents a
-registered peer from spoofing a *different* peer on a message it sends — but it
-pins you to the address you *claimed*, not to one you proved.
+does force `env.from = conn.address` on routed envelopes, which stops a
+registered peer spoofing a *different* peer on a message it sends. But it pins
+you to the address you *claimed*, not to one you proved.
 
 Compared with `pi-intercom`: intercom's README says `peerUid` "is reserved for
 runtimes that can expose real peer credentials and is left unset otherwise"
@@ -652,7 +650,7 @@ authentication". So neither authenticates. The difference is that in
 `pi-intercom` the unverified cwd is *only* display metadata, whereas in
 `remote-pi` it is **load-bearing routing identity**.
 
-#### Risk 3 — unauthenticated `takeover` evicts a live peer. Worse than intercom.
+#### Risk 3: unauthenticated `takeover` evicts a live peer. Worse than intercom.
 
 `_identityForRegister(cwd, requested, takeover)`:
 
@@ -688,9 +686,9 @@ already handles same-name collisions. The plan carries an end-to-end regression
 test that attempts the takeover above and asserts the attacker is demoted to
 `…@planner#2` and the victim's socket stays open.
 
-#### Risk 4 — the socket tree is `0755`, and the audit log holds message bodies.
+#### Risk 4: the socket tree is `0755`, and the audit log holds message bodies.
 
-`ensureGlobalDirs()` is `mkdirSync(SESSIONS_DIR, { recursive: true })` — **no
+`ensureGlobalDirs()` is `mkdirSync(SESSIONS_DIR, { recursive: true })` with **no
 `mode`**. Same at `index.js:3808` for the per-session directory. The socket is
 created by `server.listen(sockPath)`, whose mode is `0777 & ~umask`. Measured:
 
@@ -705,8 +703,9 @@ broker.sock   : 755
 Under the default `umask 022` this is *survivable*: connecting to a Unix socket
 on Linux requires **write** permission on the socket inode, and `0755` denies
 write to group and other, so only the owner can connect. But that is an
-accident of umask, not a design. Re-measured under `umask 002` — a Debian-style
-default, a shared-group setup, or any systemd unit with `UMask=0002`:
+accident of umask, not a design. Re-measured under `umask 002`, which is a
+Debian-style default, a shared-group setup, or any systemd unit with
+`UMask=0002`:
 
 ```
 umask 002 -> broker.sock mode: 775
@@ -718,8 +717,8 @@ broker and exercise Risks 2 and 3.
 `pi-intercom` creates its directory `0700` and its runtime files `0600`
 explicitly (`broker/paths.ts`). `remote-pi` passes no mode anywhere.
 
-Separately, `broker.js:502` `appendFile`s every routed envelope — **bodies
-included** — to `~/.pi/remote/sessions/local/audit.jsonl`, with no `mode`
+Separately, `broker.js:502` `appendFile`s every routed envelope, **bodies
+included**, to `~/.pi/remote/sessions/local/audit.jsonl` with no `mode`
 argument, so `0666 & ~umask`. Inter-agent message traffic is a plaintext log
 under a `0755` tree.
 
@@ -727,10 +726,9 @@ under a `0755` tree.
 exec, and pre-creates/`chmod 0700`s `$REMOTE_PI_HOME/.pi/remote/sessions/local`
 and `$REMOTE_PI_HOME/.pi/remote-pi/socks` so an already-`0755` tree from a
 pre-Nix run is repaired rather than inherited. `umask 0077` applies to
-everything pi writes for the rest of the process — that is a deliberate side
-effect, and a desirable one.
+everything pi writes for the rest of the process. That side effect is intended.
 
-#### Risk 5 — the jail bind is a cross-jail lateral-movement primitive.
+#### Risk 5: the jail bind is a cross-jail lateral-movement primitive.
 
 §7's `configPermission` bind-mounts `$PI_CODING_AGENT_DIR` into *every* pi
 jail. Whatever directory holds the broker socket is, by construction, inside
@@ -740,27 +738,27 @@ the mount layer.
 
 `remote-pi` puts its socket under `$REMOTE_PI_HOME/.pi/remote/`, default
 `$HOME`, which the jail does **not** necessarily bind. The implementation plan
-sets `REMOTE_PI_HOME="$PI_CODING_AGENT_DIR"` in the launcher — an ugly path
-(`~/.pi/agent/.pi/remote/`) chosen deliberately, so that the mesh state lands
-inside the directory the jail already binds and cross-jail messaging works
-without a new mount. The security consequence is identical either way and is
-stated here rather than discovered later.
+sets `REMOTE_PI_HOME="$PI_CODING_AGENT_DIR"` in the launcher. That is an ugly
+path (`~/.pi/agent/.pi/remote/`), chosen so the mesh state lands inside the
+directory the jail already binds and cross-jail messaging works without a new
+mount. The security consequence is the same either way; it is written down here
+so nobody discovers it later.
 
 Combined with Risks 1–3 unhardened, the chain would be: a malicious npm
 `postinstall`, a repo `Makefile`, or a compromised extension running under the
 same uid registers on the broker, takes over another repository's agent
 address, and authors user-role instructions that immediately start a turn in a
 pi session whose jail mounts a *different* repository. With the three
-mitigations, the same attacker can still register and still deliver text — but
-it cannot take an address that is in use, and what it delivers does not start a
-turn and is labelled as peer input by the §17.9 prompt fragment.
+mitigations, the same attacker can still register and still deliver text. It
+cannot take an address that is in use, and what it delivers does not start a
+turn and is labelled as peer input by the prompt fragment.
 
-Residual, stated plainly: an attacker already running as this uid can rewrite
-the launcher, the config, or `$PATH`. `0700` and a patched broker do not fix
-that and are not claimed to. What they fix is the *cheap* path — the one that
-needs nothing but a connect(2) to a socket that was sitting at `0755`.
+Residual: an attacker already running as this uid can rewrite the launcher, the
+config, or `$PATH`. `0700` and a patched broker do not fix that and are not
+claimed to. They fix the cheap path, the one that needs nothing but a connect(2)
+to a socket sitting at `0755`.
 
-#### Risk 6 — attention and correctness, not security.
+#### Risk 6: attention and correctness, not security.
 
 `agent_send` unicast blocks on a **5s** broker ACK (`ACK_TIMEOUT_MS`), which is
 short and safe. The deprecated `agent_request` blocks for **30s**
@@ -768,25 +766,25 @@ short and safe. The deprecated `agent_request` blocks for **30s**
 `ask` default, so the attention-denial risk that mitigation targeted is
 materially smaller here. `list_peers` is a 2s metadata query.
 
-#### Risk 7 — supply chain by name.
+#### Risk 7: supply chain by name.
 
 See §17.4.3. `pi-chat` on npm is not `lynxz/pi-chat` on GitHub. Every pin must
 be resolved through the registry's `repository` field and confirmed against the
 repo, never by name recall. For this pin the field must read
 `git+https://github.com/jacobaraujo7/remote_pi.git`.
 
-#### Risk 8 (Tier 2 only) — relay trust.
+#### Risk 8 (Tier 2 only): relay trust.
 
-§17.7. Not adopted in this phase. Note additionally that on a Bun-built pi the
+§17.7. Not adopted in this phase. Note also that on a Bun-built pi the
 Ed25519 identity falls back to a `0600` file rather than the OS keyring.
 
-#### Non-risk, worth recording.
+#### One non-risk, recorded so nobody re-derives it.
 
 Bubblewrap does not impede this. A Unix domain socket is a filesystem object;
 two jails that bind-mount the same host directory share the same inode and
 connect normally. No network namespace is involved. And in local mode no
-outbound network is opened at all — `_cmdStart` is the only caller of the relay
-client and it is gated on `auto_start_relay`.
+outbound network is opened at all: `_cmdStart` is the only caller of the relay
+client, and it is gated on `auto_start_relay`.
 
 ### 17.10 New assumptions
 
@@ -801,15 +799,15 @@ implementation plan. A11 and A12 from the first version are superseded.
 | A9 | `remote-pi`'s ~18 lifecycle listeners and §6's `agent-statusline` extension can both subscribe to pi's events without interfering. `remote-pi` also owns the window title and a footer segment (`📡 local (N)`), which *is* a plausible collision with the statusline. | Statusline wins; disable `remote-pi`'s footer by leaving the relay off (the `🟢 relay` segment never renders) and accept the `📡 local (N)` segment, or drop the statusline's peer field. |
 | A10 | `REMOTE_PI_DIRECT_CONFIG` fully suppresses the first-run wizard in an interactive session, because `localConfigExists(cwd)` returns true for any parseable object. Read in `local_config.js`; not yet observed in a live pi. | Run `/remote-pi setup` once per repository and let it write `<cwd>/.pi/remote-pi/config.json`; add that path to the repo `.gitignore`. |
 | A11 | *(supersedes old A11)* With `auto_start_relay: false`, `_cmdRootInner` still joins the local mesh — verified in source — **but** the `session_start` auto-init at `index.js:2110` is gated on `effectiveAutoStartRelay(...)`, so a local-only session does **not** auto-join and needs one `/remote-pi` per session. The plan patches that gate. | Accept one `/remote-pi` invocation per session; it is idempotent and prints status. |
-| A12 | *(supersedes old A12)* bun2nix `2.1.0` builds an extension's four-package `node_modules` from a committed `bun.lock` + `bun.nix` the same way it builds pi's own. The `bun.nix` for this pin was generated and is reproduced verbatim in the plan. | Vendor the four tarballs as individual `fetchurl`s and assemble `node_modules` in `installPhase`; at four packages with zero transitive deps this is genuinely tractable. |
+| A12 | *(supersedes old A12)* bun2nix `2.1.0` builds an extension's four-package `node_modules` from a committed `bun.lock` + `bun.nix` the same way it builds pi's own. The `bun.nix` for this pin was generated and is reproduced verbatim in the plan. | Vendor the four tarballs as individual `fetchurl`s and assemble `node_modules` in `installPhase`; at four packages with zero transitive deps this is tractable by hand. |
 | A13 | Pruning `dependencies` to `@noble/ed25519`, `croner`, `qrcode-terminal`, `ws` leaves every code path the *extension* uses intact. Derived from a static import-graph walk of `dist/index.js` (42 files). `remote-pi claude` (MCP) and Noise pairing are knowingly broken by the pruning. | Restore `@modelcontextprotocol/sdk` + `zod` (for `remote-pi claude`) or `@napi-rs/keyring` + `noise-protocol` (for pairing) to `keepDependencies` at Tier 2. |
 
 ### 17.11 Rollout position
 
 §15 orders the work 1–6. Messaging depends on `mkPiExtension` (phase 2) and on
 the jail config (phase 3), and its prompt fragment wants to land with the other
-fragments (phase 5). It slots in as **phase 3.5**: after the jail exists — so
-A8 is answerable rather than hypothetical — and before the fragments are frozen.
+fragments (phase 5). It slots in as **phase 3.5**: after the jail exists, so A8
+is answerable rather than hypothetical, and before the fragments are frozen.
 
 Tier 2 (the `erdtree` relay + phone pairing + cross-machine peers) is **phase 7,
 optional**, and should not be started until same-machine messaging has been
@@ -834,8 +832,8 @@ stays cheap.
 ### 17.13 Retained fallback blueprint: `pi-agents-talk-to-each-other`
 
 **Not installed.** Kept here, deliberately, as the design to fall back to if
-`remote-pi`'s transport proves troublesome — leader-election races, a broker
-that dies with the wrong pi, or a patch that stops applying at a pin bump.
+`remote-pi`'s transport proves troublesome: leader-election races, a broker that
+dies with the wrong pi, or a patch that stops applying at a pin bump.
 
 `Timur00Kh/pi-agents-talk-to-each-other` is **1,443 lines in a single file**,
 a **pure file bus** with **no daemon and no sockets**: rooms under
@@ -855,9 +853,9 @@ Why it is worth keeping written down anyway:
    permissions as its *only* access-control mechanism, which is exactly the
    mechanism Nix and the jail are already good at.
 2. **One file, MIT, 1,443 lines.** That is small enough to vendor and audit in
-   full rather than pin — which is the honest response to "the upstream project
+   full rather than pin, which is the honest response to "the upstream project
    is unmaintained".
-3. **Its safety notes are candid** — "does not authenticate senders", "the flag
+3. **Its safety notes are candid**: "does not authenticate senders", "the flag
    file is not cryptographically protected". Candour is not a substitute for
    maintenance, but it does mean the threat model is already written down.
 
