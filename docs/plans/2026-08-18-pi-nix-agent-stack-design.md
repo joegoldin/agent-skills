@@ -63,12 +63,31 @@ measured 2026-08-18:
 6. Desktop notifications, which pi lacks and the other three now have natively.
 7. Everything pure, pinned, rollback-able, and buildable offline.
 
+### JavaScript toolchain: bun, not npm
+
+pi is consumed as the **Bun-built** variant (`packages.coding-agent-bun`), and
+every JavaScript concern in this stack uses bun where npm would otherwise be
+reached for:
+
+- `mkPiExtension` (§8) builds unbundled packages with **bun2nix**, which is
+  already a flake input of pi.nix (pinned 2.1.0, with the overlay applied in
+  `flake.nix`) — not `buildNpmPackage`/`npmDepsHash`.
+- Lockfiles are `bun.lock` and the bun2nix-generated Nix file, not
+  `package-lock.json`.
+- The extended `update` app (§7) regenerates bun lockfiles.
+- First-party extensions test under bun.
+
+Unaffected: npm's `dist.integrity` string is still used verbatim as the Nix SRI
+hash when fetching a package tarball. Only dependency *resolution* moves to bun;
+the registry remains the source of tarballs.
+
 ## 3. Non-goals
 
 - Adopting `oh-my-pi`/omp, or any hard fork of pi itself.
 - Replacing the system prompt of Claude Code, Codex, or Antigravity. They ship
   their own; we only *append* shared behavioural preferences.
 - Runtime `pi install` from npm as the primary distribution path.
+- Using npm tooling anywhere a bun equivalent exists.
 - Reimplementing anything the ecosystem already does well.
 
 ## 4. Verified vs. assumed
