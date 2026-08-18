@@ -95,8 +95,17 @@ both modes.
 ## Phase 2: pi-nix fork — TODO
 
 Plan: `2026-08-18-pi-nix-fork.md` (9 tasks, 72 steps). Plan revised and ready to
-execute: 11 third-party pins, `bun2nix` throughout instead of `buildNpmPackage`,
-and the Bun-built pi as the module default. Owner: unassigned.
+execute: **10 third-party pins**, `bun2nix` throughout instead of
+`buildNpmPackage`, and the Bun-built pi as the module default. Owner: unassigned.
+
+Pins: `pi-mcp-adapter`, `pi-subagents`, `pi-background-tasks`,
+`@juicesharp/rpiv-ask-user-question`, `@narumitw/pi-goal`,
+`@juicesharp/rpiv-todo`, `@gotgenes/pi-permission-system`, `@narumitw/pi-btw`,
+`pi-cache-optimizer`, `@heyhuynhgiabuu/pi-pretty`. Dropped along the way:
+`@plannotator/pi-extension` (plan mode dropped in design §8),
+`@juicesharp/rpiv-voice` (voice moved to a first-party extension over
+`audiomemo`), and `@narumitw/pi-caffeinate` (F37). `remote-pi` and
+`pi-intercom` are phase 7's and appear nowhere in this plan.
 
 | Task | What | Status |
 | --- | --- | --- |
@@ -299,7 +308,8 @@ them; this table is why the plans are trustworthy.
 | F34 | A4 is false in a way the design did not anticipate. No phase-2 pin ships a self-contained `dist`: `@heyhuynhgiabuu/pi-pretty` publishes `tsc` output but `dist/index.js` still `require`s `@shikijs/cli` and `@ff-labs/fff-node` from `node_modules`. The `bundled = true` branch survives only because `pi-cache-optimizer` has **zero** runtime dependencies. | "Ships a `dist`" is not the test; "needs no `node_modules`" is. Exactly one of eleven pins qualifies, and the phase-2 extension test asserts that so a future bump that adds a dependency to `pi-cache-optimizer` fails at build rather than at load. |
 | F35 | Prebuilt `.node` files in the pin set arrive with an empty `RPATH` and `DT_NEEDED` on `libgcc_s.so.1`/`libstdc++.so.6`/`libc.so.6`, none of which resolve on NixOS. Reached transitively: `@yuuang/ffi-rs-linux-x64-gnu` under `@heyhuynhgiabuu/pi-pretty`, and `@napi-rs/keyring` under `pi-mcp-adapter`. | `mkPiExtension` needs `autoPatchelfHook` plus `stdenv.cc.cc.lib`, gated on `isLinux`. Verified sufficient for the whole set (`auto-patchelf: 0 dependencies could not be satisfied`, native modules loading under `node` from the store). `pi-pretty` catches its own failed `import` and degrades quietly, so without the hook the loss would be silent. |
 | F36 | bun installs **both** the gnu and the musl build of a napi platform package: `os` and `cpu` cannot express libc. `autoPatchelfHook` then walks the musl `.node` and halts the build — `error: auto-patchelf could not satisfy dependency libc.musl-x86_64.so.1`, reproduced on `@yuuang/ffi-rs-linux-x64-musl` under `@heyhuynhgiabuu/pi-pretty`. | `ffi-rs` selects its variant by detecting libc at load time and never opens that file on a glibc host, so `mkPiExtension` carries a fixed `autoPatchelfIgnoreMissingDeps = [ "libc.musl-x86_64.so.1" "libc.musl-aarch64.so.1" ]`. With it the build succeeds, the gnu `.node` gets a real `RPATH`, and `require("@ff-labs/fff-node")` returns its exports under `node` from the store. A green build still prints `1 dependencies could not be satisfied` followed by a `warn:` line; only the `error:` line means failure. Any bun2nix + autoPatchelf combination in this repo hits this. |
-| F37 | `@narumitw/pi-caffeinate` calls `sessionBus()` and sends `Inhibit`/`UnInhibit` to `org.freedesktop.ScreenSaver`; on Linux it first prefers spawning `systemd-inhibit` (`src/inhibitors.ts:28-46`). Upstream's `jail.permissions` default is `[ network mount-cwd ]` plus a bind of `PI_CODING_AGENT_DIR`. | Same class as `pi-notify` needing talk on `org.freedesktop.Notifications`: inert inside the jail, with no error. Phase 3 needs the session bus bound, talk permission on that name, and `systemd-inhibit` via `add-pkg-deps`. Config paths are fine — `pi-caffeinate`, `pi-pretty`, and `pi-cache-optimizer` all write under `getAgentDir()`, which the jail already binds. |
+| F37 | `@narumitw/pi-caffeinate` calls `sessionBus()` and sends `Inhibit`/`UnInhibit` to `org.freedesktop.ScreenSaver`; on Linux it first prefers spawning `systemd-inhibit` (`src/inhibitors.ts:28-46`). Upstream's `jail.permissions` default is `[ network mount-cwd ]` plus a bind of `PI_CODING_AGENT_DIR`, so neither is reachable and the extension is silently inert inside the jail. It also carried the same ~141-package `pi-tui-kit` tail. | **Pin dropped.** `systemd-inhibit` already does the job in one command on NixOS; paying a dependency tail plus a session-bus talk permission to reach the same syscall, with silence as the failure mode, is a bad trade. Design §9's parallel note for `pi-notify` on `org.freedesktop.Notifications` is unaffected and is still phase 3's. |
+| F38 | `@narumitw/pi-goal` and `@narumitw/pi-btw` share **137 dependency entries at identical `name@version`, `url`, and `hash`** — the only difference is `typebox@1.3.15`, which `pi-goal` carries from the peer hoist. Both resolve `@narumitw/pi-tui-kit@0.56.0`. | The `pi-tui-kit` tail is paid once, not twice: `bun2nix` emits a bare `fetchurl` per dependency, and a fixed-output derivation with identical coordinates is one store path (verified by building the same tarball from two expressions and getting one path). The *unpacked* `node_modules` is still duplicated, since each `ext-*` is its own derivation, so the marginal cost of the second pin is one tarball plus 11 MB. Re-measure after any `@narumitw` bump: if the two diverge off `pi-tui-kit@0.56.0`, the sharing ends silently. |
 
 ## Decisions
 
@@ -307,8 +317,9 @@ them; this table is why the plans are trustworthy.
 | --- | --- |
 | Bun everywhere | pi consumed as `coding-agent-bun`; bun2nix instead of `buildNpmPackage`; `bun test` instead of vitest. |
 | `agent-statusline` standalone | `agent-skills` already depends on `claude-nix`, so hosting it there would cycle. |
-| 11 third-party pins, 4 first-party | Each traceable to a Claude Code capability restored or a named new capability. |
+| 10 third-party pins, 4 first-party | Each traceable to a Claude Code capability restored or a named new capability. |
+| `pi-caffeinate` dropped | `systemd-inhibit` does the job in one command on NixOS. The pin cost a ~141-package tail plus a session-bus talk permission to reach the same syscall, and was silently inert without it (F37). |
 | Plan mode dropped | Planning writes documents. Consequence: `pi-auto-mode` rules are the only guard on the working tree. |
 | Voice via audiomemo, not `rpiv-voice` | Go, already a flake input, no npm native deps, no runtime model download into a jail. |
-| `remote-pi` over `pi-intercom` | Covers local and remote in one; relay deferred. |
+| `pi-intercom` over `remote-pi` | Reversed after reading remote-pi's source. Its broker authenticates nobody and is worse than intercom on two counts: an unverified client-declared `cwd` forms half the routing address, and `takeover: true` hands a caller the incumbent's exact address, reproduced live (F23, F24). Phone control is a known gap, not an oversight. |
 | avoid-ai-writing on prose | Prompt fragments teach tone by example, so their register becomes the house style. |
