@@ -599,7 +599,7 @@ let
     ) (lib.groupBy (h: h.event) hooks);
 
   # Merge Claude hook fragments from several plugins, concatenating the entry
-  # list per event (plugin order preserved, e.g. code-notify before temporal).
+  # list per event (plugin order preserved).
   foldClaudeHooks =
     fragments:
     lib.foldl' (

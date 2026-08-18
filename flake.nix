@@ -68,7 +68,6 @@
 
           skills = build.discoverSkills ./skills;
 
-          codeNotify = pkgs.callPackage ./packages/code-notify { };
           vibecad = pkgs.callPackage ./packages/vibecad { };
           pxd = pkgs.callPackage ./packages/pxd { };
           figr = pkgs.callPackage ./packages/figr { };
@@ -103,7 +102,7 @@
             attributionFile = ./ATTRIBUTION.md;
           };
 
-          # ── Cross-agent plugins (temporal, code-notify) ──
+          # ── Cross-agent plugins (temporal) ──
           # Discovered from ./plugins; built per target. Exposed as
           # "<name>-<target>" packages (e.g. temporal-claude, temporal-codex).
           targetLibs = {
@@ -173,7 +172,6 @@
             claude-plugin
             antigravity-plugin
             codex-plugin
-            codeNotify
             vibecad
             pxd
             figr
