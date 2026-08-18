@@ -81,9 +81,27 @@ verification during implementation**, called out again at their point of use:
 | --- | --- | --- |
 | A1 | An extension can make its own LLM call (for the auto-mode classifier). `ctx.modelRegistry` exists and pi has a unified model API, but the SDK docs do not document this. | Shell out to a small CLI that performs the classification. |
 | A2 | Multiple extensions on `tool_call` have observable ordering, so the classifier can see the deterministic layer's decision. | Absorb deterministic matching into `pi-auto-mode` and drop `pi-permission-system`. |
-| A3 | Skills provided by both `~/.agents/skills` and a pi package de-duplicate by name. | Use pi's `--no-*` discovery-disabling flags to pick a single source. |
+| A3 | Skills provided by both `~/.agents/skills` and a pi package de-duplicate by name. | Use pi's `--no-*` discovery-disabling flags to pick a single source. **Fallback confirmed available** — see below. |
 | A4 | Each pinned npm extension ships bundled `dist` output. | Build that package with `buildNpmPackage` and an `npmDepsHash`. |
-| A5 | The pi extension can shell to `gh` to populate the `pr` widget. | Drop `pr` in pi mode; the widget already hides when absent. |
+| A5 | The pi extension can shell to `gh` to populate the `pr` widget. | **Resolved: dropped.** pi has no PR concept, so the extension omits `pr` and the widget hides, as the fallback anticipated. |
+
+### Verified against pi 0.84.2
+
+The fork builds and runs (`nix build .#coding-agent`), and `pi --help` on the
+resulting binary confirms:
+
+- `--system-prompt <text>` is documented as *"System prompt (default: coding
+  assistant prompt)"* — it **replaces** rather than appends, which §12 depends on.
+- `--append-system-prompt` exists separately and is repeatable.
+- `--no-skills`, `--no-extensions`, and `--no-prompt-templates` all exist, so
+  assumption A3's fallback is real rather than hoped for.
+- `--skill`, `--extension`, and `--prompt-template` are each repeatable, matching
+  what pi.nix's option module already generates.
+
+One naming hazard for later phases: **pi's own `--mode` flag is already taken**
+(`text | json | rpc` output mode). `agent-statusline` also takes a `--mode`, but
+that is a different binary and the two never collide. No pi extension should
+register a `--mode` flag.
 
 ## 5. Repo topology
 
@@ -180,7 +198,11 @@ schema, one meaning, one place to add a widget.
   (`ctx.getContextUsage()`), `cwd`, `session_name`, `effort`
   (`ctx.thinkingLevel`), `duration`, `burn`, `compaction`, and `git` (shells out
   itself, harness-independent).
-- **Computed**: `cost`, from accumulated usage × `models.json` pricing.
+- **Computed**: `cost`, as a plain sum over assistant messages. Verified
+  during implementation: every pi API adapter calls `calculateCost()`
+  internally, so `usage.cost.total` arrives already priced — tier-aware and
+  already applying Anthropic's 2x 1h-cache-write rule. No pricing table is
+  read and there is no drift risk.
 - **Via the `hook` seam**: `activity`, driven by `tool_execution_start`,
   `tool_execution_update`, and `tool_execution_end`.
 - **Assumption A5**: `pr`, requiring the extension to shell to `gh`.
