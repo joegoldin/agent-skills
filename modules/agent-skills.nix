@@ -140,19 +140,24 @@ in
           xdg.configFile."agent-skills/.keep".text = "";
         }
 
-        # Fan out normalized servers to each target whose module is imported.
-        (mkIf (options.programs ? claude-nix) {
-          programs.claude-nix.mcpServers = mcpLib.mcpNativeFor "claude" cfg.mcpServers;
-        })
-        (mkIf (options.programs ? codex-nix) {
-          programs.codex-nix.mcpServers = mcpLib.mcpNativeFor "codex" cfg.mcpServers;
-        })
-        (mkIf (options.programs ? antigravity-cli-nix) {
-          programs.antigravity-cli-nix.mcpServers = mcpLib.mcpNativeFor "antigravity" cfg.mcpServers;
-        })
-
         { programs.agent-skills.prompt = { inherit sharedText piText; }; }
       ]
+      # Fan out normalized servers to each target whose module is imported.
+      # `optional`, not `mkIf`: a `mkIf false` arm still leaves its option path
+      # in the definition set, so naming an undeclared option fails evaluation
+      # with "The option `programs.X' does not exist" no matter what the
+      # condition says. Without this the module could only be imported by a
+      # host that installs every agent, which is the opposite of what
+      # `mcpServers` promises.
+      ++ lib.optional (options.programs ? claude-nix) {
+        programs.claude-nix.mcpServers = mcpLib.mcpNativeFor "claude" cfg.mcpServers;
+      }
+      ++ lib.optional (options.programs ? codex-nix) {
+        programs.codex-nix.mcpServers = mcpLib.mcpNativeFor "codex" cfg.mcpServers;
+      }
+      ++ lib.optional (options.programs ? antigravity-cli-nix) {
+        programs.antigravity-cli-nix.mcpServers = mcpLib.mcpNativeFor "antigravity" cfg.mcpServers;
+      }
       # ── System prompt fan-out ──
       # Same "is this module imported" question the MCP arms above ask, but asked
       # with `optional` rather than `mkIf`. `mkIf false` still leaves the option

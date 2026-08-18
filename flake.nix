@@ -228,6 +228,7 @@
           codexJson = pkgs.writeText "codex-mcp.json" (builtins.toJSON (mcp.mcpNativeFor "codex" servers));
         in
         {
+          mcp-standalone-tests = import ./tests/mcp-standalone-test.nix { inherit pkgs; };
           eval-mcp = pkgs.runCommand "eval-mcp" { nativeBuildInputs = [ pkgs.jq ]; } ''
             # disabled servers are omitted from every target
             jq -e 'has("off") | not' ${claudeJson} >/dev/null
