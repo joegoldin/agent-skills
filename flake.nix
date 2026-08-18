@@ -68,6 +68,16 @@
 
           skills = build.discoverSkills ./skills;
 
+          promptLib = import ./lib/prompt.nix { inherit lib; };
+          sharedPromptText = promptLib.mkPrompt { layers = [ ./prompt/shared ]; };
+          piPromptText = promptLib.mkPrompt {
+            layers = [
+              ./prompt/core
+              ./prompt/shared
+              ./prompt/pi
+            ];
+          };
+
           vibecad = pkgs.callPackage ./packages/vibecad { };
           pxd = pkgs.callPackage ./packages/pxd { };
           figr = pkgs.callPackage ./packages/figr { };
@@ -167,6 +177,8 @@
         // {
           default = claude-plugin;
           inherit web-skills web-skills-zips;
+          prompt-shared = pkgs.writeText "agent-skills-shared-prompt.md" sharedPromptText;
+          prompt-pi = pkgs.writeText "agent-skills-pi-SYSTEM.md" piPromptText;
           avoid-ai-detect = avoidAiDetect;
           inherit
             claude-plugin
@@ -257,6 +269,98 @@
               pkgs.runCommand "lint-tests" { } "touch $out"
             else
               throw "lint tests failed: ${builtins.toJSON failures}";
+
+          prompt-tests =
+            let
+              failures = import ./lib/prompt-tests.nix { inherit lib; };
+            in
+            if failures == [ ] then
+              pkgs.runCommand "prompt-tests" { } "touch $out"
+            else
+              throw "prompt tests failed: ${builtins.toJSON failures}";
+
+          prompt-lint-tests =
+            let
+              failures = import ./lib/prompt-lint-tests.nix { inherit lib; };
+            in
+            if failures == [ ] then
+              pkgs.runCommand "prompt-lint-tests" { } "touch $out"
+            else
+              throw "prompt lint tests failed: ${builtins.toJSON failures}";
+
+          # The governing rule from the design's §12, as a build gate: prompt
+          # fragments state policy, never inventory. Skill names come from the
+          # real tree, so adding a skill immediately widens the ban.
+          prompt-inventory =
+            let
+              promptLib = import ./lib/prompt.nix { inherit lib; };
+              promptLint = import ./lib/prompt-lint.nix { inherit lib; };
+              build = import ./lib/default.nix {
+                inherit pkgs lib;
+                claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
+              };
+              skillNames =
+                map (s: s.name) (build.discoverSkills ./skills)
+                ++ map (p: p.name) (build.discoverPlugins ./plugins);
+              layers = {
+                core = ./prompt/core;
+                shared = ./prompt/shared;
+                pi = ./prompt/pi;
+              };
+              checkFragment =
+                layer: dir: name:
+                let
+                  prefix = "prompt/${layer}/${name}";
+                  nameFailure = lib.optional (
+                    !promptLib.validateFragmentName name
+                  ) "${prefix}: file name must match NN-kebab-case.md";
+                  termFailures = map (v: "${prefix}: ${v.rule}: ${v.term}") (
+                    promptLint.lint {
+                      inherit skillNames;
+                      text = promptLib.readFragment dir name;
+                    }
+                  );
+                in
+                nameFailure ++ termFailures;
+              failures = lib.concatLists (
+                lib.mapAttrsToList (
+                  layer: dir: lib.concatMap (checkFragment layer dir) (promptLib.fragmentNames dir)
+                ) layers
+              );
+            in
+            if failures == [ ] then
+              pkgs.runCommand "prompt-inventory" { } "touch $out"
+            else
+              throw "prompt fragments state inventory, not policy:\n  ${lib.concatStringsSep "\n  " failures}";
+
+          # core/ replaces pi's default prompt and must never be appended to
+          # the agents that ship equivalent guidance built in.
+          prompt-layering =
+            let
+              promptLib = import ./lib/prompt.nix { inherit lib; };
+              core = promptLib.mkPrompt { layers = [ ./prompt/core ]; };
+              shared = promptLib.mkPrompt { layers = [ ./prompt/shared ]; };
+              piPrompt = promptLib.mkPrompt {
+                layers = [
+                  ./prompt/core
+                  ./prompt/shared
+                  ./prompt/pi
+                ];
+              };
+              failures =
+                lib.optional (core == "") "core layer is empty"
+                ++ lib.optional (shared == "") "shared layer is empty"
+                ++ lib.optional (
+                  !(lib.hasInfix (lib.removeSuffix "\n" shared) piPrompt)
+                ) "pi prompt does not contain the shared layer verbatim"
+                ++ lib.optional (lib.hasInfix (lib.removeSuffix "\n" core) shared) "shared layer contains core content; core is pi-only";
+            in
+            if failures == [ ] then
+              pkgs.runCommand "prompt-layering" { } "touch $out"
+            else
+              throw "prompt layering: ${lib.concatStringsSep "; " failures}";
+
+          eval-prompt-fanout = import ./tests/prompt-fanout-test.nix { inherit pkgs; };
 
           skills-lint =
             let
