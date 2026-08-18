@@ -440,6 +440,25 @@ API keys, and OpenRouter — uses `environment.<NAME>.file` pointing at an ageni
 path, or pi's `!command` key resolution for `op read`. No secret enters the Nix
 store.
 
+> **Three findings from planning this phase, all from reading source:**
+>
+> 1. **The jail would silently break auth.** pi-nix's jail wraps the *wrapper*, so
+>    the `cat /run/agenix/…` that loads keys runs inside bubblewrap, and jail.nix
+>    binds only the runtime closure. Without explicit read binds the keys resolve
+>    to empty strings — no error, just a failing agent. The same mechanism makes
+>    `!op read` unusable under the jail at all (`op` needs the desktop socket and
+>    biometric unlock), so **agenix is the only working key path on Linux and the
+>    1Password path is Darwin-only.**
+> 2. **Upstream's `models` option cannot install `models.json` here.** It writes
+>    only `if [ ! -f … ]` and deletes symlinks at that path, so neither it nor
+>    `home.file` works; a `home.activation` script installs a real 0600 file.
+> 3. **dotfiles needs no new flake inputs.** Every agent repo arrives transitively
+>    through the single `agent-skills` input, and there are no `homeConfigurations`
+>    — the build target is
+>    `.#nixosConfigurations.elphael.config.home-manager.users.joe.home.activationPackage`.
+>
+> `jail.enable` is additionally gated on `isLinux`, since it throws on Darwin.
+
 ## 14. Testing
 
 - **`agent-statusline`**: golden tests per mode. Claude-mode goldens must remain

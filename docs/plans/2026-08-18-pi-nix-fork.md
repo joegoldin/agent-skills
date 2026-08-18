@@ -774,9 +774,9 @@ Create `tests/extensions-test.nix`:
 { pkgs, ... }:
 let
   lib = pkgs.lib;
-  exts = import ../../packages/extensions { inherit pkgs lib; };
-  mkPiExtension = pkgs.callPackage ../../packages/extensions/mk-pi-extension.nix { };
-  pins = builtins.fromJSON (builtins.readFile ../../extensions.json);
+  exts = import ../packages/extensions { inherit pkgs lib; };
+  mkPiExtension = pkgs.callPackage ../packages/extensions/mk-pi-extension.nix { };
+  pins = builtins.fromJSON (builtins.readFile ../extensions.json);
 
   # A synthetic bundled pin. Never built — only its attributes are read — so
   # the fake hash costs nothing and the bundled branch stays under test even
@@ -1293,7 +1293,7 @@ Create `tests/update-app-test.nix`:
 # decisions rather than registry facts.
 { pkgs, ... }:
 let
-  updateExtensions = import ../../update-extensions.nix { inherit pkgs; };
+  updateExtensions = import ../update-extensions.nix { inherit pkgs; };
 in
 pkgs.runCommand "pi-nix-update-app-tests" { } ''
   set -euo pipefail
@@ -1601,11 +1601,11 @@ let
         inherit pkgs;
       };
       modules = [
-        (import ../../coding-agent/options.nix {
+        (import ../coding-agent/options.nix {
           self = selfStub;
           jail-nix = null;
         })
-        (import ../../coding-agent/extra-options.nix {
+        (import ../coding-agent/extra-options.nix {
           self = selfStub;
         })
         module
@@ -2625,14 +2625,14 @@ Create `tests/additive-test.nix`:
 { pkgs, ... }:
 let
   protected = {
-    "coding-agent/options.nix" = ../../coding-agent/options.nix;
-    "coding-agent/package.nix" = ../../coding-agent/package.nix;
-    "coding-agent/package-bun.nix" = ../../coding-agent/package-bun.nix;
-    "coding-agent/bun.nix" = ../../coding-agent/bun.nix;
-    "sync-upstream.nix" = ../../sync-upstream.nix;
-    "regenerate-models.nix" = ../../regenerate-models.nix;
-    "scan.nix" = ../../scan.nix;
-    "VERSION.json" = ../../VERSION.json;
+    "coding-agent/options.nix" = ../coding-agent/options.nix;
+    "coding-agent/package.nix" = ../coding-agent/package.nix;
+    "coding-agent/package-bun.nix" = ../coding-agent/package-bun.nix;
+    "coding-agent/bun.nix" = ../coding-agent/bun.nix;
+    "sync-upstream.nix" = ../sync-upstream.nix;
+    "regenerate-models.nix" = ../regenerate-models.nix;
+    "scan.nix" = ../scan.nix;
+    "VERSION.json" = ../VERSION.json;
   };
 
   lines = pkgs.lib.mapAttrsToList (
