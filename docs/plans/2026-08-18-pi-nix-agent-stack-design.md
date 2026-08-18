@@ -79,8 +79,8 @@ verification during implementation**, called out again at their point of use:
 
 | # | Assumption | Fallback if false |
 | --- | --- | --- |
-| A1 | An extension can make its own LLM call (for the auto-mode classifier). `ctx.modelRegistry` exists and pi has a unified model API, but the SDK docs do not document this. | Shell out to a small CLI that performs the classification. |
-| A2 | Multiple extensions on `tool_call` have observable ordering, so the classifier can see the deterministic layer's decision. | Absorb deterministic matching into `pi-auto-mode` and drop `pi-permission-system`. |
+| A1 | ~~An extension can make its own LLM call.~~ **RESOLVED TRUE.** `ctx.modelRegistry.complete()` is a documented-in-source facade *"exposed to extensions"*; four extensions in pi's own `examples/` call it. pi's SDK docs page denies this and is simply wrong. | Not needed. |
+| A2 | ~~Multiple extensions on `tool_call` have observable ordering.~~ **RESOLVED MOOT.** `pi-permission-system` publishes `registerAuthorizer()` plus a `globalThis` symbol slot, so delegation is a direct typed call for unresolved `ask`s. Ordering never enters into it. | Not needed; the built-in matcher stays as a live fallback. |
 | A3 | Skills provided by both `~/.agents/skills` and a pi package de-duplicate by name. | Use pi's `--no-*` discovery-disabling flags to pick a single source. **Fallback confirmed available** — see below. |
 | A4 | Each pinned npm extension ships bundled `dist` output. | Build that package with `buildNpmPackage` and an `npmDepsHash`. |
 | A5 | The pi extension can shell to `gh` to populate the `pr` widget. | **Resolved: dropped.** pi has no PR concept, so the extension omits `pr` and the widget hides, as the fallback anticipated. |
@@ -253,6 +253,12 @@ mkPiExtension {
 `extensions.json` holds `{name, version, hash, npmDepsHash, bundled}` per
 package (assumption A4 decides `bundled` per package).
 
+> **Correction found during planning:** `ExtensionContext` exposes no settings
+> reader, so `passthru.settings` cannot deliver configuration to an extension at
+> runtime. Extensions that need config read a store path from an environment
+> variable instead (`PI_AUTO_MODE_CONFIG`, `PI_NOTIFY_CONFIG`). The attribute
+> still drives what the module writes into `settings.json` for pi itself.
+
 **`passthru.settings` is load-bearing.** Several extensions need configuration —
 `pi-mcp-adapter` needs the MCP server list, the permission extensions need rules.
 Carrying config on the derivation lets the module compute settings from *which
@@ -302,6 +308,11 @@ Three layers, each with one job:
 │ classifier + session context → soft/hard deny     │
 └───────────────────────────────────────────────────┘
 ```
+
+> **Two jail corrections found during planning:** `~/.1password/agent.sock` needs
+> `try-readwrite`, not `try-readonly` — an `AF_UNIX` connect requires write on the
+> inode. And `pi-notify` (§10) needs dbus talk permission on
+> `org.freedesktop.Notifications` or it is silently inert inside the jail.
 
 ### Shared rules
 
