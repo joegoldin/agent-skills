@@ -315,7 +315,6 @@ to be, predating it by 3.5 months and hardcoding a third-party Cloudflare Worker
 | --- | --- | --- |
 | `@narumitw/pi-btw` | `/btw` side question, no main-conversation pollution | 2.0k dl/wk |
 | `pi-cache-optimizer` | prefix-cache hit rate, `prompt_cache_key` injection | 2.5k dl/wk |
-| `@narumitw/pi-caffeinate` | inhibits sleep during runs, via D-Bus on Linux | 860 dl/wk |
 | `@heyhuynhgiabuu/pi-pretty` | syntax highlighting in the TUI | 746 dl/wk |
 
 **First-party**, `pi-auto-mode` (§9), `pi-notify` (§10), `pi-voice` (§18), and
@@ -352,7 +351,8 @@ Its value lands on the OpenRouter path. Pinned with that understood.
 | `betterwright` | Second browser stack; `claude-in-chrome` already drives the real profile. |
 | `@dietrichgebert/ponytail` | Its asset is behavioural prose that would compete with this repo's skills and §12's `shared/` layer. |
 | `@juicesharp/rpiv-voice` | Superseded by `pi-voice` (§18), which drives `audiomemo` — a Go binary already in this flake, with no npm native deps and no runtime model download. |
-| `pi-intercom` | Superseded by `remote-pi`, which covers local and remote in one. |
+| `@narumitw/pi-caffeinate` | `systemd-inhibit` already does this on NixOS. Measured cost was ~141 dependency tarballs, a session D-Bus permission on `org.freedesktop.ScreenSaver`, and `systemd-inhibit` via `add-pkg-deps` anyway, with silent inertness as the failure mode when either is missing. |
+| `remote-pi` | Rejected after reading its source. Its broker authenticates nobody and is worse than `pi-intercom` on two counts: an unverified client-declared `cwd` forms half the routing address, and `takeover: true` hands a caller the incumbent's exact address (reproduced live). `triggerTurn` is hardcoded where intercom exposes a setting. It also has 8.3x fewer downloads. |
 | `pi-agents-talk-to-each-other` | 18 dl/wk, 0 stars, untouched since June. Retained in §17 only as a fallback blueprint. |
 | `pi-chat` | The npm package is not the GitHub repo of the same name. |
 | `agentnet`, `runline` | Python hub with passkey enrollment; per-service API keys. |
