@@ -1137,26 +1137,41 @@ lib.mapAttrs' (name: pin: lib.nameValuePair "ext-${slugOf name}" (mkOne name pin
 
 These are the exact values produced on 2026-08-18 by the procedure Task 4 turns into `nix run .#update-extensions`. Run the generator now so Task 3 can be verified before Task 4 exists:
 
+Write the generator to a file first — the nested quoting of an inline `bash -c` string is a reliable source of silent breakage:
+
 ```bash
 cd /home/joe/Development/pi-nix
-tmp=$(mktemp -d); export HOME="$tmp/home"; mkdir -p "$HOME"
-nix shell nixpkgs#nodejs nixpkgs#npm-lockfile-fix nixpkgs#prefetch-npm-deps nixpkgs#jq -c bash -euo pipefail -c '
-for name in $(jq -r "keys[]" extensions.json); do
-  slug=$(printf "%s" "$name" | sed -e "s|^@||" -e "s|/|-|g")
-  url=$(jq -r --arg n "$name" ".[\$n].url" extensions.json)
-  work="'"$tmp"'/$slug"; mkdir -p "$work"
+cat > /tmp/pin-extensions.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+export HOME="$tmp/home"
+mkdir -p "$HOME"
+
+for name in $(jq -r 'keys[]' extensions.json); do
+  slug=$(printf '%s' "$name" | sed -e 's|^@||' -e 's|/|-|g')
+  url=$(jq -r --arg n "$name" '.[$n].url' extensions.json)
+  work="$tmp/$slug"
+  mkdir -p "$work"
   curl -fsSL "$url" | tar -xzf - -C "$work" --strip-components=1
-  ( cd "$work"
+  (
+    cd "$work"
     npm install --package-lock-only --omit=dev --omit=peer --omit=optional \
       --ignore-scripts --no-audit --no-fund >/dev/null 2>&1
-    npm-lockfile-fix package-lock.json >/dev/null 2>&1 )
+    npm-lockfile-fix package-lock.json >/dev/null 2>&1
+  )
   h=$(prefetch-npm-deps "$work/package-lock.json" | tail -n1)
   mkdir -p "packages/extensions/$slug"
   cp "$work/package-lock.json" "packages/extensions/$slug/package-lock.json"
-  jq --arg n "$name" --arg h "$h" ".[\$n].npmDepsHash = \$h" extensions.json > "'"$tmp"'/next.json"
-  mv "'"$tmp"'/next.json" extensions.json
+  jq --arg n "$name" --arg h "$h" '.[$n].npmDepsHash = $h' extensions.json > "$tmp/next.json"
+  mv "$tmp/next.json" extensions.json
   echo "$slug $h"
-done'
+done
+SCRIPT
+chmod +x /tmp/pin-extensions.sh
+nix shell nixpkgs#nodejs nixpkgs#npm-lockfile-fix nixpkgs#prefetch-npm-deps \
+  nixpkgs#jq nixpkgs#curl nixpkgs#gnutar nixpkgs#gzip -c /tmp/pin-extensions.sh
 ```
 
 Expected output — these hashes were computed and verified while writing this plan, so any divergence means the upstream package was republished and the pin needs re-verifying, not that the command is wrong:
@@ -1180,21 +1195,7 @@ Expected: no output.
 
 - [ ] **Step 7: Add the `ext-*` packages to `flake.nix`**
 
-Inside the `packages = forEachSystem (...)` block, the returned `rec { ... }` currently starts with `default = coding-agent;`. Change the `in rec {` opening so the extension set is merged in. Replace:
-
-```nix
-        rec {
-          default = coding-agent;
-```
-
-with:
-
-```nix
-        rec {
-          default = coding-agent;
-```
-
-leaving it as-is, and instead change the closing of that same block. The block currently ends:
+Inside the `packages = forEachSystem (...)` block, the returned `rec { ... }` (which holds `default`, `coding-agent`, `coding-agent-bun`, `docs-md`, `docs-html`) ends with these three lines — the close of `docs-html`, the close of the `rec` attrset, and the close of `forEachSystem`:
 
 ```nix
               '';
@@ -1202,7 +1203,7 @@ leaving it as-is, and instead change the closing of that same block. The block c
       );
 ```
 
-Replace those three lines with:
+Replace exactly those three lines with:
 
 ```nix
               '';
@@ -1211,7 +1212,7 @@ Replace those three lines with:
       );
 ```
 
-`rec { ... } // extras` keeps every existing attribute and its recursion intact while adding `ext-*` alongside.
+`rec { ... } // extras` keeps every existing attribute and its internal recursion intact while adding the `ext-*` set alongside. Nothing inside the `rec` block is touched.
 
 - [ ] **Step 8: Run the test to verify it passes**
 

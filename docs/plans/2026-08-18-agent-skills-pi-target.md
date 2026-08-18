@@ -55,7 +55,7 @@ The two passes differ in cost, and the difference is the whole design decision:
 | **the same real path** (symlinks) | 1 | dropped silently | nothing |
 | different real paths, same `name` (copies) | 2 | first wins, loser recorded | a warning line per skill at TUI startup (`interactive-mode.ts:1581`) |
 
-`interactive-mode.ts:1787-1789` formats every skill diagnostic into the startup banner, so a copy-based pi package would print **one warning per skill on every session start** — currently 37 lines. A symlink-based package prints none.
+`interactive-mode.ts:1787-1789` formats every skill diagnostic into the startup banner, so a copy-based pi package would print **one warning per skill on every session start** — currently 39 lines. A symlink-based package prints none.
 
 **Empirical confirmation.** Built `pi` from the local fork and probed the assembled system prompt with a throwaway extension:
 
@@ -74,7 +74,7 @@ PROBE loc=…/a3/agents/skills/demo/SKILL.md
 
 One `<skill>` block in all cases; the package's extension loaded; the `~/.agents/skills` copy won.
 
-**Consequence for this plan, and it is load-bearing:** `buildPiPlugin` must place the **same `skill-<name>` derivations the Claude plugin already ships** into the package's `skills/`, linked by `buildEnv`, never `cp -r`'d. Then `realpath(~/.agents/skills/<n>/SKILL.md)` and `realpath(<pi-package>/skills/<n>/SKILL.md)` are byte-identical, pass 1 fires, and the double-load is free. Task 4 introduces `checks.pi-skill-realpath-identity` as the mechanical gate for exactly this, because the property is invisible in the built output and a well-meaning future `cp -r` would silently cost 37 warnings a session.
+**Consequence for this plan, and it is load-bearing:** `buildPiPlugin` must place the **same `skill-<name>` derivations the Claude plugin already ships** into the package's `skills/`, linked by `buildEnv`, never `cp -r`'d. Then `realpath(~/.agents/skills/<n>/SKILL.md)` and `realpath(<pi-package>/skills/<n>/SKILL.md)` are byte-identical, pass 1 fires, and the double-load is free. Task 4 introduces `checks.pi-skill-realpath-identity` as the mechanical gate for exactly this, because the property is invisible in the built output and a well-meaning future `cp -r` would silently cost 39 warnings a session.
 
 ---
 
@@ -1798,7 +1798,7 @@ Run:
 cd /home/joe/Development/agent-skills && nix fmt && nix build .#checks.x86_64-linux.skills-all-four-targets --no-link -L 2>&1 | tail -3
 ```
 
-Expected: a line like `all 37 skills present in all four targets`, then success.
+Expected: a line like `all 39 skills present in all four targets`, then success.
 
 - [ ] **Step 3: Prove it can fail**
 
@@ -1834,7 +1834,7 @@ git checkout flake.nix
 nix build .#checks.x86_64-linux.skills-all-four-targets --no-link && echo COVERAGE_OK_AGAIN
 ```
 
-Expected: `MISSING: pi is missing skill '…'` and `COUNT: pi ships 36 skills, expected 37`, then `COVERAGE_OK_AGAIN`.
+Expected: `MISSING: pi is missing skill '…'` and `COUNT: pi ships 38 skills, expected 39`, then `COVERAGE_OK_AGAIN`.
 
 - [ ] **Step 4: Full flake check**
 
@@ -1960,7 +1960,7 @@ let
 
   piMcp = builtins.fromJSON withPi.home.file.".agents/mcp.json".text;
 in
-lib.runTests {
+lib.debug.runTests {
   testPiMcpFileWritten = {
     expr = piMcp.mcpServers.ctx.command;
     expected = "npx";
@@ -2199,7 +2199,7 @@ settings.packages; local absolute paths are a first-class package source."
 
 **Spec coverage.** This plan implements design §11 in full. Each of its four rows is a task: all skills → `skills/` (Task 4), `disable-model-invocation` skills → `prompts/*.md` with `description` and `argument-hint` (Task 5), `hooks/session-start.sh` → `extensions/*.ts` on pi's session events (Task 6), and `programs.agent-skills.mcpServers` → pi-mcp-adapter settings (Tasks 2 and 9). The `targetLibs` map gains its fourth entry in Task 7, so `temporal` — the only cross-agent plugin — builds for pi like the other three. §14's two `agent-skills` requirements land in Tasks 3 (pi frontmatter lint) and 8 (four-target coverage). §9's `autoMode` fan-out lands in Task 9 following the existing `mkIf (options.programs ? …)` pattern, with an added second guard so it degrades cleanly until phases 3 and 6 give claude-nix and pi-nix their arms. §12 (prompt fragments) and §13 (`modules/ai/pi.nix`) are phases 5 and 6 and are out of scope.
 
-**Assumption A3, resolved.** True, and the fallback is not needed. pi de-duplicates skills twice: silently by canonicalized real path, then noisily by name. Both were confirmed against pi v0.84.2 source and by running the built binary — one `<skill>` block in every configuration, including the real end-to-end shape with a package on a local absolute path in `settings.packages` alongside the live `~/.agents/skills`. The plan therefore keeps `~/.agents/skills` *and* ships skills in the pi package, and steers into the silent pass by linking rather than copying the `skill-<name>` derivations. `checks.pi-skill-realpath-identity` (Task 4) is the gate, and Task 4 Step 7 deliberately breaks the property to prove the gate fires — because a copy would still de-duplicate correctly and would fail only as 37 warning lines per session, which no other check would notice.
+**Assumption A3, resolved.** True, and the fallback is not needed. pi de-duplicates skills twice: silently by canonicalized real path, then noisily by name. Both were confirmed against pi v0.84.2 source and by running the built binary — one `<skill>` block in every configuration, including the real end-to-end shape with a package on a local absolute path in `settings.packages` alongside the live `~/.agents/skills`. The plan therefore keeps `~/.agents/skills` *and* ships skills in the pi package, and steers into the silent pass by linking rather than copying the `skill-<name>` derivations. `checks.pi-skill-realpath-identity` (Task 4) is the gate, and Task 4 Step 7 deliberately breaks the property to prove the gate fires — because a copy would still de-duplicate correctly and would fail only as 39 warning lines per session, which no other check would notice.
 
 **Interfaces consumed from phase 2's `piLib`.** Exactly three, all named in design §7: `mkSkill` (the `claudeLib.mkSkill` ∪ `codexLib.mkSkill` signature, so `buildSkillForTarget` needs no pi branch), `mkPromptTemplate`, and `mkPlugin` (with `skills`, `prompts`, `extensions`, `themes`, emitting the `pi` manifest key). `piLib` has no `mkHook`, and Task 7's `mkCrossAgentPlugin` pi branch is written so `targetLib.mkHook` is never reached. If phase 2 lands different names, Task 1 Step 7 is the gate that catches it before anything is built on top.
 
