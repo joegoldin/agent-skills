@@ -269,23 +269,74 @@ dangling config.
 already supplies `promptSnippet`/`promptGuidelines`. It is an escape hatch for an
 extension that does not, not the normal path.
 
-### Initial pin set
+### Pin set
 
-| Extension | Fills | Source |
+Triaged 2026-08-18 against the npm registry, GitHub, and the unpacked tarballs.
+Every entry is pinned by **verified repository URL**, never by remembered author
+name — the pi gallery and awesome-pi disagree on several, and one candidate
+(`pi-chat`) turned out to be an npm name unrelated to the GitHub repo it appears
+to be, predating it by 3.5 months and hardcoding a third-party Cloudflare Worker.
+
+**Restoring a Claude Code capability**
+
+| Extension | Fills | Evidence |
 | --- | --- | --- |
-| `pi-mcp-adapter` | MCP (nix-helper's server and future ones) | npm |
-| `pi-subagents` | `dispatching-parallel-agents`, `subagent-driven-development` | npm |
-| `pi-background-tasks` | background bash | npm |
-| `@plannotator/pi-extension` | plan mode (`writing-plans`, `brainstorming`) | npm |
-| `@juicesharp/rpiv-todo` | TodoWrite, which `using-agent-skills` mandates | npm |
-| `@gotgenes/pi-permission-system` | deterministic permission layer | npm |
-| `pi-auto-mode` | classifier layer | first-party |
-| `pi-notify` | desktop notifications | first-party |
-| `agent-statusline` extension | statusline | `agent-statusline` repo |
+| `pi-mcp-adapter` | MCP | 154k dl/wk |
+| `pi-subagents` | `dispatching-parallel-agents`, `subagent-driven-development` | 57k dl/wk |
+| `pi-background-tasks` | background bash | 19k dl/wk |
+| `@juicesharp/rpiv-ask-user-question` | AskUserQuestion, previews and all | 12.3k dl/wk |
+| `@narumitw/pi-goal` | `/goal` — see the mechanism note below | 8.6k dl/wk |
+| `@juicesharp/rpiv-todo` | TodoWrite, which `using-agent-skills` mandates | 7k dl/wk |
+| `@juicesharp/rpiv-voice` | voice dictation, on-device Whisper | 5.9k dl/wk |
+| `@gotgenes/pi-permission-system` | deterministic permission layer | 5k dl/wk |
+| `remote-pi` | peer messaging between instances (§17) | see §17 |
 
-Pin each by **verified repository URL**, not by remembered author name: the pi
-package gallery and awesome-pi disagree on authorship for several packages
-(`nicopreme` vs `nicobailon`), so authorship must be confirmed at pin time.
+**New capability**
+
+| Extension | What it adds | Evidence |
+| --- | --- | --- |
+| `@narumitw/pi-btw` | `/btw` side question, no main-conversation pollution | 2.0k dl/wk |
+| `pi-cache-optimizer` | prefix-cache hit rate, `prompt_cache_key` injection | 2.5k dl/wk |
+| `@narumitw/pi-caffeinate` | inhibits sleep during runs, via D-Bus on Linux | 860 dl/wk |
+| `@heyhuynhgiabuu/pi-pretty` | syntax highlighting in the TUI | 746 dl/wk |
+
+**First-party** — `pi-auto-mode` (§9), `pi-notify` (§10), and the statusline
+extension (§6).
+
+#### Two notes that change what these buy
+
+**`/goal` cannot be ported as a blocking mechanism.** Claude Code's `/goal` is a
+Stop hook that *vetoes* stopping. pi has no vetoable stop event: `agent_end`,
+`agent_settled`, and `turn_end` are all declared with no result type. Only
+`tool_call`, `input`, `context`, `message_end`, and `before_agent_start` can
+return anything that alters behaviour. `pi-goal` therefore *pushes* — it catches
+the settle boundary and injects a continuation message. Same user-visible
+outcome, different mechanism, and it is the only mechanism available.
+
+**`pi-cache-optimizer` does almost nothing on Codex.** It hard-bypasses all
+prompt rewriting on Responses-family APIs, because Codex's safety filter flags
+reordered prompts as injection, returns `content_filter`, and blocks `subagent`.
+Its value lands on the OpenRouter path. Pinned with that understood.
+
+#### Deliberately not adopted
+
+| Rejected | Why |
+| --- | --- |
+| `@plannotator/pi-extension` | Plan mode dropped. Planning here writes documents (`docs/plans/`), which needs no harness toggle. Consequence: pi has no read-only-until-approved mode, so `pi-auto-mode`'s rules are the only thing between the agent and the working tree. |
+| `pi-landstrip` | Same containment axis as jail.nix and *weaker* — ships `shell.readAccess: "host"`, i.e. read confinement off by default on Linux. Its domain allowlisting is a userspace HTTP proxy, not the kernel. |
+| `latchkey` | Its permission layer fails open (no config file → check skipped → returns true); agenix covers the keyring half; the Chromium/OAuth half is dead weight. |
+| `pi-rtk-optimizer` | Lossy by default (`compactGitOutput`, `filterBuildOutput`, `aggregateTestOutput`, 12k-char truncate). A compacted file read then breaks an exact-string edit — a silent correctness bug. |
+| `pi-goosedump` | Overrides the compaction path, the most correctness-sensitive seam in the harness, with 0 stars and a 13-day-old repo. |
+| `pi-dynamic-workflows` | 18.5k LOC overlapping `pi-subagents` and `pi-goal`; orchestration policy belongs in skills. |
+| `opencode-codebase-index` | 244 MB of native binaries plus an embedding provider; ripgrep and the `sem` skill already cover this. |
+| `pi-fovea` | 8 stars, 12 days old, in the path where the agent reads code. Expose `ast-grep` directly if wanted. |
+| `pi-markdown-preview` | pandoc + Chromium for previewing markdown. |
+| `betterwright` | Second browser stack; `claude-in-chrome` already drives the real profile. |
+| `@dietrichgebert/ponytail` | Its asset is behavioural prose that would compete with this repo's skills and §12's `shared/` layer. |
+| `pi-intercom` | Superseded by `remote-pi`, which covers local and remote in one. |
+| `pi-agents-talk-to-each-other` | 18 dl/wk, 0 stars, untouched since June. Retained in §17 only as a fallback blueprint. |
+| `pi-chat` | The npm package is not the GitHub repo of the same name. |
+| `agentnet`, `runline` | Python hub with passkey enrollment; per-service API keys. |
 
 ## 9. Permissions and sandbox
 

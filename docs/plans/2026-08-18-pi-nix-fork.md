@@ -103,7 +103,7 @@ Run:
 cd /home/joe/Development/pi-nix && nix build .#checks.x86_64-linux.smoke -L 2>&1 | tail -3
 ```
 
-Expected: `error: flake 'git+file:///home/joe/Development/pi-nix' does not provide attribute 'packages.x86_64-linux.checks.x86_64-linux.smoke', 'legacyPackages.x86_64-linux.checks...'` — the `checks` output does not exist yet.
+Expected: a `does not provide attribute` error naming `checks.x86_64-linux.smoke` — the `checks` output does not exist yet.
 
 - [ ] **Step 3: Add the `checks` output to `flake.nix`**
 
@@ -146,7 +146,7 @@ with:
 
 - [ ] **Step 6: Write `docs/REBASING.md`**
 
-```markdown
+~~~~markdown
 # Rebasing on upstream
 
 This repo is a fork of [lukasl-dev/pi.nix](https://github.com/lukasl-dev/pi.nix),
@@ -206,11 +206,11 @@ git diff upstream/master --stat -- \
 
 The `git diff` must print nothing. If it does not, an upstream file was
 restructured and the next rebase will be painful — revert that hunk.
-```
+~~~~
 
 - [ ] **Step 7: Rewrite `README.md`**
 
-```markdown
+~~~~markdown
 # pi-nix
 
 A Nix flake for [pi](https://github.com/earendil-works/pi), the terminal coding
@@ -300,7 +300,7 @@ Upstream's own README, cachix cache, and issue tracker remain the reference for
 everything not in the table above. See
 [earendil-works/pi#2310](https://github.com/earendil-works/pi/issues/2310) for
 why an official flake does not exist.
-```
+~~~~
 
 - [ ] **Step 8: Add `garnix.yaml`**
 
@@ -404,13 +404,13 @@ pkgs.runCommand "pi-nix-lib-tests" { nativeBuildInputs = [ pkgs.jq ]; } ''
   # ── mkPiSkill ────────────────────────────────────────────────────────────
   md=${skill}/skills/demo-skill/SKILL.md
   test -f "$md"
-  grep -qx 'name: demo-skill' "$md"
-  grep -qx 'description: A demo skill used by the pi-nix builder tests.' "$md"
+  grep -qxF 'name: demo-skill' "$md"
+  grep -qxF 'description: A demo skill used by the pi-nix builder tests.' "$md"
   # Entries containing spaces must be comma-joined; a space join would shear
   # "Bash(git log:*)" mid-entry.
-  grep -qx 'allowed-tools: read, Bash(git log:*)' "$md"
-  grep -qx 'disable-model-invocation: true' "$md"
-  grep -qx 'Body of the demo skill.' "$md"
+  grep -qxF 'allowed-tools: read, Bash(git log:*)' "$md"
+  grep -qxF 'disable-model-invocation: true' "$md"
+  grep -qxF 'Body of the demo skill.' "$md"
 
   # An empty allowed-tools line would restrict the skill to no tools, so the
   # key must be absent rather than empty.
@@ -422,9 +422,9 @@ pkgs.runCommand "pi-nix-lib-tests" { nativeBuildInputs = [ pkgs.jq ]; } ''
   # The filename is the slash command, so it must be exactly <name>.md.
   p=${prompt}/prompts/review.md
   test -f "$p"
-  grep -qx 'description: Review staged git changes' "$p"
-  grep -qx 'argument-hint: "[file-pattern]"' "$p"
-  grep -qx 'Review $1 and summarise $@.' "$p"
+  grep -qxF 'description: Review staged git changes' "$p"
+  grep -qxF 'argument-hint: "[file-pattern]"' "$p"
+  grep -qxF 'Review $1 and summarise $@.' "$p"
 
   # With no frontmatter fields pi uses the first non-empty line as the
   # description, so no delimiters may be emitted at all.
@@ -442,7 +442,6 @@ pkgs.runCommand "pi-nix-lib-tests" { nativeBuildInputs = [ pkgs.jq ]; } ''
   test "$(jq -r '.pi.prompts[0]' "$pj")" = ./prompts
   # No extensions were passed, so the key must be absent — an empty array
   # would make pi resolve zero entries and fall through to index.ts probing.
-  test "$(jq -r 'has("extensions") | tostring' "$pj" )" = false
   test "$(jq -r '.pi | has("extensions") | tostring' "$pj")" = false
   test -f ${plugin}/skills/demo-skill/SKILL.md
   test -f ${plugin}/prompts/review.md
@@ -1661,7 +1660,7 @@ assert lib.elem "--system-prompt" withExtra.finalArgs;
 pkgs.runCommand "pi-nix-options-tests" { } ''
   set -euo pipefail
   # The written prompt must be the literal text, with no wrapper or frontmatter.
-  grep -qx 'You are terse.' ${inline.finalSystemPrompt}
+  grep -qxF 'You are terse.' ${inline.finalSystemPrompt}
   touch $out
 ''
 ```
@@ -2112,7 +2111,34 @@ In `flake.nix`, inside `inputs`, after `jail-nix`:
     };
 ```
 
-The input is reached through `self.inputs.agent-statusline` rather than being threaded as a function argument, so `module.nix` and `home-manager.nix` keep their upstream `{ self, jail-nix }` signatures.
+Then add it to the `outputs` function's argument list. This is **mandatory**, not cosmetic: the outputs function destructures without a `...`, so Nix calling it with an input the pattern does not name fails with `error: function ... called with unexpected argument 'agent-statusline'`. Change:
+
+```nix
+  outputs =
+    {
+      self,
+      nixpkgs,
+      systems,
+      bun2nix,
+      jail-nix,
+    }:
+```
+
+to:
+
+```nix
+  outputs =
+    {
+      self,
+      nixpkgs,
+      systems,
+      bun2nix,
+      jail-nix,
+      agent-statusline,
+    }:
+```
+
+The option module still reaches it through `self.inputs.agent-statusline` rather than being threaded a function argument, so `module.nix` and `home-manager.nix` keep their upstream `{ self, jail-nix }` signatures and stay one-line diffs.
 
 Then:
 
@@ -2464,7 +2490,7 @@ Add to the `let` block:
   };
 ```
 
-`notificationArgs` holds bare paths; wrap them into flags where they are used:
+`notificationArgs` holds bare paths, so add the flag-pairing binding directly beneath it in the same `let` block:
 
 ```nix
   notificationFlags = lib.concatMap (p: [
@@ -2636,23 +2662,37 @@ let
     "VERSION.json" = ../VERSION.json;
   };
 
-  lines = pkgs.lib.mapAttrsToList (
-    name: path: "${builtins.hashFile "sha256" path}  ${name}"
-  ) protected;
+  actual = pkgs.lib.mapAttrs (_name: path: builtins.hashFile "sha256" path) protected;
 
-  manifest = pkgs.writeText "pi-nix-protected-files" (
-    pkgs.lib.concatStringsSep "\n" (pkgs.lib.sort (a: b: a < b) lines) + "\n"
+  # Recorded from upstream/master @ 273a552. Filled in by Step 2.
+  expected = { };
+
+  drifted = pkgs.lib.attrNames (
+    pkgs.lib.filterAttrs (name: h: (expected.${name} or null) != h) actual
   );
 in
-pkgs.runCommand "pi-nix-additive-test" { } ''
-  set -euo pipefail
-  # Recorded when this test was written, from upstream/master @ 273a552.
-  # Regenerate with:
-  #   nix build .#checks.x86_64-linux.additive -L   (read the diff it prints)
-  cat ${manifest}
-  cp ${manifest} $out
-''
+pkgs.runCommand "pi-nix-additive-test"
+  {
+    drifted = pkgs.lib.concatStringsSep " " drifted;
+    recorded = builtins.toJSON actual;
+  }
+  ''
+    set -euo pipefail
+    if [ -n "$drifted" ]; then
+      echo "Upstream files outside the permitted edit set changed: $drifted"
+      echo ""
+      echo "See docs/REBASING.md. If this is a deliberate upstream rebase, paste"
+      echo "these hashes into the expected binding in tests/additive-test.nix,"
+      echo "in the same commit as the rebase:"
+      echo "$recorded"
+      exit 1
+    fi
+    touch $out
+  ''
 ```
+
+The comparison happens in Nix, not in shell, so there is no heredoc whose
+indentation the `''` string could silently eat.
 
 Register it in `tests/default.nix`:
 
@@ -2660,34 +2700,38 @@ Register it in `tests/default.nix`:
   additive = import ./additive-test.nix args;
 ```
 
-- [ ] **Step 2: Run it and capture the recorded hashes**
+- [ ] **Step 2: Run it and record the hashes**
 
 Run:
 ```bash
-cd /home/joe/Development/pi-nix && nix build .#checks.x86_64-linux.additive -L --no-link --print-out-paths | xargs cat
+cd /home/joe/Development/pi-nix && nix build .#checks.x86_64-linux.additive -L 2>&1 | grep -A4 'Upstream files outside'
 ```
 
-Expected: eight `<sha256>  <path>` lines, sorted by path.
+Expected: the failure message listing all eight paths, then a JSON object
+mapping each path to its sha256.
 
-Copy that output verbatim into `tests/additive-test.nix`, replacing the trailing `cat ${manifest}` / `cp ${manifest} $out` with a real comparison:
+Transcribe that JSON into the `expected` binding, giving:
 
 ```nix
-in
-pkgs.runCommand "pi-nix-additive-test" { } ''
-  set -euo pipefail
-  cat > expected <<'EOF'
-  <paste the eight lines here, unindented>
-  EOF
-  if ! diff -u expected ${manifest}; then
-    echo ""
-    echo "An upstream file outside the permitted edit set changed."
-    echo "See docs/REBASING.md. If this is a deliberate upstream rebase,"
-    echo "update the hashes in tests/additive-test.nix in the same commit."
-    exit 1
-  fi
-  touch $out
-''
+  expected = {
+    "VERSION.json" = "<hash from the JSON above>";
+    "coding-agent/bun.nix" = "<hash>";
+    "coding-agent/options.nix" = "<hash>";
+    "coding-agent/package-bun.nix" = "<hash>";
+    "coding-agent/package.nix" = "<hash>";
+    "regenerate-models.nix" = "<hash>";
+    "scan.nix" = "<hash>";
+    "sync-upstream.nix" = "<hash>";
+  };
 ```
+
+Then confirm it is green:
+
+```bash
+cd /home/joe/Development/pi-nix && nix build .#checks.x86_64-linux.additive -L && echo RECORDED
+```
+
+Expected: `RECORDED`.
 
 - [ ] **Step 3: Verify the test actually catches a modification**
 
@@ -2706,7 +2750,7 @@ Expected: `1` from the grep, then `ADDITIVE-OK` after the revert. A test that ne
 
 Replace the `## Options` section written in Task 1 with:
 
-```markdown
+~~~~markdown
 ## Options
 
 Everything upstream documents under `programs.pi.coding-agent` still applies.
@@ -2751,7 +2795,7 @@ Generate the full reference:
 nix build .#docs-md
 nix build .#docs-html
 ```
-```
+~~~~
 
 - [ ] **Step 5: Confirm the generated option docs include the new options**
 
@@ -2798,7 +2842,9 @@ git push -u origin master
 
 **Spec coverage.** Design §7's addition table is covered row for row: `systemPrompt` → `--system-prompt` (Task 5), `packages/extensions/` + `packages.ext-*` (Task 3), `extensions.json` + extended `update` app (Tasks 3 and 4), `statusline` (Task 7), `notifications` (Task 8), `lib/` builders (Task 2). §8's `mkPiExtension` shape, `extensions.json` schema, `passthru.settings` rationale, and the "pin by verified repository URL, not remembered author name" instruction are all honoured — the pin table records the registry's repository URLs, and finding 6 records the correction (`nicobailon`, not `nicopreme`). §7's "known upstream behaviour, retained" paragraph about the `settings.json` jq-merge is reproduced in the README rather than being fixed. The `autoMode` row of §7's table is deliberately **not** here: it belongs to phase 3 with `pi-auto-mode` and the permission layers, and landing the option without either layer would ship a lie.
 
-**Placeholder scan.** No `TBD`, no "similar to Task N", no "add error handling". Every hash in `extensions.json` is a real value read off the npm registry on 2026-08-18; every `npmDepsHash` was computed and is reproduced in Task 3 Step 6's expected output. The one synthetic hash in `tests/extensions-test.nix` is a deliberate all-`A` sha512 on a derivation that is never built, and the comment says so. Two steps write text the operator must paste from a prior command's output — Task 9 Step 2's hash manifest, and Task 3 Step 6's generated lockfiles — both give the exact command and the exact expected shape, which is the standard Nix pin workflow, not a gap.
+**Placeholder scan.** No `TBD`, no "similar to Task N", no "add error handling". Every hash in `extensions.json` is a real value read off the npm registry on 2026-08-18; every `npmDepsHash` was computed and is reproduced in Task 3 Step 6's expected output. The one synthetic hash in `tests/extensions-test.nix` is a deliberate all-`A` sha512 on a derivation that is never built, and the comment says so. Two steps have the operator transcribe values a prior command printed — Task 3 Step 6's `npmDepsHash` set (whose expected output is reproduced verbatim, so it is a comparison, not a blank) and Task 9 Step 2's eight upstream-file hashes. Both give the exact command and the exact expected shape. That is the standard Nix pin workflow, not a gap.
+
+**Validated while writing, not just asserted.** Task 2's four files and its full test were built and run: `pi-nix-lib-tests` passes against the exact code in this plan. Task 5's `extra-options.nix` and its test were run against the real `coding-agent/options.nix` from the fork, confirming that `extraArgs = lib.mkAfter …` from a second module lands in `finalArgs` and coexists with `rules`. Task 6's and Task 8's additions were assembled on top and run the same way, including a deliberate tamper to prove the `--extension` ordering assertion and the `notifications`-without-a-package `tryEval` assertion both actually fire. Every `nix` code block in this document parses under `nix-instantiate --parse`. The `grep -qxF` in the builder tests is `-F` deliberately: with plain `-qx`, `[file-pattern]` reads as a character class and `log:*)` as a repetition, and both assertions pass vacuously against the wrong content.
 
 **Type consistency.** `passthru.piEntrypoint` is `list of str` in `mkPiExtension` (Task 3), `mkPiPlugin` (Task 2), the fake extensions in the Task 6 test, and the `notificationArgs` consumer in Task 8. `passthru.piSkills` / `piPrompts` are likewise `list of str` everywhere and feed `skills` / `promptTemplates`, whose upstream types (`listOf path`, `listOf path`) accept `/nix/store/…` strings. `passthru.settings` is `attrs` and is folded with `recursiveUpdate` in both Task 6 and Task 8. `passthru.promptFragment` is `null | str` in all four places. `extensions.json` fields are read by exactly two consumers — `packages/extensions/default.nix` and `update-extensions.nix` — and the field list matches between them, with `bundled` and `entrypoints` written by neither.
 
