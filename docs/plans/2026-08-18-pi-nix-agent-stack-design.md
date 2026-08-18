@@ -71,7 +71,7 @@ reached for:
 
 - `mkPiExtension` (§8) builds unbundled packages with **bun2nix**, which is
   already a flake input of pi.nix (pinned 2.1.0, with the overlay applied in
-  `flake.nix`) — not `buildNpmPackage`/`npmDepsHash`.
+  `flake.nix`): not `buildNpmPackage`/`npmDepsHash`.
 - Lockfiles are `bun.lock` and the bun2nix-generated Nix file, not
   `package-lock.json`.
 - The extended `update` app (§7) regenerates bun lockfiles.
@@ -110,7 +110,7 @@ The fork builds and runs (`nix build .#coding-agent`), and `pi --help` on the
 resulting binary confirms:
 
 - `--system-prompt <text>` is documented as *"System prompt (default: coding
-  assistant prompt)"* — it **replaces** rather than appends, which §12 depends on.
+  assistant prompt)"*: it **replaces** rather than appends, which §12 depends on.
 - `--append-system-prompt` exists separately and is repeatable.
 - `--no-skills`, `--no-extensions`, and `--no-prompt-templates` all exist, so
   assumption A3's fallback is real rather than hoped for.
@@ -187,7 +187,7 @@ moves to `~/.cache/agent-statusline/`; it is a cache, so it simply repopulates.
 
 ### Mode-gated behaviour changes
 
-1. **`cost`** currently hides unless Anthropic rate limits indicate overage — a
+1. **`cost`** currently hides unless Anthropic rate limits indicate overage: a
    Claude Max assumption. Under pi the auth is Codex/API-key/OpenRouter, so cost
    is the primary meter and always shows. Claude mode keeps today's gating.
 2. **`rate_limits`** populates in pi mode only when `after_provider_response`
@@ -219,7 +219,7 @@ schema, one meaning, one place to add a widget.
   itself, harness-independent).
 - **Computed**: `cost`, as a plain sum over assistant messages. Verified
   during implementation: every pi API adapter calls `calculateCost()`
-  internally, so `usage.cost.total` arrives already priced — tier-aware and
+  internally, so `usage.cost.total` arrives already priced: tier-aware and
   already applying Anthropic's 2x 1h-cache-write rule. No pricing table is
   read and there is no drift risk.
 - **Via the `hook` seam**: `activity`, driven by `tool_execution_start`,
@@ -248,8 +248,8 @@ Additions, all additive:
 ### Known upstream behaviour, retained
 
 Upstream's `settings` option jq-merges into `~/.pi/agent/settings.json` on every
-launch rather than writing a store symlink. This is deliberate — pi writes to
-that file itself via `/login` and `/model` — but it means Nix-declared settings
+launch rather than writing a store symlink. This is deliberate: pi writes to
+that file itself via `/login` and `/model`: but it means Nix-declared settings
 win over interactive `/model` choices on each run. This is the same trade-off
 already documented in `modules/ai/codex.nix`. Keep the behaviour; document it.
 
@@ -292,7 +292,7 @@ extension that does not, not the normal path.
 
 Triaged 2026-08-18 against the npm registry, GitHub, and the unpacked tarballs.
 Every entry is pinned by **verified repository URL**, never by remembered author
-name — the pi gallery and awesome-pi disagree on several, and one candidate
+name: the pi gallery and awesome-pi disagree on several, and one candidate
 (`pi-chat`) turned out to be an npm name unrelated to the GitHub repo it appears
 to be, predating it by 3.5 months and hardcoding a third-party Cloudflare Worker.
 
@@ -318,7 +318,7 @@ to be, predating it by 3.5 months and hardcoding a third-party Cloudflare Worker
 | `@narumitw/pi-caffeinate` | inhibits sleep during runs, via D-Bus on Linux | 860 dl/wk |
 | `@heyhuynhgiabuu/pi-pretty` | syntax highlighting in the TUI | 746 dl/wk |
 
-**First-party** — `pi-auto-mode` (§9), `pi-notify` (§10), `pi-voice` (§18), and
+**First-party**, `pi-auto-mode` (§9), `pi-notify` (§10), `pi-voice` (§18), and
 the statusline extension (§6).
 
 #### Two notes that change what these buy
@@ -327,7 +327,7 @@ the statusline extension (§6).
 Stop hook that *vetoes* stopping. pi has no vetoable stop event: `agent_end`,
 `agent_settled`, and `turn_end` are all declared with no result type. Only
 `tool_call`, `input`, `context`, `message_end`, and `before_agent_start` can
-return anything that alters behaviour. `pi-goal` therefore *pushes* — it catches
+return anything that alters behaviour. `pi-goal` therefore *pushes*: it catches
 the settle boundary and injects a continuation message. Same user-visible
 outcome, different mechanism, and it is the only mechanism available.
 
@@ -380,7 +380,7 @@ Three layers, each with one job:
 ```
 
 > **Two jail corrections found during planning:** `~/.1password/agent.sock` needs
-> `try-readwrite`, not `try-readonly` — an `AF_UNIX` connect requires write on the
+> `try-readwrite`, not `try-readonly`: an `AF_UNIX` connect requires write on the
 > inode. And `pi-notify` (§10) needs dbus talk permission on
 > `org.freedesktop.Notifications` or it is silently inert inside the jail.
 
@@ -405,12 +405,12 @@ programs.agent-skills.autoMode = {
 
 ### Semantics
 
-- `allow` — proceed without prompting.
-- `soft_deny` — destructive, but explicit user intent clears it. The classifier
+- `allow`: proceed without prompting.
+- `soft_deny`: destructive, but explicit user intent clears it. The classifier
   therefore receives recent user turns from `ctx.sessionManager` alongside the
   rules.
-- `hard_deny` — a security boundary; user intent does not clear it.
-- `environment` — facts about this machine the classifier should assume.
+- `hard_deny`: a security boundary; user intent does not clear it.
+- `environment`: facts about this machine the classifier should assume.
 
 ### Failure behaviour
 
@@ -438,8 +438,8 @@ carries a first-party extension reproducing the old intent:
 | `Stop` (agent finished) | `agent_settled` |
 | `PreToolUse:Bash` (long-running command) | `tool_execution_start`/`end` with a duration threshold |
 
-Implementation shells out to a Nix-baked notifier — `notify-send` on Linux,
-`terminal-notifier` or `osascript` on Darwin — so the binary path is resolved at
+Implementation shells out to a Nix-baked notifier, `notify-send` on Linux,
+`terminal-notifier` or `osascript` on Darwin: so the binary path is resolved at
 build time. Configured through the pi-nix `notifications` option (enable,
 duration threshold, which events).
 
@@ -453,7 +453,7 @@ targetLibs = { claude = claudeLib; antigravity = agyLib;
                codex = codexLib;  pi = piLib; };
 ```
 
-`buildPiPlugin` emits a real pi package — a `package.json` carrying the `pi` key
+`buildPiPlugin` emits a real pi package: a `package.json` carrying the `pi` key
 — with:
 
 | Source | → | pi form |
@@ -480,8 +480,8 @@ codex     AGENTS.md = shared               → ~/.codex/AGENTS.md (currently emp
 antigrav  its file  = shared
 ```
 
-`core/` carries what Claude Code and Codex already have built in — tool-use
-discipline, search strategy, terminal output conventions — and therefore must
+`core/` carries what Claude Code and Codex already have built in: tool-use
+discipline, search strategy, terminal output conventions: and therefore must
 never be appended to them.
 
 `shared/` carries preferences that hold regardless of harness: tone, code
@@ -493,8 +493,8 @@ guidance via `promptSnippet`/`promptGuidelines`.
 
 ### Governing rule
 
-**Fragments state policy, never inventory.** No skill names — pi injects the
-skill list in XML per the Agent Skills spec. No tool lists — `registerTool`
+**Fragments state policy, never inventory.** No skill names: pi injects the
+skill list in XML per the Agent Skills spec. No tool lists, `registerTool`
 injects those. No model names, dates, or working directories.
 
 This is enforced mechanically: a CI lint greps the fragments for known skill
@@ -505,8 +505,8 @@ names and tool names and fails the build. The constraint is a test, not a habit.
 `modules/ai/pi.nix`, a `den.aspects.pi.homeManager` aspect matching the existing
 three, with the same `lib.mkIf (pkgs ? llm-agents)` guard and shape.
 
-Auth, per the chosen paths — ChatGPT/Codex `/login`, 1Password- or agenix-backed
-API keys, and OpenRouter — uses `environment.<NAME>.file` pointing at an agenix
+Auth, per the chosen paths, ChatGPT/Codex `/login`, 1Password- or agenix-backed
+API keys, and OpenRouter: uses `environment.<NAME>.file` pointing at an agenix
 path, or pi's `!command` key resolution for `op read`. No secret enters the Nix
 store.
 
@@ -515,7 +515,7 @@ store.
 > 1. **The jail would silently break auth.** pi-nix's jail wraps the *wrapper*, so
 >    the `cat /run/agenix/…` that loads keys runs inside bubblewrap, and jail.nix
 >    binds only the runtime closure. Without explicit read binds the keys resolve
->    to empty strings — no error, just a failing agent. The same mechanism makes
+>    to empty strings: no error, just a failing agent. The same mechanism makes
 >    `!op read` unusable under the jail at all (`op` needs the desktop socket and
 >    biometric unlock), so **agenix is the only working key path on Linux and the
 >    1Password path is Darwin-only.**
@@ -524,10 +524,10 @@ store.
 >    `home.file` works; a `home.activation` script installs a real 0600 file.
 > 3. **dotfiles needs no new flake inputs.** Every agent repo arrives transitively
 >    through the single `agent-skills` input, and there are no `homeConfigurations`
->    — the build target is
+>   : the build target is
 >    `.#nixosConfigurations.elphael.config.home-manager.users.joe.home.activationPackage`.
 >
-> `jail.enable` is additionally gated on `isLinux`, since it throws on Darwin.
+> `jail.enable` is also gated on `isLinux`, since it throws on Darwin.
 
 ## 18. Voice: `pi-voice` over `audiomemo`
 
@@ -577,11 +577,11 @@ about devices, backends, and formats stays in audiomemo.
 ### Secrets and backend selection
 
 Backend selection stays audiomemo's existing runtime autodetect. Keys are passed
-as **file paths, not values** — `ELEVENLABS_API_KEY_FILE`, `DEEPGRAM_API_KEY_FILE`,
+as **file paths, not values**, `ELEVENLABS_API_KEY_FILE`, `DEEPGRAM_API_KEY_FILE`,
 `OPENAI_API_KEY_FILE`, `MISTRAL_API_KEY_FILE`, `HF_TOKEN_FILE` pointing at
 `/run/agenix/*`, plus `XDG_CONFIG_HOME` so the live `~/.config/audiomemo/config.toml`
 is found. audiomemo reads the files itself, so no secret enters the store *or* the
-process environment — a cleaner path than §13's `cat`-into-env approach, and one
+process environment: a cleaner path than §13's `cat`-into-env approach, and one
 that survives the jail given read-binds for those paths.
 
 ### A gap this closes
@@ -594,7 +594,7 @@ up in both Claude Code and pi from one implementation.
 ## 14. Testing
 
 - **`agent-statusline`**: golden tests per mode. Claude-mode goldens must remain
-  byte-identical through the rename — the regression gate for the daily driver.
+  byte-identical through the rename: the regression gate for the daily driver.
 - **`agent-skills`**: extend the existing lint test to cover pi frontmatter, and
   assert every skill builds for all four targets.
 - **`pi-nix`**: eval tests that each `ext-*` builds and its `passthru.settings`
@@ -604,10 +604,10 @@ up in both Claude Code and pi from one implementation.
 
 ## 15. Rollout order
 
-1. **`agent-statusline`** — extract, rename, dual-mode, keep Claude goldens
+1. **`agent-statusline`**: extract, rename, dual-mode, keep Claude goldens
    green. Lands entirely inside the existing Claude setup with no behaviour
    change, and proves the shared-config-schema refactor before pi depends on it.
-2. **`pi-nix`** — fork, rename, `systemPrompt` option, extension packaging.
+2. **`pi-nix`**: fork, rename, `systemPrompt` option, extension packaging.
 3. **`pi-auto-mode`, `pi-notify`, jail config.**
 4. **`agent-skills` pi target.**
 5. **Prompt fragments**, plus wiring `shared/` to all four agents.
