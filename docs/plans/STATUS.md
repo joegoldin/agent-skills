@@ -140,8 +140,8 @@ Pins: `pi-mcp-adapter`, `pi-subagents`, `pi-background-tasks`,
 | 9 | Document the fork, prove it stayed additive | done (e74cf7a) |
 | — | follow-up: bump the `agent-statusline` lock to 71e0e20 | done (b55eb41) |
 
-**Phase 2 is complete, committed on `master` in `/home/joe/Development/pi-nix`,
-not pushed.** `nix flake check` is green with six checks (`additive`,
+**Phase 2 is complete, committed and pushed on `master` in
+`/home/joe/Development/pi-nix` (`b55eb41`).** `nix flake check` is green with six checks (`additive`,
 `builders`, `extensions`, `options`, `smoke`, `update-app`) and all ten
 `packages.ext-*` evaluate.
 
