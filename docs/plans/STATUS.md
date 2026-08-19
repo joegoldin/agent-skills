@@ -35,7 +35,7 @@ Status values: `todo` · `wip` · `done` · `blocked` · `dropped`
 | # | Phase | Repo | Tasks | Status |
 | --- | --- | --- | --- | --- |
 | 1 | agent-statusline (extract + dual mode) | agent-statusline, claude-nix | 9 | **done** |
-| 1b | statusline native pi rewrite | agent-statusline | 11 | wip |
+| 1b | statusline native pi rewrite | agent-statusline | 11 | **done** |
 | 2 | pi-nix fork | pi-nix | 9 | wip |
 | 3 | pi-auto-mode, pi-notify, jail | pi-nix | 10 | todo |
 | 4 | agent-skills pi target | agent-skills | 9 | todo |
@@ -67,10 +67,10 @@ check` green in both repos.
 
 Out of scope by decision: `pr` under pi (pi has no PR concept, widget hides).
 
-## Phase 1b: statusline native pi rewrite — WIP
+## Phase 1b: statusline native pi rewrite — DONE
 
 Plan: `2026-08-18-statusline-native-pi.md` (11 tasks, 87 steps).
-Owner: Go side (tasks 1-5) delegated; TS side (tasks 6-11) not started.
+Owner: Go side (tasks 1-5) and TS side (tasks 6-11) both delegated, both landed.
 
 Why it exists: the phase-1 pi integration is broken. pi's `sanitizeStatusText`
 collapses newlines and runs of spaces, destroying the multi-row output and flex
@@ -85,19 +85,31 @@ spacers; nothing ticks, so the spinner and clocks freeze.
 | 5 | Go: `--emit json` | done (9dfa6db) |
 | 6 | TS: migrate to `bun test` | done (7cae54c) |
 | 7 | TS: width arithmetic pinned to pi-tui | done (7d45ddb) |
-| 8 | TS: snapshot types, intent→theme map, theme-derived bar | wip |
-| 9 | TS: row layout and the activity stack | todo |
-| 10 | Integration test that catches the sanitize bug | todo |
-| 11 | Nix packaging via bun2nix | todo |
+| 8 | TS: snapshot types, intent→theme map, theme-derived bar | done (9a55594) |
+| 9 | TS: row layout and the activity stack | done (c425e3e) |
+| 10 | Integration test that catches the sanitize bug | done (ff37bc9) |
+| 11 | Nix packaging via bun2nix | done (71e0e20) |
 
 Hard gate: the three Claude golden files stay byte-identical. **Held through
-task 5**: `git diff --stat internal/e2e/testdata/` empty, and the sha256 of
-`idle/full/narrow.golden` unchanged across the one `-update` run (which was
-filtered to `TestGolden/pi-full.json` and created exactly one new file).
+task 11**: `git status --porcelain internal/e2e/testdata/` empty after every
+task, and the sha256 prefixes are still `432bddf8` / `94c299c9` / `51de381a`.
 
-The Go side is done. `--emit json` ships the wire format tasks 7-9 consume;
-`--emit ansi` remains the default and is byte-identical to no flag at all in
-both modes.
+Verification at the end of task 11: all 13 Go packages `ok`; `bun test` 129
+pass / 0 fail across 9 files; `nix flake check` green with the new
+`pi-extension-tests` derivation running the same 129 tests cold in the sandbox.
+
+Task 10 step 8 was carried out rather than assumed: reintroducing the phase-1
+`ctx.ui.setStatus(WIDGET_KEY, lastGood.join("\n"))` turns `pi-contract.test.ts`
+red on exactly `never hands a row to setStatus`, quoting the text pi would
+mangle. Restoring the file returns it to 14 pass / 0 fail.
+
+Live smoke against `packages.coding-agent-bun`: two distinct rows below the
+editor, `  ·  ` separators intact with two spaces on each side, spinner
+stepping one frame per second and elapsed climbing with it while the data poll
+runs at 5 s, and the cwd drawn in the theme's `mdLink` blue against the running
+tool's `warning` yellow — the `path`/`warn` split the intent table exists for,
+which the ANSI path cannot express because Go emits SGR 33 for both. No
+orphaned processes after exit.
 
 ## Phase 2: pi-nix fork — WIP
 
@@ -118,13 +130,13 @@ Pins: `pi-mcp-adapter`, `pi-subagents`, `pi-background-tasks`,
 | --- | --- | --- |
 | 1 | Rename bookkeeping, eval-test harness | done (3473505) |
 | 2 | `lib/` pi package builders | done (c8bc072) |
-| 3 | `mkPiExtension`, `extensions.json`, `packages.ext-*` | wip |
-| 4 | Extend `nix run .#update` to bump pins | todo |
-| 5 | `extra-options.nix` and `systemPrompt` | todo |
-| 6 | `extensionPackages` | todo |
-| 7 | `statusline` option | todo |
-| 8 | `notifications` option | todo |
-| 9 | Document the fork, prove it stayed additive | todo |
+| 3 | `mkPiExtension`, `extensions.json`, `packages.ext-*` | done (aae3c79) |
+| 4 | Extend `nix run .#update` to bump pins | done (d256eb0) |
+| 5 | `extra-options.nix` and `systemPrompt` | done (ec1dd85) |
+| 6 | `extensionPackages` | done (4a1411a) |
+| 7 | `statusline` option | done (a1b7ba2) |
+| 8 | `notifications` option | done (a313660) |
+| 9 | Document the fork, prove it stayed additive | wip |
 
 ## Phase 3: pi-auto-mode, pi-notify, jail — TODO
 
@@ -359,12 +371,24 @@ them; this table is why the plans are trustworthy.
 | F51 | `bun broker/broker.ts` runs `pi-intercom`'s broker with **no `node_modules` present at all**, and `bun test broker/` runs its shipped tests (47 pass, 1 fail; the failure reproduces identically under `tsx --test`, so it is upstream's, not bun's). Separately, upstream's *default* launch path does not run `npx`: it calls `getNodeCommand(process.execPath)`, which falls back to the literal string `"node"` resolved through `PATH` whenever the interpreter's basename is not node — which under `coding-agent-bun` it never is. | Two consequences. The declared `tsx` dependency is dead weight, so the pin needs no `bun.nix`, no lockfile and no `node_modules`, and the jail needs one package (`bun`) rather than a Node+tsx pair. And the default path would have failed to spawn inside a jail with no Node on `PATH`, so setting `brokerCommand` to a bun store path fixes a latent bug rather than only saving a dependency. |
 | F52 | A duplicate session **name** in `pi-intercom` is not silently ambiguous: `findSessions` returns every match and `send` refuses with `delivery_failed "Multiple sessions named \"planner\" are connected. Use the session ID instead."`. Reproduced. | The failure mode of a name collision is denial of delivery, which is loud, rather than interception, which is silent. The rejected package's `#N` suffixing plus its takeover flag gave the opposite outcome. The phase-7 hardening patch must not break this, and the probe in task 3 asserts it still holds after patching. |
 | F200 | `nix fmt` in pi-nix is bare `pkgs.nixfmt`, not a treefmt wrapper. With no arguments it reads stdin, prints `unexpected end of input`, and exits 0 — a silent no-op, which is what every `nix fmt` step in the phase-2 plan would have done. Handing it the tree (`nix fmt -- .`) does format, and immediately reformats upstream's generated `coding-agent/bun.nix` (91 KB), breaking the additive constraint on the first commit. | Formatting must name the files: `find . -name '*.nix'` minus `coding-agent/bun.nix` and `packages/extensions/*/bun.nix`. Phase 3 and any later work in this repo inherits the same trap; a plain `nix fmt` there is not a formatting step at all. |
+| F201 | The synthetic pin in the plan's `tests/extensions-test.nix` carries `sha512-` plus 83 base64 characters. A sha512 SRI needs 88. `fetchurl` rejects it during evaluation — `invalid SRI hash …, length 83 != expected length 64` — so the whole eval-assertion layer of that test fails before any assertion runs. | The comment "never built, so the fake hash costs nothing" is wrong: `fetchurl` validates the hash at eval, not at build. Corrected to 86 `A`s plus `==` (base64 of 64 zero bytes). Any future synthetic pin must be a well-formed SRI even when nothing fetches it. |
+| F202 | The `checks` block the plan lands in Task 1 builds plain nixpkgs, and the Task 3 extension test instantiates `mkPiExtension` against that same `pkgs`. `mkPiExtension` requires `bun2nix`, and nixpkgs-unstable has no such attribute (`p ? bun2nix` is `false`), so the check cannot evaluate. | The `checks` block takes `overlays = [ bun2nix.overlays.default ]`, the same widening Task 4 applies to `apps`. It is additive — the overlay only adds `bun2nix` — so the `ext-*` derivations the test names are the same store paths `packages.ext-*` builds. |
+| F203 | The Step 6 slug guard in the plan pipes pin names through `sed -e 's\|@\|\|' -e 's\|/\|-\|2'`. After `@` is stripped a scoped name holds exactly one `/`, so replacing the *second* one is a no-op and the guard reports six false `MISSING` lines for pins whose files are present. | The generator in the same step uses the correct `s\|/\|-\|g`. Run the guard with `g` as well. Harmless here because it fails loudly, but it would mask a real missing lockfile for an unscoped pin. |
+| F204 | F35's "verified sufficient for the whole set" is wrong, and the plan's "no pin in the initial set needs `extraBuildInputs`" with it. `pi-mcp-adapter` reaches `recheck-linux-x64/recheck`, a GraalVM native-image **executable** rather than a `.node`, and it links `libz.so.1`. `stdenv.cc.cc.lib` does not carry zlib, so `auto-patchelf could not satisfy dependency libz.so.1` fails the build outright. | `packages/extensions/default.nix` grew an `extraBuildInputsFor` map alongside `settingsFor`, holding `pi-mcp-adapter = [ zlib ]`. The plan declared the mechanism and then declared it unused; it is used on day one. Note the shape of the miss: the audit looked at `.node` files, and this is a plain ELF binary that a transitive npm dependency happens to ship. |
+| F205 | Task 4's "both diffs must be empty" cannot hold on the first run, because the plan writes `extensions.json` with inline arrays (`"skills": ["skills"]`) and `pi-update-extensions` rewrites the file through `jq`, which expands them. Values are identical; only whitespace moves. | The pin file is committed in jq's shape, so the check the plan actually wants — "a run against unchanged pins changes nothing" — is true from the second run on, and was verified: both `extensions.json` and all nine `bun.lock`/`bun.nix` pairs came back byte-identical. The load-bearing half (the lockfiles) was clean on the *first* run too, which is what proves the builder and the generator normalise the same way. |
+| F206 | Task 7's `checkedStatuslineEnv` guard — throw a sentence when `statusline.enable` meets a file-valued `environment` — is an infinite recursion by construction, and no spelling of it works. It reads `cfg.environment` from inside a *definition* of `environment`; forcing the merged value forces our definition, whose value forces the merged value. Watched fail: `error: infinite recursion encountered` at `lib/modules.nix:1159`. Moving the read into the `mkIf` condition or into the value changes nothing. | Dropped, and the module says so in a comment. `environment = lib.mkIf statusline.enable statuslineEnv;` contributes nothing when disabled. A consumer who sets `environment` to a path with the statusline on gets the module system's own "defined multiple times" error (`types.either` falls through to `mergeOneOption`), and the option description names the attrset form. Any later option in this repo that wants to inspect an upstream option it also defines hits the same wall. |
 | F800 | Mic capture inside bwrap works with nothing but the PulseAudio socket bound. Measured: `audiomemo record -L` lists 0 devices with no audio bind and exits 0; with `--bind $XDG_RUNTIME_DIR/pulse` it lists every device, and `ffmpeg -f pulse -i default` captured 32 KiB. No `/dev/snd`, no added capability. | Voice and the jail are not in conflict; the default jail is simply missing four binds (audio socket, audiomemo closure, agenix keys, audiomemo config). Same silent-empty failure as F5: no error, just nothing. `jail.nix` already ships `pulse` and `pipewire` combinators. |
 | F801 | jail.nix's `base` does `--clearenv` and `--tmpfs ~`, and `--dev /dev` does supply `/dev/shm`. | `~/.config/audiomemo/config.toml` and `~/.claude` vanish inside the jail unless bound. Without the config, `record` decides it needs onboarding and dies on `/dev/tty`, so the bind is required rather than convenient. PulseAudio's SHM transport has somewhere to land, so no extra tmpfs is needed. |
 | F802 | `jail.permissions` is `functionTo (listOf raw)`. Function-typed options do not merge across module definitions. | No module can *contribute* jail permissions. `pi.coding-agent.voice` exposes a read-only `jailPermissions` function the consumer splices into its own definition by hand. Every future permission contributor has the same constraint. |
 | F803 | `ctx.ui.pasteToEditor(text)` exists at `pi-coding-agent/src/core/extensions/types.ts:213`, beside `setEditorText` (`:216`) and `getEditorText` (`:219`). | The rejected `rpiv-voice`'s usage was real. pasteToEditor is the right call: it triggers paste handling and does not discard what the user already typed. |
 | F804 | pi injects `@earendil-works/pi-tui` and `pi-coding-agent` as jiti **virtual modules** (`core/extensions/loader.ts:50-74`, aliases at `:81-120`). | An extension at a bare store path can import them with no `node_modules`. But `bun test` cannot, so any code path under test must not import them. pi-voice imports nothing; `agent-statusline`'s extension took the devDependency road instead, because it needs far more than two functions. |
 | F805 | ffmpeg's `astats` RMS is dBFS and can be the literal `inf`/`-inf`, which `strconv.ParseFloat` accepts. `encoding/json` returns `UnsupportedValueError` for `±Inf`. | An unclamped level event does not lose a field, it loses the whole line. Both wire scales are clamped at the emitter. |
+| F100 | F804's "`bun test` cannot resolve them" holds only when they are not installed. Adding `@earendil-works/pi-tui` and `pi-coding-agent` as **devDependencies** makes `import { visibleWidth } from "@earendil-works/pi-tui"` resolve normally under `bun test` — measured: `extension/src/width.test.ts` compares against pi's real `visibleWidth` and `truncateToWidth` over 46 corpus strings plus 2000 fuzzed ones, 2784 assertions, 0 fail. | Two viable approaches, not one. Structural fakes (what `statusline.test.ts` does) avoid the dependency entirely; a devDependency lets a test be a *differential* test against pi's real implementation, which is the only way to pin a re-implementation. The runtime constraint is unchanged either way: no `dependencies` block, ever, and the packaged extension drops `*.test.ts`. |
+| F101 | The npm tarball of `@earendil-works/pi-coding-agent@0.84.2` ships `dist/`, `docs/` and `examples/` — **no `src/`**. Only the Nix builds (both `pi-coding-agent` and `coding-agent-bun`, which unpack `fetchFromGitHub` `src`) carry the TypeScript. | The plan's `piSourceFile()` looks under `node_modules/@earendil-works/pi-coding-agent/src/...` and would have found nothing, turning the "stays in step with pi" test into a hard failure. The helper searches `$PI_CODING_AGENT_SRC/src/**.ts`, then `node_modules/**/src/**.ts`, then `node_modules/**/dist/**.js`; the compiled `footer.js` carries `sanitizeStatusText` with an identical body, so the drift check works from the npm package alone and gets stronger when pointed at a real pi. |
+| F102 | pi-tui's `visibleWidth` is not a wide/zero range table. It segments with `Intl.Segmenter`, tests `\p{RGI_Emoji}` under the `v` flag, consults the real `East_Asian_Width` property through `get-east-asian-width`, and has separate handling for regional indicators, Thai/Lao AM vowels and Indic spacing marks (`pi-tui/src/utils.ts:175-296`). | The plan's sketch — 17 wide ranges and 4 zero ranges — could not have passed its own 2000-string fuzz against pi. `width.ts` is a port instead of an approximation: same segmenter, same regexes copied out of pi's source, same escape scanner, plus the `fullwidth`/`wide` tables vendored from the package pi-tui itself calls. `truncateEnd` is likewise a port of `truncateToWidth`, which is what makes an already-fitted line a fixed point of pi's own truncator. Both passed on the first run. |
+| F104 | A `flex` spacer never expands under `main.go`'s flow. `ComposeRow` only distributes flex budget when given a width, and main.go composes both rows at `Width: 0` to decide whether they merge, then either uses that string verbatim or falls back to `WrapRow`, which skips flex markers outright. So the widget is inert in the shipped ANSI renderer, and the plan's task-10 assertion that `renderRows(..., 120)` returns a 120-cell flex-padded line was measuring something the Go side has never produced (measured: 97 cells, the merged natural-width row). | The TypeScript port keeps the behaviour rather than quietly improving on it, so the two renderers still agree line for line; the assertion moved to `composeRow` at an explicit width, which is where a flex spacer means anything, and a second assertion covers the sanitiser-mangling proof without depending on flex at all. Making flex work end to end is a follow-up on the Go side first. |
+| F105 | `os.UserCacheDir` prefers `XDG_CACHE_HOME` over `HOME`, and this machine exports it. Regenerating `extension/testdata/snapshot-full.json` with only `HOME` overridden, as the plan's command does, silently reads the real user cache. | The fixture came out with `"tools": null` and no activity rows, which looks like a working snapshot rather than a misconfigured one. Both variables are set in the recipe now, and the recipe is in the README rather than in a shell history. |
+| F103 | `bun test`'s per-test timeout is **5 s** and is only settable by CLI flag or `setDefaultTimeout()`, not by `bunfig.toml`. The phase-1b fix for the cold-run flake raised a polling helper's deadline to 10 s, which put it *above* the runner's own limit. | The helper then gave up at 5 s inside a poll loop that had not finished waiting — the cold run failed at exactly 5000 ms. `setDefaultTimeout(30_000)` at the top of the file is the fix; raising the helper alone made the flake harder to read, not rarer. |
 
 ## Decisions
 
