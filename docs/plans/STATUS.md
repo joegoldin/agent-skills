@@ -37,7 +37,7 @@ Status values: `todo` · `wip` · `done` · `blocked` · `dropped`
 | 1 | agent-statusline (extract + dual mode) | agent-statusline, claude-nix | 9 | **done** |
 | 1b | statusline native pi rewrite | agent-statusline | 11 | **done** |
 | 2 | pi-nix fork | pi-nix | 9 | **done** (pushed) |
-| 3 | pi-auto-mode, pi-notify, jail | pi-nix | 10 | **done** (not pushed) |
+| 3 | auto mode, pi-notify, jail | pi-nix | 10 | **done** (not pushed); auto mode moved to `@czottmann/pi-automode` 2026-08-19 |
 | 4 | agent-skills pi target | agent-skills | 9 | **done** |
 | 5 | system prompt layers | agent-skills | 8 | wip |
 | 6 | dotfiles wiring | dotfiles | 7 | todo |
@@ -169,11 +169,18 @@ native pi rewrite plus its bun2nix packaging. The lock was bumped in a
 follow-up commit, because the older `pi-extension` is exactly the one
 `sanitizeStatusText` collapses (F4).
 
-## Phase 3: pi-auto-mode, pi-notify, jail — DONE
+## Phase 3: auto mode, pi-notify, jail — DONE, auto mode replaced 2026-08-19
 
 Plan: `2026-08-18-pi-auto-mode-and-notify.md` (10 tasks, 71 steps). Owner:
 delegated. Eleven commits on `master` in `/home/joe/Development/pi-nix`,
 `aa69abc..eee1d07`; **not pushed**.
+
+**The first-party `pi-auto-mode` extension is gone.** It was replaced on
+2026-08-19 by the pinned `@czottmann/pi-automode` 1.11.0, in five further
+commits `26ee626..f8f28fa`, also unpushed. The reason is F301 arriving in
+production: `delegateToPermissionSystem = true` shipped, built green, and did
+nothing, because the operator edit it depended on was never made. What the swap
+gains, loses, and had to prove is at the end of this section.
 
 | Task | What | Status |
 | --- | --- | --- |
@@ -250,6 +257,34 @@ and F300's regex over a hand-wrapped template literal), one was a fail-open
 security hole (F301, disarming the gate on a registration that may never have
 been activated), and one contradicted a prior finding (F304: ro-bind on the
 agent socket works, so F7's prediction does not hold for bubblewrap).
+
+### The 2026-08-19 replacement
+
+`@czottmann/pi-automode` 1.11.0 speaks Claude Code's own `autoMode` schema, so
+the 63 shared rules in `modules/ai/auto-mode.nix` transfer without a rewrite.
+Pin evidence: `dist-tags.latest`, published 2026-08-07, `dist.integrity` used
+verbatim as the SRI hash, `bundled = true` because its only declared
+dependencies are peers the host process already provides.
+
+The option surface gains `protectedPaths`, `deniedPaths`, `permissions.deny`
+and `permissions.ask`, the classifier reasoning level, the two transcript
+budgets, and a decision log. It loses `deterministic.allow`: the new package
+has no prefix-allow list for `bash` at all, so every side-effecting call is
+classified, with a one-token first stage to keep that affordable.
+`delegateToPermissionSystem` is deleted rather than reworked (F307).
+
+Config now travels as `PI_AUTOMODE_SETTINGS_JSON` out of a store file, not
+`configFiles` (F308), and the rule lists are passed through verbatim rather
+than having `$defaults` spliced in front (F310).
+
+Proven the same two ways as the extension it replaces, in
+`pi-nix/docs/automode-acceptance.md`, with the harness committed this time at
+`pi-nix/scripts/automode-e2e/`. Thirteen live cases against the real binary,
+including a deterministic hard-deny holding with the classifier configured to
+allow and never consulted, a contradictory `allow`/`hard_deny` verdict failing
+closed, an in-tree allow resolving with no model call, and auto mode running
+with nothing in the config turning it on. Three mutations against the
+package's own 124-test suite: two killed, one survived (F309).
 
 ## Phase 4: agent-skills pi target — DONE
 
@@ -693,6 +728,11 @@ them; this table is why the plans are trustworthy.
 | F304 | F7 is wrong for bubblewrap, measured. A read-only bind of `~/.1password/agent.sock` does **not** refuse the `AF_UNIX` connect: with `--ro-bind-try` on the socket, `ssh-add -l` inside the real jail listed the key. Both binds were built and run; `try-readwrite` and `try-readonly` behave identically here. | The jail ships `try-readonly` on the agent socket, so the default matches `modules/ai/claude.nix`'s `allowRead` exactly rather than approximately, and `docs/jail.md` records the one-line fallback in case a kernel disagrees. The plan's task-9 step 4 was written as "expect this to fail, here is the fix"; it did not fail. |
 | F305 | `pi --print '!some-shell-command'` cannot smoke-test the jail: pi refuses to run anything without a configured provider, answering `No API key found for the selected model`. Every jail verification step in the plan is written that way. | The jail wrapper's last line is a single `bwrap` invocation, so `sed`-swapping the wrapped `pi` for `/bin/sh -c "$1"` exercises the exact sandbox with no model, no key and no network. That is how the toolchain, the cwd write, the dbus notification, the agent socket and the absent private key were all verified; the recipe is in `docs/jail.md`. |
 | F306 | A pi extension can be tested end to end with no provider account. Declaring a fake OpenAI-completions provider in `models.json` (`baseUrl` on localhost, `apiKey` a placeholder, `compat.supportsDeveloperRole = false`) and serving SSE from a short bun script gives a real `pi --print` run: the fake emits a `bash` tool call as the session model and the classifier verdict as the classifier, told apart by pi-auto-mode's system prompt arriving verbatim. Logging every request body makes "was the classifier consulted" and "what did pi feed the model in place of the tool output" both observable. | This is how all nine phase-3 acceptance rows were proven, including hard_deny-beats-allow and fail-closed. Any later phase that needs a live pi (4, 7, 8) can use the same harness rather than burning a real key or leaving the row blank. Two traps: `--print --mode json` hangs and times out where plain `--print` works, and a previous run's server holding port 8231 makes the next case look like pi never called out. |
+| F307 | F301 arrived in production, and worse than predicted. `delegateToPermissionSystem = true` shipped and did nothing: the live `~/.pi/agent/extensions/pi-permission-system/config.json` reads `{ "debugLog": false, "permissionReviewLog": true, "yoloMode": false }` with no `authorizerChain` key, so the registered link was never called and every unresolved ask went to a dialog, including `git status --short --branch`, which the allow list names. The review log records `"decidedBy": {"kind": "user", "via": "dialog"}`. | The replacement cannot be delegated at all: `@czottmann/pi-automode` never reads `Symbol.for("@gotgenes/pi-permission-system:service")` and calls `registerAuthorizer` nowhere. Both packages register `tool_call`, pi's `emitToolCall` returns on the first `{ block: true }`, and `extEntrypoints` is concatenated ahead of `autoModeEntrypoints`, so the permission system always answers first. pi-nix now throws when both are configured, and dotfiles drops the permission system. What goes with it: session approvals, the review log, subagent forwarding, and its prefix-allow rules. |
+| F308 | `configFiles` is the wrong mechanism for pi-automode, and it looks right. That contract installs relative to `PI_CODING_AGENT_DIR`, while the package's global config path is `resolve(HOME, ".pi/agent/automode.json")` (`constants.ts`), anchored to the home directory and honouring no override. They agree by default and only by default. | The rules go through `PI_AUTOMODE_SETTINGS_JSON` instead, which the package parses as inline JSON and treats as its highest-precedence source. pi-nix renders them to a store file and upstream's `environment.<NAME>.file` tag exports `"$(cat …)"`, so the policy is immutable, rolls back with the generation, is in the closure the jail binds, and cannot be outranked by a stale `automode.json` from an earlier experiment. |
+| F309 | The no-UI arm of `permissions.ask` is untested upstream. Mutating it from `block` to `continue` leaves `@czottmann/pi-automode`'s own 124-test suite fully green. The two mutations either side of it are caught: deleting the decision/tier consistency guard fails exactly the contradictory-`allow` assertion, and disabling `deterministicHardDeny` fails six tests. | The live harness covers it (`pi-nix/docs/automode-acceptance.md` case 4: `--print`, no UI, `permissions.ask` match, blocked, canary intact). The gap matters because that arm exists for exactly the runs nobody is watching (print mode, json mode, subagents), and it should go upstream. |
+| F310 | Splicing `$defaults` in front of a Nix-declared rule list is the wrong default. It unions the operator's policy with prose from the package that changes on every version bump, and for a deny list that is half a policy nobody reviewed. Empty is different again: any array at all sets `seen` in the package's accumulator, so `[ ]` reads as "replace the built-ins with nothing". | Lists pass through verbatim, an empty list is omitted from the rendered file entirely, and a caller who wants the built-ins writes `$defaults` themselves. That is the right answer for `protectedPaths`, a fixed gate of 48 paths whose common property is that writing one causes code to run later, and rarely the right one for the four prose lists. |
+| F311 | The jail's PATH is exactly the `add-pkg-deps` list, and `bash` was not in it. pi resolves its tool shell as `/bin/bash`, then `bash` on PATH, then bare `sh` (`pi-coding-agent`'s `dist/utils/shell.js`); inside `--clearenv` the first two were absent, so every tool call ran under the `sh` jail.nix binds at `/bin/sh` and bash syntax failed as if the model had written it wrong. `/doctor` also reported curl, sed, grep, find, free and the nix commands missing. | The generic list grew bash, fish, curl, gnused, gnugrep, findutils and procps, and `SHELL` is set to fish rather than the host's nologin. `nix` is a separate opt-in option: the package alone cannot work, because jail.nix binds only the wrapped program's runtime closure into `/nix/store` and no daemon socket, and making it work binds the whole store and the socket, which means anything the agent can build it can also run. |
 | F400 | A `-e` probe extension that reads `event.systemPrompt` in `before_agent_start` and exits sees the prompt **before** package extensions have appended to it. `mergePaths(cliEnabledExtensions, enabledExtensions)` puts CLI paths first, so the probe's handler runs first. The plan's task-6 acceptance step is written exactly that way and reports `injected=0` against a package that is in fact loading correctly. | The probe must read a later event. `before_provider_request` carries the assembled `payload`, so `JSON.stringify(e.payload).includes(...)` observes the finished prompt after every handler has run. Confirmed both ways: with the package extension passed ahead of the probe on `-e` the original probe reports 1, and with the package in `settings.packages` only the later event does. Any future acceptance test for a chained `systemPrompt` handler has the same trap. |
 | F401 | `pi-nix`'s `lib` exposes `mkPiSkill`/`mkPiPromptTemplate`/`mkPiPlugin` plus `mkSkill` and `mkPlugin` aliases, but **no `mkPromptTemplate`** alias. The plan's Task 1 gate asserts all three unprefixed names. | `mkPiPromptTemplateFor` calls `piLib.mkPiPromptTemplate` by its prefixed name. Nothing needed changing in `pi-nix`, and the alias can still be added there later without breaking this call site. |
 | F402 | `mkPiPromptTemplate` renders frontmatter through `lib.mapAttrsToList`, which sorts keys, so `argument-hint` precedes `description` and the body is preceded by one blank line more than the plan's expected output shows. | Cosmetic only; the quoting the plan cares about is right (`argument-hint: "[directory]"` stays a string rather than a YAML flow sequence). `checks.pi-prompt-templates` asserts the two lines with `grep -qxF` rather than diffing the whole file, so key order is not pinned. |
