@@ -48,6 +48,34 @@ let
     name = "agent-skills-combined";
     paths = cfg.plugins;
   };
+
+  # The tree ~/.agents/skills points at, and the reason it is a second
+  # derivation rather than a path into the first.
+  #
+  # Asking `builtins.pathExists "${combined}/skills"` reads a path inside a
+  # derivation output, which forces that derivation to be BUILT during
+  # evaluation. That is import-from-derivation: it serialises a build into
+  # eval, and because eval is single threaded it stalls the whole
+  # configuration behind it. On this repo it turned a switch after any input
+  # bump into minutes of apparent hang before nix had drawn a single build
+  # line, and it is what stops darwinConfigurations evaluating at all from a
+  # machine that cannot build for darwin.
+  #
+  # The question is a build-time question, so it is asked at build time. $out
+  # is always a directory, empty when no plugin ships skills, so the consumer
+  # needs no condition and evaluation never looks inside a store path it would
+  # have to realise first.
+  #
+  # cp -a, never cp -rL: buildEnv's tree is symlinks into each plugin, and pi
+  # de-duplicates skills by canonicalised real path before it de-duplicates by
+  # name. Dereferencing here would give every skill a second real path and
+  # print a collision warning per skill on every session start.
+  skillsTree = pkgs.runCommand "agent-skills-tree" { } ''
+    mkdir -p "$out"
+    if [ -d ${combined}/skills ]; then
+      cp -a ${combined}/skills/. "$out"/
+    fi
+  '';
 in
 {
   options.programs.agent-skills = {
@@ -178,9 +206,7 @@ in
     mkMerge (
       [
         {
-          home.file = mkIf (builtins.pathExists "${combined}/skills") {
-            ".agents/skills".source = "${combined}/skills";
-          };
+          home.file.".agents/skills".source = skillsTree;
 
           xdg.configFile."agent-skills/.keep".text = "";
         }
