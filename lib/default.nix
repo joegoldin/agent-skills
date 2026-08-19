@@ -561,6 +561,29 @@ let
       _codex = plugin._codex or { };
     };
 
+  # A command-style skill: invoked by the user, hidden from the model's
+  # skill list. pi honours `disable-model-invocation` natively
+  # (formatSkillsForPrompt filters them out) and registers every skill as
+  # /skill:<name>; the prompt template is what gives it the short /<name>
+  # form plus an argument hint in the autocomplete.
+  isPiCommandSkill = skill: (skill.parsed.fields."disable-model-invocation" or "false") == "true";
+
+  # SKILL.md frontmatter → pi prompt-template frontmatter. `description` is
+  # required (pi otherwise takes the first 60 characters of the body);
+  # `argument-hint` is forwarded when present. Everything else is dropped:
+  # a prompt template is a body plus those two fields, nothing more.
+  mkPiPromptTemplateFor =
+    skill:
+    assert piLib != null;
+    piLib.mkPiPromptTemplate (
+      {
+        inherit (skill.meta) name description;
+      }
+      // lib.optionalAttrs (skill.parsed.fields ? "argument-hint") {
+        argument-hint = skill.parsed.fields."argument-hint";
+      }
+    ) skill.parsed.body;
+
   # ── pi package ──
   # pi consumes a *package*: a directory whose package.json carries a `pi`
   # key naming the resource directories (pi.dev/docs/latest/packages). One
@@ -585,8 +608,10 @@ let
     let
       skillPackages = skillPackagesOf skills;
 
+      prompts = map mkPiPromptTemplateFor (builtins.filter isPiCommandSkill skills);
+
       plugin = piLib.mkPlugin {
-        inherit name description;
+        inherit name description prompts;
         skills = map (s: s.drv) skills;
       };
 
@@ -762,6 +787,8 @@ in
     buildAntigravityPlugin
     buildCodexPlugin
     buildPiPlugin
+    isPiCommandSkill
+    mkPiPromptTemplateFor
     buildAntigravityHooks
     buildCodexHooks
     buildSessionStartHooks
