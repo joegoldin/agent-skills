@@ -88,6 +88,51 @@ in
       '';
     };
 
+    autoMode = mkOption {
+      default = { };
+      type = types.submodule {
+        options = {
+          allow = mkOption {
+            type = types.listOf types.str;
+            default = [ ];
+            description = "Natural-language rules describing what the agent may do without prompting.";
+          };
+          soft_deny = mkOption {
+            type = types.listOf types.str;
+            default = [ ];
+            description = ''
+              Destructive actions that explicit user intent clears. The
+              classifier sees recent user turns alongside these rules.
+            '';
+          };
+          hard_deny = mkOption {
+            type = types.listOf types.str;
+            default = [ ];
+            description = "Security boundaries. User intent does not clear these.";
+          };
+          environment = mkOption {
+            type = types.listOf types.str;
+            default = [ ];
+            description = "Facts about this machine the classifier should assume.";
+          };
+        };
+      };
+      example = lib.literalExpression ''
+        {
+          allow = [ "read and search files anywhere in the working tree" ];
+          soft_deny = [ "delete files outside the working tree" ];
+          hard_deny = [ "read or transmit credentials, tokens, or private keys" ];
+          environment = [ "this is a NixOS machine; the system is rebuilt, not mutated" ];
+        }
+      '';
+      description = ''
+        Auto-mode rules declared once and fanned out to every installed
+        agent that models them (claude-nix's native classifier, and both of
+        pi's permission layers). Only agents whose home-manager module is
+        imported *and* which declare an `autoMode` option receive config.
+      '';
+    };
+
     prompt = {
       enable = mkOption {
         type = types.bool;
@@ -158,6 +203,32 @@ in
       ++ lib.optional (options.programs ? antigravity-cli-nix) {
         programs.antigravity-cli-nix.mcpServers = mcpLib.mcpNativeFor "antigravity" cfg.mcpServers;
       }
+      # pi has no MCP of its own; pi-mcp-adapter reads a standard MCP config
+      # file. ~/.agents/mcp.json is the tool-agnostic path in its precedence
+      # list, and the sibling of the ~/.agents/skills directory this module
+      # already owns — so no pi-nix option is needed for this.
+      ++ lib.optional (options.programs ? pi) {
+        home.file.".agents/mcp.json".text = builtins.toJSON {
+          mcpServers = mcpLib.mcpNativeFor "pi" cfg.mcpServers;
+        };
+      }
+      # Auto-mode rules fan out the same way, but with a second guard: the
+      # shared option can land before claude-nix and pi-nix grow their own
+      # arms (design §9, rollout phases 3 and 6), so an agent that is present
+      # but does not yet model autoMode is skipped rather than erroring.
+      ++ lib.optional (options.programs ? claude-nix && options.programs.claude-nix ? autoMode) {
+        programs.claude-nix.autoMode = cfg.autoMode;
+      }
+      ++
+        lib.optional
+          (
+            options.programs ? pi
+            && options.programs.pi ? coding-agent
+            && options.programs.pi.coding-agent ? autoMode
+          )
+          {
+            programs.pi.coding-agent.autoMode = cfg.autoMode;
+          }
       # ── System prompt fan-out ──
       # Same "is this module imported" question the MCP arms above ask, but asked
       # with `optional` rather than `mkIf`. `mkIf false` still leaves the option

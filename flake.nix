@@ -535,6 +535,15 @@
                 touch $out
               '';
 
+          module-tests =
+            let
+              failures = import ./modules/module-tests.nix { inherit pkgs lib; };
+            in
+            if failures == [ ] then
+              pkgs.runCommand "module-tests" { } "touch $out"
+            else
+              throw "module tests failed: ${builtins.toJSON failures}";
+
           prompt-tests =
             let
               failures = import ./lib/prompt-tests.nix { inherit lib; };
@@ -753,6 +762,34 @@
             programs.codex-nix.plugins = lib.mkBefore (
               [ self.packages.${pkgs.system}.codex-plugin ] ++ codexPlugins
             );
+          };
+
+        pi =
+          {
+            lib,
+            pkgs,
+            ...
+          }:
+          let
+            build = import ./lib/default.nix {
+              inherit pkgs lib;
+              claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
+            };
+            piPlugins = map (p: self.packages.${pkgs.system}."${p.name}-pi") (build.discoverPlugins ./plugins);
+            piPackages = [ self.packages.${pkgs.system}.pi-plugin ] ++ piPlugins;
+          in
+          {
+            imports = [ pi-nix.homeManagerModules.coding-agent ];
+            # pi loads a package directory wholesale — its skills, prompt
+            # templates, and extensions in one entry. Local absolute paths
+            # are a first-class package source, so the store paths go in
+            # directly with no npm or git round trip.
+            #
+            # Caveat, inherited from upstream (design §7): `settings` is
+            # types.attrs and is jq-merged into ~/.pi/agent/settings.json on
+            # every launch, so a Nix-declared key wins over an interactive
+            # change to that key. Same trade-off as modules/ai/codex.nix.
+            programs.pi.coding-agent.settings.packages = map toString piPackages;
           };
 
         agent-skills =
