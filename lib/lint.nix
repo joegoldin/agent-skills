@@ -69,6 +69,14 @@ let
   # Both the kebab spelling and the camelCase one Claude Code's schema uses.
   agentKnownFields = agentFields ++ builtins.attrValues agentFieldAliases;
   charCount = c: s: lib.count (x: x == c) (lib.stringToCharacters s);
+  # pi's own skill validation, transcribed from
+  # pi v0.84.2 packages/coding-agent/src/core/skills.ts (validateName /
+  # validateDescription). Kept independent of the agent-skills rules above
+  # so a future loosening of validateSkillMd cannot silently ship a skill
+  # pi would warn about.
+  piMaxNameLength = 64;
+  piMaxDescriptionLength = 1024;
+  piNamePattern = "[a-z0-9-]+";
 in
 {
   inherit
@@ -79,10 +87,39 @@ in
     agentFields
     agentFieldAliases
     agentKnownFields
+    piMaxNameLength
+    piMaxDescriptionLength
+    piNamePattern
     ;
 
+  # Diagnostics pi would emit for this skill; [ ] means pi loads it cleanly.
+  # pi falls back to the parent directory name when `name` is absent, and
+  # ignores every frontmatter key it does not model, so only name and
+  # description are checked.
+  piSkillWarnings =
+    { dirName, parsed }:
+    let
+      f = parsed.fields;
+      name = f.name or dirName;
+      desc = f.description or "";
+    in
+    lib.optional (
+      lib.stringLength name > piMaxNameLength
+    ) "name exceeds ${toString piMaxNameLength} characters"
+    ++ lib.optional (
+      builtins.match piNamePattern name == null
+    ) "name contains invalid characters (must be lowercase a-z, 0-9, hyphens only)"
+    ++ lib.optional (lib.trim desc == "") "description is required"
+    ++ lib.optional (
+      lib.stringLength desc > piMaxDescriptionLength
+    ) "description exceeds ${toString piMaxDescriptionLength} characters";
+
   validateAgentMd =
-    { skillName, fileName, parsed }:
+    {
+      skillName,
+      fileName,
+      parsed,
+    }:
     let
       unknown = builtins.filter (k: !(builtins.elem k agentKnownFields)) parsed.keys;
       err = msg: throw "agent-skills: skill '${skillName}': agents/${fileName}: ${msg}";

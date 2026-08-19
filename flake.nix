@@ -292,6 +292,32 @@
             else
               throw "lint tests failed: ${builtins.toJSON failures}";
 
+          # Every shipped skill must load into pi without a diagnostic. The
+          # agent-skills rules are strictly stricter than pi's, so this
+          # should never fire — it fires only if that stops being true.
+          pi-frontmatter =
+            let
+              lintLib = import ./lib/lint.nix { inherit lib; };
+              build = import ./lib/default.nix {
+                inherit pkgs lib;
+                claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
+              };
+              skills = build.discoverSkills ./skills;
+              offenders = lib.concatMap (
+                s:
+                map (w: "${s.name}: ${w}") (
+                  lintLib.piSkillWarnings {
+                    dirName = s.name;
+                    inherit (s) parsed;
+                  }
+                )
+              ) skills;
+            in
+            if offenders == [ ] then
+              pkgs.runCommand "pi-frontmatter" { } "touch $out"
+            else
+              throw "pi frontmatter violations: ${builtins.toJSON offenders}";
+
           prompt-tests =
             let
               failures = import ./lib/prompt-tests.nix { inherit lib; };
