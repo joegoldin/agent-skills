@@ -790,6 +790,33 @@
             # every launch, so a Nix-declared key wins over an interactive
             # change to that key. Same trade-off as modules/ai/codex.nix.
             programs.pi.coding-agent.settings.packages = map toString piPackages;
+
+            # The curated third-party set, enabled by default because each one
+            # restores something pi deliberately omits and this library's
+            # skills assume: MCP, subagents, todos, background bash, structured
+            # questions, and goal-driven looping. pi-nix packages them; the
+            # choice of which to run is an opinion, and this is the opinion
+            # layer, so it lives here rather than there.
+            #
+            # mkDefault, so a host can replace the list wholesale without
+            # fighting a priority. The first-party extensions (auto-mode,
+            # notify, statusline, intercom) are not listed: each arrives from
+            # its own option in pi-nix, and naming them here would enable them
+            # behind that option's back.
+            programs.pi.coding-agent.extensionPackages = lib.mkDefault (
+              map (n: pi-nix.packages.${pkgs.system}.${n}) [
+                "ext-pi-mcp-adapter"
+                "ext-pi-subagents"
+                "ext-pi-background-tasks"
+                "ext-juicesharp-rpiv-ask-user-question"
+                "ext-juicesharp-rpiv-todo"
+                "ext-narumitw-pi-goal"
+                "ext-narumitw-pi-btw"
+                "ext-gotgenes-pi-permission-system"
+                "ext-pi-cache-optimizer"
+                "ext-heyhuynhgiabuu-pi-pretty"
+              ]
+            );
           };
 
         agent-skills =
