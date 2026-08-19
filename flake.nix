@@ -483,6 +483,58 @@
               touch $out
             '';
 
+          # Design §14: every skill must build for all four targets. This
+          # catches the failure mode where one target's mkSkill silently
+          # drops a skill whose frontmatter it cannot model.
+          skills-all-four-targets =
+            let
+              build = import ./lib/default.nix {
+                inherit pkgs lib;
+                claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
+              };
+              skills = build.discoverSkills ./skills;
+            in
+            pkgs.runCommand "skills-all-four-targets"
+              {
+                trees = lib.concatStringsSep " " [
+                  "claude=${self.packages.${system}.claude-plugin}"
+                  "antigravity=${self.packages.${system}.antigravity-plugin}"
+                  "codex=${self.packages.${system}.codex-plugin}"
+                  "pi=${self.packages.${system}.pi-plugin}"
+                ];
+                names = lib.concatStringsSep " " (map (s: s.name) skills);
+                expected = toString (builtins.length skills);
+              }
+              ''
+                fail=0
+                for pair in $trees; do
+                  t="''${pair%%=*}"
+                  tree="''${pair#*=}"
+
+                  # every discovered skill is present, with a non-empty SKILL.md
+                  for n in $names; do
+                    f="$tree/skills/$n/SKILL.md"
+                    if [ ! -f "$f" ]; then
+                      echo "MISSING: $t is missing skill '$n'"
+                      fail=1
+                    elif [ ! -s "$f" ]; then
+                      echo "EMPTY: $t ships an empty SKILL.md for '$n'"
+                      fail=1
+                    fi
+                  done
+
+                  # and no target ships extras or drops any
+                  got=$(ls -1 "$tree/skills" | wc -l)
+                  if [ "$got" != "$expected" ]; then
+                    echo "COUNT: $t ships $got skills, expected $expected"
+                    fail=1
+                  fi
+                done
+                [ "$fail" = 0 ] || exit 1
+                echo "all $expected skills present in all four targets"
+                touch $out
+              '';
+
           prompt-tests =
             let
               failures = import ./lib/prompt-tests.nix { inherit lib; };
