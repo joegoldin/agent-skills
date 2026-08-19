@@ -41,7 +41,7 @@ Status values: `todo` · `wip` · `done` · `blocked` · `dropped`
 | 4 | agent-skills pi target | agent-skills | 9 | **done** |
 | 5 | system prompt layers | agent-skills | 8 | wip |
 | 6 | dotfiles wiring | dotfiles | 7 | todo |
-| 7 | inter-instance messaging | pi-nix, dotfiles | 9 | todo |
+| 7 | inter-instance messaging | pi-nix, dotfiles | 9 | **8/9** (pi-nix done, not pushed; task 9 blocked) |
 | 8 | pi-voice over audiomemo | audiomemo, pi-nix, dotfiles | 12 | todo |
 
 ## Phase 1: agent-statusline — DONE
@@ -351,25 +351,25 @@ file, takes `nix flake check` down with every hit enumerated:
 
 All six rule classes and the file-name rule fire. Reverted, checks pass again.
 
-## Phase 6: dotfiles wiring — TODO
+## Phase 6: dotfiles wiring — WIP
 
-Plan: `2026-08-18-dotfiles-pi-wiring.md` (7 tasks, 56 steps). Owner: unassigned.
+Plan: `2026-08-18-dotfiles-pi-wiring.md` (7 tasks, 56 steps). Owner: delegated.
 Last phase; depends on 2, 3, 5.
 
 | Task | What | Status |
 | --- | --- | --- |
-| 1 | `pi` aspect skeleton, host wiring | todo |
-| 2 | agenix secrets for provider keys | todo |
-| 3 | Auth across the three paths | todo |
-| 4 | Jail permissions | todo |
-| 5 | Statusline parity | todo |
+| 1 | `pi` aspect skeleton, host wiring | **done** (f9e937c) |
+| 2 | agenix secrets for provider keys | **done** (7803237) |
+| 3 | Auth across the three paths | **done** (49bbb9d) |
+| 4 | Jail permissions | **done** (5ace1ac) |
+| 5 | Statusline parity | wip |
 | 6 | Shared `autoMode` rule set | todo |
 | 7 | Full build, generated-config inspection | todo |
 
-## Phase 7: inter-instance messaging — TODO
+## Phase 7: inter-instance messaging — WIP
 
 Plans: `2026-08-18-pi-messaging-addendum.md` (§17, decision + security),
-`2026-08-18-pi-messaging.md` (9 tasks, 49 steps). Owner: unassigned.
+`2026-08-18-pi-messaging.md` (9 tasks, 49 steps). Owner: delegated (in flight).
 
 Decision: **`pi-intercom` 0.10.1**, hardened, dependency-free under bun. Decided,
 reversed to `remote-pi`, then reversed back on the evidence in F40-F42; the
@@ -391,15 +391,69 @@ against the unpatched tarball.
 
 | Task | What | Status |
 | --- | --- | --- |
-| 1 | Add `configFiles` to the `mkPiExtension` passthru contract, with a test | todo |
-| 2 | Pin `pi-intercom` 0.10.1 via the four-part evidence chain (F47), build it | todo |
-| 3 | Harden the broker: refuse a live session-ID collision, reproduce first | todo |
-| 4 | Run the package's shipped broker tests as a Nix check, under `bun test` | todo |
-| 5 | End-to-end smoke test over the real wire protocol | todo |
-| 6 | `messaging` option, `configFiles` prelude, bun `brokerCommand` | todo |
-| 7 | Fold `bun` into the jail; prove the socket crosses two jails (A9) | todo |
-| 8 | Untrusted-peer-input prompt fragment + §12 inventory lint | todo |
-| 9 | dotfiles `modules/ai/pi.nix`, two-terminal acceptance run (tests A8) | todo |
+| 1 | Add `configFiles` to the `mkPiExtension` passthru contract, with a test | done (b6da411) |
+| 2 | Pin `pi-intercom` 0.10.1 via the four-part evidence chain (F47), build it | done (bc4f070) |
+| 3 | Harden the broker: refuse a live session-ID collision, reproduce first | done (d837275) |
+| 4 | Run the package's shipped broker tests as a Nix check, under `bun test` | done (f0abbad) |
+| 5 | End-to-end smoke test over the real wire protocol | done (859596e) |
+| 6 | `messaging` option, `configFiles` prelude, bun `brokerCommand` | done (6818ab0) |
+| 7 | Fold `bun` into the jail; prove the socket crosses two jails (A9) | done (05b2c59, 8a2d5aa) |
+| 8 | Untrusted-peer-input prompt fragment + §12 inventory lint | done (77f0e19) |
+| 9 | dotfiles `modules/ai/pi.nix`, two-terminal acceptance run (tests A8) | blocked (F707) |
+
+Tasks 1-8 are committed on `master` in `/home/joe/Development/pi-nix` and
+**not pushed**. Head is `2cce7de`; the phase starts at `eee1d07`. `nix flake
+check` is green over 14 checks, six of them new
+(`extension-contract`, `pi-intercom-hardening`, `pi-intercom-broker-tests`,
+`pi-intercom-smoke`, `messaging-option`, `prompt-fragment-inventory`). Every
+protected upstream file is still byte-identical to `upstream/master`, checked
+file by file rather than by trusting the additive check.
+
+The security work landed as specified. The takeover reproduces against the
+shipped tarball and is refused after patching, watched both ways (F704), and
+`checks.pi-intercom-smoke` exits 1 against the unpatched tree. `inboundTrigger`
+is `"replies"` in the derivation, in the option, and in the installed
+`config.json`. What hardening cannot reach is recorded in F704 and in the
+README: without `SO_PEERCRED`, which the package never reads, presence on the
+socket cannot be refused at all.
+
+Task 9 is the exception, and it is **not landed**. `modules/ai/pi.nix` belongs
+to phase 6, which was editing it live; the `messaging` block was written into
+it twice and lost to phase 6's own writes both times (F707). It is not in
+`5ace1ac`. Nothing was committed to dotfiles by phase 7.
+
+The wiring was verified against a local override while the block was in the
+tree, which is the substantive part: the built wrapper exports
+`PI_INTERCOM_ASK_TIMEOUT_MS=300000`, installs `intercom/config.json` at 0600,
+passes one `--extension` and no `--skill`, and the jail PATH carries the same
+bun store path the config names as `brokerCommand`, sitting alongside phase 6's
+agenix binds.
+
+Whoever lands it applies this inside `programs.pi.coding-agent`, after pushing
+pi-nix and bumping `pi-nix` in agent-skills and `agent-skills` in dotfiles:
+
+```nix
+        # Peer messaging between separately launched pi instances, which is
+        # pi's missing ListAgents/SendMessage. Local unix socket, no relay, no
+        # daemon, no network. There is no phone or cross-machine story here and
+        # there is not meant to be; the addendum's §17.6.2 records what that
+        # cost and how to get it back.
+        #
+        # inboundTrigger stays at the module default ("replies"): the broker
+        # authenticates nobody, so an unsolicited message must not be able to
+        # start a turn. Raising it to "always", which is upstream's own default,
+        # is a deliberate per-host choice rather than a convenience.
+        messaging = {
+          enable = true;
+          askTimeoutSeconds = 300;
+          # ~/.agents/skills already carries the skill library; loading the
+          # extension's bundled copy too would double-register (design A3).
+          installSkill = false;
+        };
+```
+
+The two-terminal acceptance run, which is the only test of assumption A8, has
+**not** been done either: it needs an activated configuration and a live model.
 
 The passthru contract grows by exactly one field, `configFiles`, and it is
 load-bearing rather than speculative: `inboundTrigger` is file-only with no
@@ -543,6 +597,14 @@ them; this table is why the plans are trustworthy.
 | F304 | F7 is wrong for bubblewrap, measured. A read-only bind of `~/.1password/agent.sock` does **not** refuse the `AF_UNIX` connect: with `--ro-bind-try` on the socket, `ssh-add -l` inside the real jail listed the key. Both binds were built and run; `try-readwrite` and `try-readonly` behave identically here. | The jail ships `try-readonly` on the agent socket, so the default matches `modules/ai/claude.nix`'s `allowRead` exactly rather than approximately, and `docs/jail.md` records the one-line fallback in case a kernel disagrees. The plan's task-9 step 4 was written as "expect this to fail, here is the fix"; it did not fail. |
 | F305 | `pi --print '!some-shell-command'` cannot smoke-test the jail: pi refuses to run anything without a configured provider, answering `No API key found for the selected model`. Every jail verification step in the plan is written that way. | The jail wrapper's last line is a single `bwrap` invocation, so `sed`-swapping the wrapped `pi` for `/bin/sh -c "$1"` exercises the exact sandbox with no model, no key and no network. That is how the toolchain, the cwd write, the dbus notification, the agent socket and the absent private key were all verified; the recipe is in `docs/jail.md`. |
 | F306 | A pi extension can be tested end to end with no provider account. Declaring a fake OpenAI-completions provider in `models.json` (`baseUrl` on localhost, `apiKey` a placeholder, `compat.supportsDeveloperRole = false`) and serving SSE from a short bun script gives a real `pi --print` run: the fake emits a `bash` tool call as the session model and the classifier verdict as the classifier, told apart by pi-auto-mode's system prompt arriving verbatim. Logging every request body makes "was the classifier consulted" and "what did pi feed the model in place of the tool output" both observable. | This is how all nine phase-3 acceptance rows were proven, including hard_deny-beats-allow and fail-closed. Any later phase that needs a live pi (4, 7, 8) can use the same harness rather than burning a real key or leaving the row blank. Two traps: `--print --mode json` hangs and times out where plain `--print` works, and a previous run's server holding port 8231 makes the next case look like pi never called out. |
+| F700 | `mkPiExtension` had no `patchPhaseExtra` argument at all, and its `bundled` arm is a bare `runCommand` with no `postPatch` to append to. | The messaging plan's Task 1 fallback ("add it here if absent") was the live path. It is wired into all three build arms, and the two `runCommand` arms have to `cd $out` first, because `substituteInPlace` takes relative paths and a `runCommand` starts in `$TMPDIR`, not in the output. |
+| F701 | `coding-agent/options.nix` is hash-protected by `tests/additive-test.nix`, so the messaging plan's Task 6 and Task 7 (edit the launcher prelude, edit `finalPackage`'s jail permissions) cannot be carried out as written. | Both are rerouted through `coding-agent/extra-options.nix`, the same way phases 2 and 3 were. The `configFiles` writer hangs off `package`: upstream's own wrapper execs whatever `package` resolves to, so the write lands after the environment is exported and inside the jail. Two caveats follow and neither is fixable from an additive fork. A consumer who sets `package` themselves gets no config-file writer (a definition of `package` that reads `cfg.package` is an infinite recursion), and a consumer who sets `jail.permissions` themselves loses `bun` from the sandbox (F802: function-typed options do not merge). Measured both ways: a plain definition against a bare `mkCodingAgent` drops `bun` and the whole toolchain, keeping only the consumer's entries; but in the current dotfiles tree the two sets **compose** — the built `bwrap` argv carries pi-nix's `~/.ssh`/1Password binds and its `add-pkg-deps` PATH alongside phase 6's agenix and `~/.gitconfig` binds. Whatever makes that work (equal priorities, so `functionTo` merges the two lists) is phase 6's to keep working; do not assume it. |
+| F702 | Two of `pi-intercom`'s eighteen shipped `spawn.test.ts` cases need a `node` on `PATH`, because they exercise upstream's *default* launch path — the one F51 describes. They pass on a developer machine that happens to have Node and fail in the Nix sandbox. | The plan's expected "45 pass" is unreachable without putting Node into a check for a package whose whole point is not needing one. `bun test -t '^(getTsxCliPath\|getWindows\|getBrokerLaunchSpec\|getBrokerSpawnOptions)'` keeps the other sixteen, including the one asserting the custom-`brokerCommand` branch this fork depends on. Final count: 43 pass, 0 fail, 2 filtered. |
+| F703 | `bwrap` applies mount arguments in order, so `--tmpfs /tmp` placed after `--bind` of a directory under `/tmp` masks the bind. | The A9 verification script failed with `Can't chdir` until `--proc/--dev/--tmpfs` moved ahead of the binds. Any future jail script whose scratch dirs live under `/tmp` has the same trap. |
+| F704 | The session-ID takeover (F48) is refused after patching, and the refusal was watched rather than inferred. Unpatched: `4. re-registered with the victim's sessionId: SAME ID GRANTED / victim socket closed by broker? true`. Patched: `REFUSED (Session ID already held by a live session) / victim socket closed by broker? false`, with F52's duplicate-name `delivery_failed` unchanged. | `checks.pi-intercom-smoke` encodes the same assertion and exits 1 against the unpatched tarball, so the patch cannot be deleted and left green. What the patch does **not** remove: an attacker under this uid can still connect, still `list` every session's UUID, cwd, model and pid, and still deliver text. The package exposes no peer credential, so presence on the socket cannot be refused without `SO_PEERCRED`, which upstream does not read. |
+| F705 | `tests/extensions-test.nix`'s `pinComplete` required `sha512-`, and its bundled-pin assertion named exactly one package. | The messaging plan pins `pi-intercom` with a sha256 SRI derived from the tarball rather than npm's `dist.integrity`, and it is the second bundled pin. Both assertions were widened. Note for the next bump: `nix run .#update-extensions` writes `dist.integrity`, so it will rewrite that hash to sha512, pinning the same bytes. |
+| F706 | `passthru.configFiles` is collected from every entry in `extensionPackages`, not only from the messaging package, and the launcher installs each one at 0600 under `$PI_CODING_AGENT_DIR`. | This is the mechanism F301 and `docs/assumption-a2.md` were waiting for: `extensions/pi-permission-system/config.json` is a path relative to the agent directory, so `configFiles."extensions/pi-permission-system/config.json".authorizerChain = [ "pi-auto-mode" ]` would now write the chain entry from Nix. It is deliberately **not** written here — `authorizerChain` is the operator's ordering, and claiming it unconditionally from one extension's derivation would overwrite a chain a consumer had arranged. Wiring it belongs with `autoMode.delegateToPermissionSystem`. |
+| F707 | Phase 7's dotfiles task cannot build from the pinned inputs. `dotfiles` consumes pi-nix transitively through `agent-skills`, which pins `github:joegoldin/pi-nix`, and phase 7's commits are local. | Task 9 is not landed. Landing it needs, in order: push pi-nix, `nix flake update pi-nix` in agent-skills, push that, `nix flake update agent-skills` in dotfiles, then apply the block quoted in the phase-7 section. A second hazard is concurrency rather than pinning: `modules/ai/pi.nix` was being rewritten by phase 6 throughout, and the block was written into it twice and lost to phase 6's own writes both times. Verified meanwhile with `--override-input agent-skills/pi-nix git+file:///home/joe/Development/pi-nix`, which builds the real wrapper. |
 
 ## Decisions
 
