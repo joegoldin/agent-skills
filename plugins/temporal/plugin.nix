@@ -1,12 +1,16 @@
 # temporal — throttled time injection. Cross-agent plugin definition.
-# Ships a Python hook that injects a `[⏱ time]` block at UserPromptSubmit and
-# SessionStart. State dir is per-CLI via $TEMPORAL_STATE_DIR.
+# The three hook-based CLIs get a Python hook; pi, which has no hook
+# system, gets the equivalent TypeScript extension. State dir is per-CLI:
+# $TEMPORAL_STATE_DIR for the hook targets, ~/.pi/.temporal by default in
+# the extension.
 {
   pkgs,
+  lib,
   target,
   ...
 }:
 let
+  isPi = target == "pi";
   stateSubdir =
     if target == "codex" then
       ".codex"
@@ -25,7 +29,8 @@ in
 {
   name = "temporal";
   description = "Use when the user asks about time/date hooks, why timestamps appear in context, or wants to tune the [⏱] injection.";
-  packages = [ pkgs.python3 ];
+  # The extension is pure Node stdlib; only the Python hook needs python3.
+  packages = lib.optionals (!isPi) [ pkgs.python3 ];
   skill.body = ''
     # temporal — time awareness hook
 
@@ -38,7 +43,13 @@ in
     - `TEMPORAL_INTERVAL` (seconds, default 300): min interval between injects.
     - `TEMPORAL_TTL_DAYS` (default 7): days before stale session state is swept.
   '';
-  hooks = [
+  extensions = lib.optionals isPi [
+    {
+      name = "temporal";
+      source = ./temporal.ts;
+    }
+  ];
+  hooks = lib.optionals (!isPi) [
     {
       event = "UserPromptSubmit";
       matcher = "";

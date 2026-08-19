@@ -763,6 +763,16 @@ let
           name = h.name or "${def.name}-${lib.toLower h.event}";
         }
       ) hooks;
+
+      # pi has no hooks; a cross-agent plugin declares `extensions` for it
+      # instead, each rendered to $out/extensions/<name>.ts.
+      piExtensions = map (
+        e:
+        pkgs.runCommand "pi-extension-${def.name}-${e.name}" { } ''
+          mkdir -p $out/extensions
+          cp ${e.source} $out/extensions/${e.name}.ts
+        ''
+      ) (def.extensions or [ ]);
     in
     if target == "claude" then
       let
@@ -781,6 +791,23 @@ let
             inherit (def) description;
           };
           claudeHooks = toClaudeHooks hooks;
+        };
+      }
+    else if target == "pi" then
+      let
+        plugin = targetLib.mkPlugin {
+          name = pluginName;
+          inherit (def) description;
+          inherit skills;
+          extensions = piExtensions;
+        };
+      in
+      pkgs.buildEnv {
+        name = "${pluginName}-pi-complete";
+        paths = [ plugin ] ++ packages ++ attributionDrv;
+        passthru.meta = {
+          name = pluginName;
+          inherit (def) description;
         };
       }
     else

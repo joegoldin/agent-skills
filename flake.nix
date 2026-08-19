@@ -140,6 +140,7 @@
             claude = claudeLib;
             antigravity = agyLib;
             codex = codexLib;
+            pi = piLib;
           };
           discoveredPlugins = build.discoverPlugins ./plugins;
           crossPlugins = lib.listToAttrs (
@@ -160,6 +161,7 @@
                 "claude"
                 "antigravity"
                 "codex"
+                "pi"
               ]
           );
 
@@ -453,6 +455,30 @@
               # would fail to resolve from a /nix/store path.
               ! grep -E '^import[^t]' ${piTree}/extensions/agent-skills-session-start.ts \
                 | grep -q '@earendil-works'
+
+              touch $out
+            '';
+
+          temporal-pi =
+            let
+              tree = self.packages.${system}.temporal-pi;
+            in
+            pkgs.runCommand "temporal-pi" { nativeBuildInputs = [ pkgs.jq ]; } ''
+              jq -e '.name == "agent-skills-temporal"' ${tree}/package.json >/dev/null
+              jq -e '.pi.extensions == ["./extensions"]' ${tree}/package.json >/dev/null
+              test -f ${tree}/extensions/temporal.ts
+              test -f ${tree}/skills/temporal/SKILL.md
+
+              # the pi build must not drag in the Python the hook targets need
+              test ! -e ${tree}/bin/python3
+
+              # behaviour parity with temporal.py: the three env knobs and
+              # both stamp forms must be present
+              grep -qF 'TEMPORAL_INTERVAL' ${tree}/extensions/temporal.ts
+              grep -qF 'TEMPORAL_TTL_DAYS' ${tree}/extensions/temporal.ts
+              grep -qF 'TEMPORAL_STATE_DIR' ${tree}/extensions/temporal.ts
+              grep -qF 'post-compaction time check' ${tree}/extensions/temporal.ts
+              grep -qF 'unix_ms=' ${tree}/extensions/temporal.ts
 
               touch $out
             '';
