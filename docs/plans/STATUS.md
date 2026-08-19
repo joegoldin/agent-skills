@@ -698,6 +698,99 @@ outside the cwd is refused, that the model API is still reachable, and that
 verified exactly this way, by swapping the wrapped command for a shell, and that
 method transfers.
 
+## Handoff: let the classifier decide `external_directory`
+
+**Status: not started. Decided, scoped, not built.**
+
+Every surface auto mode judges resolves without a prompt except one. Measured
+on the live system, grouping the permission review log by request:
+
+| surface | link verdict | decided by |
+| --- | --- | --- |
+| bash, grep, find, read, mcp, intercom, bg_status, subagent_supervisor | `allow` | authorizer (pi-automode) |
+| `external_directory` | `allow` | **user** |
+
+The link says `allow` and a dialog opens anyway. That is
+`src/authority/delegation-envelope.ts` in `@gotgenes/pi-permission-system`
+26.3.0, applied at `src/authority/authorizer-selection.ts:139`, the one call
+site. It downgrades a registered link's `allow` to `defer` on two surfaces:
+
+```ts
+export const DELEGATION_EXCLUDED_SURFACES = new Set(["external_directory", "path"]);
+```
+
+`isExcludedSurface` also fails safe, treating an undeterminable surface as
+excluded. There is no configuration knob; the set is a module constant.
+
+### Why a fork, and why a narrow one
+
+`path` is the secret-shaped-file check. `external_directory` is only "outside
+the working tree". Dropping `external_directory` alone hands that question to
+the classifier and leaves the secret-path guard standing.
+
+That is the narrowing the package already plans. From the envelope's own
+docblock:
+
+> A finer secret-shaped-`path` exclusion (letting a link allow a non-secret
+> path) is deferred to the allow-capable slice that needs it (#620); until then
+> the conservative whole-surface exclusion ships.
+
+The same docblock notes the checkpoint "is dormant while the only registered
+links are deny-first (they never `allow`)". This setup is the case it was
+written before anyone had: an allow-capable link. The cap is not defending
+against a misconfiguration here, it is refusing a verdict the operator asked
+for.
+
+Note that the current prompts are **not** the envelope. The chain owner's own
+rules run first and are never capped, and `~/.pi/agent/extensions/
+pi-permission-system/config.json` reads:
+
+```json
+"external_directory": { "*": "ask", "/nix/store/*": "allow",
+                        "~/Development/*": "allow", "~/dotfiles/*": "allow" }
+```
+
+`/doctor` probes `/proc/sys/kernel/hostname`, `/etc/os-release`, and
+`/proc/loadavg`, none of which match, so they fall to `*: "ask"` before the
+classifier is ever reached. Adding those six paths is the small fix and was
+declined in favour of this one. Either way the envelope has to go for the
+general case.
+
+### Shape
+
+- Fork `@gotgenes/pi-permission-system` as `joegoldin/pi-permission-system`,
+  the same arrangement as `joegoldin/pi-automode`. One line changes: remove
+  `"external_directory"` from `DELEGATION_EXCLUDED_SURFACES`.
+- Package in pi-nix beside the existing extension, bump `authorizerChain`
+  consumers, rebuild the chain.
+- Test both halves of the narrowing, since the point is that it is partial: a
+  link's `allow` on `external_directory` survives to `allow`, and on `path`
+  still caps to `defer`. A test that only asserts the first would pass if the
+  whole envelope were deleted.
+
+### The gap to close in the same change
+
+`hard_deny` names the credential class by path -- `/run/agenix`, `~/.ssh`,
+`~/dotfiles-secrets`, `.env`. It does not name `/proc/self/environ`, which
+holds all six live credentials, because they reach pi as environment variables
+rather than as files. Today the cap forces a prompt there. Once the classifier
+can approve external reads, that path rests on it inferring that environ is a
+credential store, which it likely would and which is not worth resting on.
+
+Add `/proc/*/environ` to `deniedPaths` and `bash(*/proc/*/environ*)` to the
+deny patterns: 8 denied paths and 7 patterns, still the minimal surface the
+operator asked for.
+
+### The part that needs care
+
+This is the credential surface, so a wrong result is quiet rather than loud.
+Verification is the log, not the absence of dialogs: after the change,
+`/doctor` should show `decidedBy: {kind: "authorizer", name: "pi-automode"}`
+on an `external_directory` request, and a deliberate `cat /proc/self/environ`
+should still be refused before the classifier sees it. Both are one grep of
+`pi-permission-system-permission-review.jsonl`.
+
+
 ## Findings
 
 Where reading source corrected what documentation claimed. Add rows as you find
@@ -817,6 +910,9 @@ them; this table is why the plans are trustworthy.
 | F817 | elphael already declares `age.secrets.deepgram_api_key` and `openai_api_key` alongside `elevenlabs_api_key`, and so does torrent. | The plan's task 12 step 2 is a no-op. All three `*_API_KEY_FILE` paths in the voice block resolve today with no host edit. |
 | F818 | Same shape as F707, one layer deeper. `dotfiles` cannot build the voice wiring from its pinned inputs: pi-nix arrives transitively through `agent-skills` and is locked at `2cce7de`, which predates the `voice` option, and the `audiomemo` input is locked at a revision with no `--stream`. Neither repo is pushed. | Landing needs, in order: push audiomemo, push pi-nix, `nix flake update pi-nix` in agent-skills, push that, then in dotfiles `nix flake update agent-skills agent-skills/pi-nix audiomemo`. Until then the committed dotfiles tree does not evaluate from its own lock. Verified meanwhile with `--override-input agent-skills/pi-nix git+file:///home/joe/Development/pi-nix`, which builds the real wrapper and puts the real binds in the real `bwrap` argv. |
 | F819 | `diarize = true` in `modules/home/packages/audiomemo.nix` reaches dictation. The live end-to-end run pasted `Speaker speaker_0: The perfect shot` into the editor. | Correct behaviour for a memo transcript and wrong for dictation, but it is an audiomemo config choice rather than a pi-voice one, and nothing here overrides it. If the speaker labels are unwanted, the fix is `voice.extraArgs` carrying a transcribe override, or a second audiomemo profile. Left as the author's call. |
+| F820 | `passRules` in pi-nix mapped an empty rule list to `null`, which dropped the key from the rendered `pi-automode.json`. The extension's `finalizeRuleSetting` takes its built-ins as the base whenever a section was never *seen*, so an absent key restores the defaults. Setting `autoMode.protectedPaths = [ ]` therefore left all 48 built-in paths active while reading as an explicit choice to clear them. | Caught by reading the rendered JSON, not the Nix — a green build and a correct-looking config both agreed the list was empty. The comment directly above `passRules` described the package's semantics accurately and the code did the opposite. Fixed at pi-nix `f666c8f`: the five sections that carry built-ins are `nullOr (listOf str)` defaulting to `null`, so `null` is unset and `[ ]` is a value. The regression test empties one section and sets another, and was watched failing (`error: attribute 'protectedPaths' missing`) against the old filter before being trusted. Fourth instance of config that reads as intent and does nothing, after F301, the empty `extensionPackages`, and the unreachable `nix` allow rule. |
+| F821 | `@gotgenes/pi-permission-system` caps a chain link's `allow` to `defer` on the `external_directory` and `path` surfaces (`src/authority/delegation-envelope.ts`, applied at `src/authority/authorizer-selection.ts:139`). No configuration knob; the excluded set is a module constant, and `isExcludedSurface` fails safe by treating an undeterminable surface as excluded. | The classifier can refuse an outside-the-tree access but never approve one, so that surface is the only one where auto mode's verdict does not settle the question. Measured live: every other surface resolves `decidedBy: authorizer`, `external_directory` resolves `decidedBy: user` with the link's verdict recorded as `allow`. Handoff written; the narrow fix is dropping `external_directory` and keeping `path`, which is the exclusion the package's own docblock defers to issue #620. |
+| F822 | The `external_directory` prompts seen in `/doctor` are **not** the envelope. The chain owner's own `permission.external_directory` rules run first and are never capped, and `*` is `ask`; `/doctor` reads `/proc/sys/kernel/hostname`, `/etc/os-release`, and `/proc/loadavg`, none of which match the three `allow` entries. | The classifier was never consulted for those calls, so the envelope was not what produced the dialog even though it would have capped the answer. Diagnosing from the surface name alone would have pointed at the wrong layer; the permission review log names the deciding party per request and settled it. |
 
 ## Decisions
 
@@ -830,3 +926,4 @@ them; this table is why the plans are trustworthy.
 | Voice via audiomemo, not `rpiv-voice` | Go, already a flake input, no npm native deps, no runtime model download into a jail. |
 | `pi-intercom` over `remote-pi` | Reversed after reading remote-pi's source. Its broker authenticates nobody and is worse than intercom on two counts: an unverified client-declared `cwd` forms half the routing address, and `takeover: true` hands a caller the incumbent's exact address, reproduced live (F40, F41). Phone control is a known gap, not an oversight. |
 | avoid-ai-writing on prose | Prompt fragments teach tone by example, so their register becomes the house style. |
+| `external_directory` fork deferred | The classifier should decide it (F821), and the fix is a one-line fork of the permission system plus a `/proc/*/environ` guard. Deferred to a handoff rather than built mid-verification, alongside the Darwin sandbox work. |
