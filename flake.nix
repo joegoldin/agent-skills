@@ -17,6 +17,12 @@
       url = "github:joegoldin/codex-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    pi-nix = {
+      # github: (not git+ssh) for the same reason codex-nix uses it — garnix
+      # injects its app token for github: refs but has no SSH key.
+      url = "github:joegoldin/pi-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -26,6 +32,7 @@
       claude-nix,
       antigravity-cli-nix,
       codex-nix,
+      pi-nix,
       ...
     }:
     let
@@ -56,6 +63,7 @@
           claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
           agyLib = import "${antigravity-cli-nix}/lib" { inherit pkgs lib; };
           codexLib = import "${codex-nix}/lib" { inherit pkgs lib; };
+          piLib = import "${pi-nix}/lib" { inherit pkgs lib; };
           build = import ./lib/default.nix {
             inherit
               pkgs
@@ -63,6 +71,7 @@
               claudeLib
               agyLib
               codexLib
+              piLib
               ;
           };
 
@@ -516,6 +525,10 @@
             lib = pkgs.lib;
           };
           codexLib = import "${codex-nix}/lib" {
+            inherit pkgs;
+            lib = pkgs.lib;
+          };
+          piLib = import "${pi-nix}/lib" {
             inherit pkgs;
             lib = pkgs.lib;
           };

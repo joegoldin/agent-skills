@@ -4,6 +4,7 @@
   claudeLib,
   agyLib ? null,
   codexLib ? null,
+  piLib ? null,
 }:
 let
   mcpLib = import ./mcp.nix { inherit lib; };
