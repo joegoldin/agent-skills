@@ -36,9 +36,9 @@ Status values: `todo` · `wip` · `done` · `blocked` · `dropped`
 | --- | --- | --- | --- | --- |
 | 1 | agent-statusline (extract + dual mode) | agent-statusline, claude-nix | 9 | **done** |
 | 1b | statusline native pi rewrite | agent-statusline | 11 | **done** |
-| 2 | pi-nix fork | pi-nix | 9 | **done** (not pushed) |
+| 2 | pi-nix fork | pi-nix | 9 | **done** (pushed) |
 | 3 | pi-auto-mode, pi-notify, jail | pi-nix | 10 | todo |
-| 4 | agent-skills pi target | agent-skills | 9 | todo |
+| 4 | agent-skills pi target | agent-skills | 9 | **done** |
 | 5 | system prompt layers | agent-skills | 8 | wip |
 | 6 | dotfiles wiring | dotfiles | 7 | todo |
 | 7 | inter-instance messaging | pi-nix, dotfiles | 9 | todo |
@@ -116,7 +116,7 @@ orphaned processes after exit.
 Plan: `2026-08-18-pi-nix-fork.md` (9 tasks, 72 steps). Executed in full:
 **10 third-party pins**, `bun2nix` throughout instead of `buildNpmPackage`, and
 the Bun-built pi as the module default. Owner: delegated. Committed on `master`
-in `/home/joe/Development/pi-nix`; **not pushed**.
+in `/home/joe/Development/pi-nix`; **pushed**.
 
 Pins: `pi-mcp-adapter`, `pi-subagents`, `pi-background-tasks`,
 `@juicesharp/rpiv-ask-user-question`, `@narumitw/pi-goal`,
@@ -171,37 +171,68 @@ follow-up commit, because the older `pi-extension` is exactly the one
 
 ## Phase 3: pi-auto-mode, pi-notify, jail — TODO
 
-Plan: `2026-08-18-pi-auto-mode-and-notify.md` (10 tasks, 71 steps). Owner: unassigned.
+Plan: `2026-08-18-pi-auto-mode-and-notify.md` (10 tasks, 71 steps). Owner: delegated.
 
 | Task | What | Status |
 | --- | --- | --- |
-| 1 | Deterministic rule matcher | todo |
-| 2 | Tool-call rendering, user-turn extraction | todo |
-| 3 | The classifier | todo |
-| 4 | Fail-closed gate on `tool_call` | todo |
-| 5 | Nix packaging, `autoMode` config rendering | todo |
-| 6 | Delegate to `pi-permission-system` | todo |
-| 7 | `pi-notify` core | todo |
+| 1 | Deterministic rule matcher | **done** (aa69abc) |
+| 2 | Tool-call rendering, user-turn extraction | **done** (43fcd77) |
+| 3 | The classifier | **done** (9cef6de) |
+| 4 | Fail-closed gate on `tool_call` | **done** (c012f8a) |
+| 5 | Nix packaging, `autoMode` config rendering | **done** (d36292b) |
+| 6 | Delegate to `pi-permission-system` | **done** (dc97210) |
+| 7 | `pi-notify` core | wip |
 | 8 | `pi-notify` wiring, `notifications` option | todo |
 | 9 | jail.nix defaults | todo |
 | 10 | Live acceptance run | todo |
 
-## Phase 4: agent-skills pi target — TODO
+## Phase 4: agent-skills pi target — DONE
 
-Plan: `2026-08-18-agent-skills-pi-target.md` (9 tasks, 71 steps). Owner: unassigned.
+Plan: `2026-08-18-agent-skills-pi-target.md` (9 tasks, 71 steps). Owner: delegated.
 Sequenced after phase 5 to avoid colliding on `modules/agent-skills.nix` and `flake.nix`.
 
 | Task | What | Status |
 | --- | --- | --- |
-| 1 | `pi-nix` input, `piLib` | todo |
-| 2 | `mcpNativeFor "pi"` | todo |
-| 3 | pi frontmatter lint | todo |
-| 4 | `buildPiPlugin`, realpath-identity gate | todo |
-| 5 | Prompt templates from command-style skills | todo |
-| 6 | session-start extension | todo |
-| 7 | `temporal.ts`, `targetLibs.pi` | todo |
-| 8 | Four-target coverage check | todo |
-| 9 | Module fan-out, `homeManagerModules.pi` | todo |
+| 1 | `pi-nix` input, `piLib` | **done** (1975c39) |
+| 2 | `mcpNativeFor "pi"` | **done** (b4fbe5d) |
+| 3 | pi frontmatter lint | **done** (c149ab0) |
+| 4 | `buildPiPlugin`, realpath-identity gate | **done** (2c6132d) |
+| 5 | Prompt templates from command-style skills | **done** (6bb15e4) |
+| 6 | session-start extension | **done** (7d50d5a) |
+| 7 | `temporal.ts`, `targetLibs.pi` | **done** (08a9046) |
+| 8 | Four-target coverage check | **done** (f2e12b7) |
+| 9 | Module fan-out, `homeManagerModules.pi` | **done** (fa8ba2a) |
+
+**Phase 4 is complete.** `nix flake check` is green with nineteen checks; the
+eight new ones are `pi-frontmatter`, `pi-package-manifest`,
+`pi-skill-realpath-identity`, `pi-prompt-templates`, `pi-extensions`,
+`temporal-pi`, `skills-all-four-targets`, and `module-tests`. All four targets
+ship all 39 skills: `skills-all-four-targets` prints `all 39 skills present in
+all four targets` and fails with both `MISSING` and `COUNT` when one skill is
+held back from the pi arm.
+
+The A3 gate has been watched failing. Replacing the `buildEnv` link with a
+`cp -rL` of every skill turns `pi-skill-realpath-identity` red on
+`pi package copies 'watching-videos' instead of linking it`, and the revert
+turns it green again. Live against pi 0.84.2 with the real `~/.agents/skills`
+alongside the package in `settings.packages`: the injected block appears once
+in the provider payload and no collision line is printed.
+
+The three hook targets are byte-identical after the `lib.optionals` refactor:
+`temporal-claude`, `temporal-codex`, and `temporal-antigravity` all build to
+the same store paths before and after.
+
+**Phase 5's pi arm now verifies against the real option**, which it could not
+before. `programs.pi.coding-agent.systemPrompt` exists in pi-nix `b55eb41`, and
+a real `home-manager.lib.homeManagerConfiguration` carrying
+`homeManagerModules.pi` plus `homeManagerModules.agent-skills` comes back with
+`systemPrompt == prompt.piText` (7948 characters), `~/.agents/mcp.json` holding
+the normalized server set, and `settings.packages` naming both
+`agent-skills-pi-complete` and `agent-skills-temporal-pi-complete`.
+`modules/module-tests.nix` pins the same property in the sandbox: it is the
+first test in this repo to declare `programs.pi` at all, so before it the arm
+was only ever exercised by its own absence.
+
 
 ## Phase 5: system prompt layers — WIP
 
@@ -322,18 +353,31 @@ jail. Depends on phase 2 for the passthru contract and `extensionPackages`.
 
 | Task | What | Status |
 | --- | --- | --- |
-| 1 | audiomemo: NDJSON event schema and emitter | todo |
-| 2 | audiomemo: level normalisation and 20 Hz coalescing | todo |
-| 3 | audiomemo: `--stream` flag, guardrails, mode resolution | todo |
-| 4 | audiomemo: streaming run loop and signal termination | todo |
-| 5 | audiomemo: `final` event with the batch pass captured | todo |
-| 6 | audiomemo: integration coverage for the flag contract | todo |
+| 1 | audiomemo: NDJSON event schema and emitter | done (a3d353b) |
+| 2 | audiomemo: level normalisation and 20 Hz coalescing | done (b8c47de) |
+| 3 | audiomemo: `--stream` flag, guardrails, mode resolution | done (7363072) |
+| 4 | audiomemo: streaming run loop and signal termination | done (0983fbc) |
+| 5 | audiomemo: `final` event with the batch pass captured | done (37196c2) |
+| 6 | audiomemo: integration coverage for the flag contract | done (1634337) |
 | 7 | pi-voice: parsing, config, width maths, metering | todo |
 | 8 | pi-voice: the voice state file | todo |
 | 9 | pi-voice: meter and transcript rows | todo |
 | 10 | pi-voice: controller, `/voice`, and the paste | todo |
 | 11 | pi-nix: packaging, `voice` option, jail permissions | todo |
 | 12 | dotfiles: wiring and the end-to-end check | todo |
+
+**Tasks 1-6 are complete and committed in `/home/joe/Development/audiomemo`,
+not pushed** (the user reviews before it goes out). Head is `1634337`; the
+consumers in tasks 11-12 bump the flake input from `6018d29` to that. All seven
+Go packages `ok`, `nix flake check` green (the sandboxed check runs the suite
+with `whisper-cpp` and a fetched base model), and `record --help` shows the flag
+from `nix build .#audiomemo`. Verified against a live microphone rather than
+only in tests: a 3 s `--stream --no-live-transcription` run produced `start`
+with `"mode":"none"`, 26 `level` lines, and `end` with `"reason":"signal"` and
+`"exit_code":0`; a 13 s run with `-t --transcribe-args="--backend whisper-cpp"`
+produced `"mode":"batch"` and a `final` with `"source":"batch"`,
+`"backend":"whisper-cpp"`, and the subprocess transcript in `text` rather than
+leaking onto stdout. See F806-F808.
 
 **Mic capture in the jail: resolved, works, but not by default.** Verified on
 elphael 2026-08-18 by running `audiomemo record -L` inside a jail-shaped
@@ -408,18 +452,31 @@ them; this table is why the plans are trustworthy.
 | F204 | F35's "verified sufficient for the whole set" is wrong, and the plan's "no pin in the initial set needs `extraBuildInputs`" with it. `pi-mcp-adapter` reaches `recheck-linux-x64/recheck`, a GraalVM native-image **executable** rather than a `.node`, and it links `libz.so.1`. `stdenv.cc.cc.lib` does not carry zlib, so `auto-patchelf could not satisfy dependency libz.so.1` fails the build outright. | `packages/extensions/default.nix` grew an `extraBuildInputsFor` map alongside `settingsFor`, holding `pi-mcp-adapter = [ zlib ]`. The plan declared the mechanism and then declared it unused; it is used on day one. Note the shape of the miss: the audit looked at `.node` files, and this is a plain ELF binary that a transitive npm dependency happens to ship. |
 | F205 | Task 4's "both diffs must be empty" cannot hold on the first run, because the plan writes `extensions.json` with inline arrays (`"skills": ["skills"]`) and `pi-update-extensions` rewrites the file through `jq`, which expands them. Values are identical; only whitespace moves. | The pin file is committed in jq's shape, so the check the plan actually wants — "a run against unchanged pins changes nothing" — is true from the second run on, and was verified: both `extensions.json` and all nine `bun.lock`/`bun.nix` pairs came back byte-identical. The load-bearing half (the lockfiles) was clean on the *first* run too, which is what proves the builder and the generator normalise the same way. |
 | F206 | Task 7's `checkedStatuslineEnv` guard — throw a sentence when `statusline.enable` meets a file-valued `environment` — is an infinite recursion by construction, and no spelling of it works. It reads `cfg.environment` from inside a *definition* of `environment`; forcing the merged value forces our definition, whose value forces the merged value. Watched fail: `error: infinite recursion encountered` at `lib/modules.nix:1159`. Moving the read into the `mkIf` condition or into the value changes nothing. | Dropped, and the module says so in a comment. `environment = lib.mkIf statusline.enable statuslineEnv;` contributes nothing when disabled. A consumer who sets `environment` to a path with the statusline on gets the module system's own "defined multiple times" error (`types.either` falls through to `mergeOneOption`), and the option description names the attrset form. Any later option in this repo that wants to inspect an upstream option it also defines hits the same wall. |
+| F400 | A `-e` probe extension that reads `event.systemPrompt` in `before_agent_start` and exits sees the prompt **before** package extensions have appended to it. `mergePaths(cliEnabledExtensions, enabledExtensions)` puts CLI paths first, so the probe's handler runs first. The plan's task-6 acceptance step is written exactly that way and reports `injected=0` against a package that is in fact loading correctly. | The probe must read a later event. `before_provider_request` carries the assembled `payload`, so `JSON.stringify(e.payload).includes(...)` observes the finished prompt after every handler has run. Confirmed both ways: with the package extension passed ahead of the probe on `-e` the original probe reports 1, and with the package in `settings.packages` only the later event does. Any future acceptance test for a chained `systemPrompt` handler has the same trap. |
+| F401 | `pi-nix`'s `lib` exposes `mkPiSkill`/`mkPiPromptTemplate`/`mkPiPlugin` plus `mkSkill` and `mkPlugin` aliases, but **no `mkPromptTemplate`** alias. The plan's Task 1 gate asserts all three unprefixed names. | `mkPiPromptTemplateFor` calls `piLib.mkPiPromptTemplate` by its prefixed name. Nothing needed changing in `pi-nix`, and the alias can still be added there later without breaking this call site. |
+| F402 | `mkPiPromptTemplate` renders frontmatter through `lib.mapAttrsToList`, which sorts keys, so `argument-hint` precedes `description` and the body is preceded by one blank line more than the plan's expected output shows. | Cosmetic only; the quoting the plan cares about is right (`argument-hint: "[directory]"` stays a string rather than a YAML flow sequence). `checks.pi-prompt-templates` asserts the two lines with `grep -qxF` rather than diffing the whole file, so key order is not pinned. |
+| F403 | `nixfmt` 1.4.0 and 1.2.0 both reformat files this repo already committed (`lib/mcp.nix`'s `stdio` binding and its `assert lib.assertMsg` line move under either version). The tree was formatted by some third version, and the repo has no `formatter` output and no formatting check. | Formatting a touched file produces churn unrelated to the change. Harmless because nothing gates on it, but a reviewer reading a phase-4 diff sees hunks the phase did not author. A `formatter` output pinning one `nixfmt` would end this. |
 | F800 | Mic capture inside bwrap works with nothing but the PulseAudio socket bound. Measured: `audiomemo record -L` lists 0 devices with no audio bind and exits 0; with `--bind $XDG_RUNTIME_DIR/pulse` it lists every device, and `ffmpeg -f pulse -i default` captured 32 KiB. No `/dev/snd`, no added capability. | Voice and the jail are not in conflict; the default jail is simply missing four binds (audio socket, audiomemo closure, agenix keys, audiomemo config). Same silent-empty failure as F5: no error, just nothing. `jail.nix` already ships `pulse` and `pipewire` combinators. |
 | F801 | jail.nix's `base` does `--clearenv` and `--tmpfs ~`, and `--dev /dev` does supply `/dev/shm`. | `~/.config/audiomemo/config.toml` and `~/.claude` vanish inside the jail unless bound. Without the config, `record` decides it needs onboarding and dies on `/dev/tty`, so the bind is required rather than convenient. PulseAudio's SHM transport has somewhere to land, so no extra tmpfs is needed. |
 | F802 | `jail.permissions` is `functionTo (listOf raw)`. Function-typed options do not merge across module definitions. | No module can *contribute* jail permissions. `pi.coding-agent.voice` exposes a read-only `jailPermissions` function the consumer splices into its own definition by hand. Every future permission contributor has the same constraint. |
 | F803 | `ctx.ui.pasteToEditor(text)` exists at `pi-coding-agent/src/core/extensions/types.ts:213`, beside `setEditorText` (`:216`) and `getEditorText` (`:219`). | The rejected `rpiv-voice`'s usage was real. pasteToEditor is the right call: it triggers paste handling and does not discard what the user already typed. |
 | F804 | pi injects `@earendil-works/pi-tui` and `pi-coding-agent` as jiti **virtual modules** (`core/extensions/loader.ts:50-74`, aliases at `:81-120`). | An extension at a bare store path can import them with no `node_modules`. But `bun test` cannot, so any code path under test must not import them. pi-voice imports nothing; `agent-statusline`'s extension took the devDependency road instead, because it needs far more than two functions. |
 | F805 | ffmpeg's `astats` RMS is dBFS and can be the literal `inf`/`-inf`, which `strconv.ParseFloat` accepts. `encoding/json` returns `UnsupportedValueError` for `±Inf`. | An unclamped level event does not lose a field, it loses the whole line. Both wire scales are clamped at the emitter. |
+| F806 | `--no-live-transcription` emits an `error` event. The plan's task-4 fallback is `else if streamNote != "" && rStream`, and `streamNote` is already `"live transcription disabled"` before the key check ever runs (`cmd/record.go`), so the first line of a deliberately live-free stream is `{"type":"error","scope":"stream","fatal":false,"message":"live transcription disabled"}`. Reproduced on every `--stream --no-live-transcription` run. | Implemented as planned, but pi-voice (tasks 9-10) must not render `scope:"stream"`, `fatal:false` errors as user-visible failures, or `--no-live-transcription` shows an error banner for a user choice that `mode:"none"` already states. Either the consumer filters it or a follow-up narrows the branch to the missing-key case. |
+| F807 | `astats` does not print 100 RMS lines a second here. Measured over two live runs: 29 lines in 3.1 s and 103 in 13.0 s, both ~8/s, well under the 20 Hz the `levelInterval` throttle caps at. | The 50 ms coalescing window is currently inert on this hardware — it is insurance against a device that does report at 100 Hz, not the thing producing the observed rate. A consumer must not assume a 20 Hz tick; `level` arrival is bursty and irregular (gaps of 96 ms and 149 ms in the same run), so smoothing on the consumer side has to be time-aware rather than per-event. |
+| F808 | `gofmt -l .` under Go 1.26 already flags five files at `6018d29`: `cmd/transcribe.go`, `internal/transcribe/elevenlabs.go`, `internal/transcribe/elevenlabs_test.go`, `internal/tui/devices.go`, `internal/tui/onboarding.go`. All are `var (...)` block alignment, none were touched by this work. | The plan's `gofmt -l . \| grep -v '^vendor/'` gate cannot print nothing on this toolchain. Read it as "no *new* files listed" instead. Reformatting them is a separate commit the author should make deliberately, since it touches four packages this work does not otherwise change. |
 | F100 | F804's "`bun test` cannot resolve them" holds only when they are not installed. Adding `@earendil-works/pi-tui` and `pi-coding-agent` as **devDependencies** makes `import { visibleWidth } from "@earendil-works/pi-tui"` resolve normally under `bun test` — measured: `extension/src/width.test.ts` compares against pi's real `visibleWidth` and `truncateToWidth` over 46 corpus strings plus 2000 fuzzed ones, 2784 assertions, 0 fail. | Two viable approaches, not one. Structural fakes (what `statusline.test.ts` does) avoid the dependency entirely; a devDependency lets a test be a *differential* test against pi's real implementation, which is the only way to pin a re-implementation. The runtime constraint is unchanged either way: no `dependencies` block, ever, and the packaged extension drops `*.test.ts`. |
 | F101 | The npm tarball of `@earendil-works/pi-coding-agent@0.84.2` ships `dist/`, `docs/` and `examples/` — **no `src/`**. Only the Nix builds (both `pi-coding-agent` and `coding-agent-bun`, which unpack `fetchFromGitHub` `src`) carry the TypeScript. | The plan's `piSourceFile()` looks under `node_modules/@earendil-works/pi-coding-agent/src/...` and would have found nothing, turning the "stays in step with pi" test into a hard failure. The helper searches `$PI_CODING_AGENT_SRC/src/**.ts`, then `node_modules/**/src/**.ts`, then `node_modules/**/dist/**.js`; the compiled `footer.js` carries `sanitizeStatusText` with an identical body, so the drift check works from the npm package alone and gets stronger when pointed at a real pi. |
 | F102 | pi-tui's `visibleWidth` is not a wide/zero range table. It segments with `Intl.Segmenter`, tests `\p{RGI_Emoji}` under the `v` flag, consults the real `East_Asian_Width` property through `get-east-asian-width`, and has separate handling for regional indicators, Thai/Lao AM vowels and Indic spacing marks (`pi-tui/src/utils.ts:175-296`). | The plan's sketch — 17 wide ranges and 4 zero ranges — could not have passed its own 2000-string fuzz against pi. `width.ts` is a port instead of an approximation: same segmenter, same regexes copied out of pi's source, same escape scanner, plus the `fullwidth`/`wide` tables vendored from the package pi-tui itself calls. `truncateEnd` is likewise a port of `truncateToWidth`, which is what makes an already-fitted line a fixed point of pi's own truncator. Both passed on the first run. |
 | F104 | A `flex` spacer never expands under `main.go`'s flow. `ComposeRow` only distributes flex budget when given a width, and main.go composes both rows at `Width: 0` to decide whether they merge, then either uses that string verbatim or falls back to `WrapRow`, which skips flex markers outright. So the widget is inert in the shipped ANSI renderer, and the plan's task-10 assertion that `renderRows(..., 120)` returns a 120-cell flex-padded line was measuring something the Go side has never produced (measured: 97 cells, the merged natural-width row). | The TypeScript port keeps the behaviour rather than quietly improving on it, so the two renderers still agree line for line; the assertion moved to `composeRow` at an explicit width, which is where a flex spacer means anything, and a second assertion covers the sanitiser-mangling proof without depending on flex at all. Making flex work end to end is a follow-up on the Go side first. |
 | F105 | `os.UserCacheDir` prefers `XDG_CACHE_HOME` over `HOME`, and this machine exports it. Regenerating `extension/testdata/snapshot-full.json` with only `HOME` overridden, as the plan's command does, silently reads the real user cache. | The fixture came out with `"tools": null` and no activity rows, which looks like a working snapshot rather than a misconfigured one. Both variables are set in the recipe now, and the recipe is in the README rather than in a shell history. |
 | F103 | `bun test`'s per-test timeout is **5 s** and is only settable by CLI flag or `setDefaultTimeout()`, not by `bunfig.toml`. The phase-1b fix for the cold-run flake raised a polling helper's deadline to 10 s, which put it *above* the runner's own limit. | The helper then gave up at 5 s inside a poll loop that had not finished waiting — the cold run failed at exactly 5000 ms. `setDefaultTimeout(30_000)` at the top of the file is the fix; raising the helper alone made the flake harder to read, not rarer. |
+| F300 | Task 3's own assertion `CLASSIFIER_SYSTEM_PROMPT).toMatch(/never.*clear|cannot be cleared/i)` fails against Task 3's own prompt text. The prompt reads `User intent does NOT clear it and can never` / newline / `clear it`, and `.` does not cross a line break. Watched fail on the first run of the implemented module. | The prompt's hard_deny line is reflowed to say `It cannot be cleared:` on one line. General shape of the trap: a regex assertion over a hand-wrapped template literal is sensitive to where the author happened to wrap, and the wrap is invisible in review. |
+| F301 | Registering an authorizer with `@gotgenes/pi-permission-system` does not put it on the chain. `registerAuthorizer`'s own docstring (`dist/public.d.ts:520`) says the chain consults a link only when "the operator names it in the `authorizerChain` config", and that config is `~/.pi/agent/extensions/pi-permission-system/config.json`, the package's own file, **not** pi's `settings.json`. So neither `mkPiExtension`'s `passthru.settings` nor the module's `settings` option can activate it. | Task 6's `delegated` flag would have disarmed pi-auto-mode's own gate on the strength of a registration that may never fire, which is fail-open. The delegated path keeps the deterministic **deny** list running on `tool_call` (a deny costs no model call, so the duplication is free) and `docs/assumption-a2.md` names the operator edit. Phase 7's `passthru.configFiles` is the mechanism that will let Nix write it; this is a second, independent motivation for that field. |
+| F302 | `mkPiExtension` had no local-`src` arm and the plan's stopgap (a bare `runCommand` with a hand-written `passthru`) would have forked the contract. Adding `src ? null` alongside `url ? null` / `hash ? null` works because Nix is lazy: the `fetchurl` binding is never forced on the first-party path, so no placeholder URL or hash is needed. F201's warning about eval-time SRI validation does not bite here for that reason. | One builder, one passthru contract, and `tests/extensions-test.nix` asserts the first-party packages satisfy it alongside the ten pins. A first-party extension names `entrypoints` explicitly instead of relying on npm manifest resolution. |
+| F303 | `with combinators;` inside `coding-agent/extra-options.nix` does not bind `notifications`. The file already has `notifications = cfg.notifications` in the same `let`, and Nix's `with` loses to any enclosing binding, so jail.nix is handed the option submodule where it expects a permission. Watched fail: `error: attempt to call something which is not a function but a set: { appName = «thunk»; configFile = «thunk»; ... }`, raised from `lib/trivial.nix:150` while evaluating `pi.coding-agent.finalPackage` — nowhere near the list that caused it. | Every entry in the jail default is written `combinators.x`. The plan's `defaultText` and upstream's own default both use `with combinators;`, which is safe only because neither shares a scope with an option named after a combinator. Any module that both names an option and uses `with` on a namespace containing that name has the same latent bug. |
+| F304 | F7 is wrong for bubblewrap, measured. A read-only bind of `~/.1password/agent.sock` does **not** refuse the `AF_UNIX` connect: with `--ro-bind-try` on the socket, `ssh-add -l` inside the real jail listed the key. Both binds were built and run; `try-readwrite` and `try-readonly` behave identically here. | The jail ships `try-readonly` on the agent socket, so the default matches `modules/ai/claude.nix`'s `allowRead` exactly rather than approximately, and `docs/jail.md` records the one-line fallback in case a kernel disagrees. The plan's task-9 step 4 was written as "expect this to fail, here is the fix"; it did not fail. |
+| F305 | `pi --print '!some-shell-command'` cannot smoke-test the jail: pi refuses to run anything without a configured provider, answering `No API key found for the selected model`. Every jail verification step in the plan is written that way. | The jail wrapper's last line is a single `bwrap` invocation, so `sed`-swapping the wrapped `pi` for `/bin/sh -c "$1"` exercises the exact sandbox with no model, no key and no network. That is how the toolchain, the cwd write, the dbus notification, the agent socket and the absent private key were all verified; the recipe is in `docs/jail.md`. |
 
 ## Decisions
 
