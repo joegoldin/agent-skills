@@ -55,15 +55,15 @@ let
     target: name: s:
     let
       isRemote = s.url != null;
-      stdio =
-        {
-          command = s.command;
-        }
-        // optionalAttrs (s.args != [ ]) { inherit (s) args; }
-        // optionalAttrs (s.env != { }) { inherit (s) env; };
+      stdio = {
+        command = s.command;
+      }
+      // optionalAttrs (s.args != [ ]) { inherit (s) args; }
+      // optionalAttrs (s.env != { }) { inherit (s) env; };
     in
-    assert lib.assertMsg ((s.command != null) != isRemote)
-      "agent-skills mcpServers.${name}: set exactly one of `command` (stdio) or `url` (remote).";
+    assert lib.assertMsg (
+      (s.command != null) != isRemote
+    ) "agent-skills mcpServers.${name}: set exactly one of `command` (stdio) or `url` (remote).";
     if !isRemote then
       stdio
     else if target == "claude" then
@@ -77,12 +77,26 @@ let
         serverUrl = s.url;
       }
       // optionalAttrs (s.headers != { }) { inherit (s) headers; }
-    else # codex
+    else if target == "codex" then
       {
         url = s.url;
       }
       // optionalAttrs (s.bearerTokenEnvVar != null) { bearer_token_env_var = s.bearerTokenEnvVar; }
-      // optionalAttrs (s.headers != { }) { http_headers = s.headers; };
+      // optionalAttrs (s.headers != { }) { http_headers = s.headers; }
+    else if target == "pi" then
+      # pi has no native MCP; this is pi-mcp-adapter's mcp.json schema.
+      # `headers` is spelled the same as claude/antigravity; the bearer-token
+      # env var is `bearerTokenEnv` and must be paired with auth = "bearer".
+      {
+        url = s.url;
+      }
+      // optionalAttrs (s.headers != { }) { inherit (s) headers; }
+      // optionalAttrs (s.bearerTokenEnvVar != null) {
+        auth = "bearer";
+        bearerTokenEnv = s.bearerTokenEnvVar;
+      }
+    else
+      throw "agent-skills mcpServers.${name}: unknown target '${target}' (known: claude, antigravity, codex, pi)";
 
   # Translate a whole normalized server set for one target, dropping disabled.
   mcpNativeFor =

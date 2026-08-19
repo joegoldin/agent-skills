@@ -235,6 +235,7 @@
           claudeJson = pkgs.writeText "claude-mcp.json" (builtins.toJSON (mcp.mcpNativeFor "claude" servers));
           agyJson = pkgs.writeText "agy-mcp.json" (builtins.toJSON (mcp.mcpNativeFor "antigravity" servers));
           codexJson = pkgs.writeText "codex-mcp.json" (builtins.toJSON (mcp.mcpNativeFor "codex" servers));
+          piJson = pkgs.writeText "pi-mcp.json" (builtins.toJSON (mcp.mcpNativeFor "pi" servers));
         in
         {
           mcp-standalone-tests = import ./tests/mcp-standalone-test.nix { inherit pkgs; };
@@ -244,7 +245,7 @@
             jq -e 'has("off") | not' ${agyJson} >/dev/null
             jq -e 'has("off") | not' ${codexJson} >/dev/null
 
-            # stdio is identical across all three targets
+            # stdio is identical across all four targets
             jq -e '.ctx.command == "npx" and (.ctx.args == ["-y","ctx"])' ${claudeJson} >/dev/null
             jq -e '.ctx.command == "npx"' ${agyJson} >/dev/null
             jq -e '.ctx.command == "npx"' ${codexJson} >/dev/null
@@ -258,6 +259,17 @@
             # codex remote → url + bearer_token_env_var + http_headers (no headers/type)
             jq -e '.remote.url == "https://x/mcp" and .remote.bearer_token_env_var == "TOK" and .remote.http_headers.Authorization == "Bearer Y"' ${codexJson} >/dev/null
             jq -e '.remote | (has("type") | not) and (has("serverUrl") | not)' ${codexJson} >/dev/null
+
+            # disabled servers are omitted from the pi target too
+            jq -e 'has("off") | not' ${piJson} >/dev/null
+            jq -e '.ctx.command == "npx" and (.ctx.args == ["-y","ctx"])' ${piJson} >/dev/null
+
+            # pi remote -> pi-mcp-adapter shape: url + headers + auth/bearerTokenEnv
+            jq -e '.remote.url == "https://x/mcp" and .remote.headers.Authorization == "Bearer Y"' ${piJson} >/dev/null
+            jq -e '.remote.auth == "bearer" and .remote.bearerTokenEnv == "TOK"' ${piJson} >/dev/null
+
+            # pi must not inherit any other target's remote spelling
+            jq -e '.remote | (has("type") | not) and (has("serverUrl") | not) and (has("bearer_token_env_var") | not) and (has("http_headers") | not)' ${piJson} >/dev/null
 
             touch $out
           '';
