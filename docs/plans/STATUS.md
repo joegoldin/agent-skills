@@ -42,7 +42,7 @@ Status values: `todo` · `wip` · `done` · `blocked` · `dropped`
 | 5 | system prompt layers | agent-skills | 8 | wip |
 | 6 | dotfiles wiring | dotfiles | 7 | todo |
 | 7 | inter-instance messaging | pi-nix, dotfiles | 9 | **8/9** (pi-nix done, not pushed; task 9 blocked) |
-| 8 | pi-voice over audiomemo | audiomemo, pi-nix, dotfiles | 12 | todo |
+| 8 | pi-voice over audiomemo | audiomemo, pi-nix, dotfiles | 12 | **done** (nothing pushed) |
 
 ## Phase 1: agent-statusline — DONE
 
@@ -463,7 +463,7 @@ bun, the same runtime pi already is, folded into `jail.permissions` from a
 module-local internal option. `keepDependencies`/`bunNix` go unused because the
 package needs no `node_modules` (F51).
 
-## Phase 8: pi-voice over audiomemo — TODO
+## Phase 8: pi-voice over audiomemo — DONE
 
 Plan: `2026-08-18-pi-voice-audiomemo.md` (12 tasks, 82 steps). Owner: unassigned.
 Two repos plus a thin third: `audiomemo` gains `record --stream` (NDJSON),
@@ -478,16 +478,19 @@ jail. Depends on phase 2 for the passthru contract and `extensionPackages`.
 | 4 | audiomemo: streaming run loop and signal termination | done (0983fbc) |
 | 5 | audiomemo: `final` event with the batch pass captured | done (37196c2) |
 | 6 | audiomemo: integration coverage for the flag contract | done (1634337) |
-| 7 | pi-voice: parsing, config, width maths, metering | todo |
-| 8 | pi-voice: the voice state file | todo |
-| 9 | pi-voice: meter and transcript rows | todo |
-| 10 | pi-voice: controller, `/voice`, and the paste | todo |
-| 11 | pi-nix: packaging, `voice` option, jail permissions | todo |
-| 12 | dotfiles: wiring and the end-to-end check | todo |
+| 7 | pi-voice: parsing, config, width maths, metering | done (a60043d) |
+| 8 | pi-voice: the voice state file | done (f20ede9) |
+| 9 | pi-voice: meter and transcript rows | done (e2cb7e7) |
+| 10 | pi-voice: controller, `/voice`, and the paste | done (4805d95) |
+| 11 | pi-nix: packaging, `voice` option, jail permissions | done (87e873a) |
+| 12 | dotfiles: wiring and the end-to-end check | done (e8f354a) |
 
 **Tasks 1-6 are complete and committed in `/home/joe/Development/audiomemo`,
-not pushed** (the user reviews before it goes out). Head is `1634337`; the
-consumers in tasks 11-12 bump the flake input from `6018d29` to that. All seven
+not pushed** (the user reviews before it goes out). Head is `42e6793`, one
+commit past the `1634337` recorded here earlier: `--no-live-transcription` no
+longer emits an `error` event, because an explicit opt-out is not a failure and
+`start.mode` already reports `"none"` (F806). The decision is now the pure
+function `reportLiveUnavailable` in `cmd/record.go`, under test. All seven
 Go packages `ok`, `nix flake check` green (the sandboxed check runs the suite
 with `whisper-cpp` and a fetched base model), and `record --help` shows the flag
 from `nix build .#audiomemo`. Verified against a live microphone rather than
@@ -511,6 +514,60 @@ The voice state file contract, for any producer including Claude Code:
 `{"voice":{"enabled":bool,"mode":str}}` merged into
 `$CLAUDE_CONFIG_DIR/settings.local.json`, defaulting to
 `~/.claude/settings.local.json`.
+
+**Tasks 7-11 are complete on `master` in `/home/joe/Development/pi-nix`,
+`a60043d..87e873a`, not pushed.** `nix flake check` is green over fifteen
+checks, one of them new: `pi-voice` runs `bun test` (70 pass, 0 fail, 4 files)
+and then `tsc --strict` against pi's published `.d.ts`, which is what caught
+F815. `packages.ext-pi-voice` builds to a store path holding `package.json` and
+four `src/*.ts` with the test files stripped. Every protected upstream file is
+still byte-identical: `git diff upstream/master --stat` over the protected set
+prints nothing, and the fork's whole diff still names only `README.md`,
+`coding-agent/extra-options.nix`, the three one-line `imports` additions,
+`flake.nix`, `update.nix`, `.gitignore`, and `flake.lock`.
+
+**Task 12 is committed in `/home/joe/dotfiles` at `e8f354a`, not pushed**, and
+does not evaluate from its own lock yet (F818). Built with
+`--override-input agent-skills/pi-nix git+file:///home/joe/Development/pi-nix`:
+`home.activationPackage` succeeds, and the rendered `bwrap` argv carries
+`--bind-try $XDG_RUNTIME_DIR/pulse`, the two pipewire binds,
+`--ro-bind-try ~/.config/audiomemo/config.toml`, the three `/run/agenix/*` key
+files, and `audiomemo-0.1.0/bin` on the jailed `PATH`. The inner launcher
+exports `PI_VOICE_RECORD_BIN`, `PI_VOICE_BAR_WIDTH`, `PI_VOICE_PLACEMENT` and
+three `*_API_KEY_FILE` **paths**; no key value appears anywhere in the closure.
+
+**The mic indicator lights, and it was watched doing so rather than inferred.**
+Against the real microphone, driving the real `VoiceSession` with the local
+audiomemo build: the meter drew `● 0:02 █████░░░░░░░ -35.9 dB` from live room
+noise, pi-voice wrote
+`{"enabled":true,"mode":"toggle","pid":2254277,"since":1787111322216}`, and
+feeding that same directory to the packaged `agent-statusline` returned
+`voice: {"visible":true,"spans":[{"text":"\uf130 toggle","intent":"meta"}]}`,
+which is the Nerd Font microphone glyph. The three states were probed separately: file
+absent and `enabled:false` both render `{"visible":false}`. ElevenLabs live
+transcription ran end to end and the finished text reached the editor through
+`pasteToEditor` (F819 on what it contained). Stopping cleared the block to
+`{"enabled":false}`.
+
+**The jail claim was re-measured on this host, not carried over.** Inside a
+jail-shaped `bwrap`, `audiomemo record -L` prints 0 lines with no audio bind and
+8 device lines with `$XDG_RUNTIME_DIR/pulse` bound, exiting 0 either way. The
+options check pins the same thing at eval time and was watched failing:
+deleting `combinators.pulse` from the voice permission list turns
+`checks.options` red on the assertion that names it.
+
+**What was not done:** step 7's `/voice` inside a real interactive pi, and
+step 8's jail-off comparison. Both need `nixos-rebuild switch`, which this work
+was told not to run, and pi needs a provider account the acceptance host does
+not have (the same constraint phase 3 hit). The chain was exercised end to end
+one layer below pi instead, against the real microphone and the real statusline
+binary.
+
+Eleven plan defects surfaced by running it: F809-F819. Three were
+contradictions inside the plan's own tests (F810, F811, F812), one corrects a
+finding from this same phase (F809 supersedes F802), and one is a real
+robustness bug the plan would have shipped (F813, an immediate stop killing the
+recording it was meant to finish).
 
 ## Findings
 
@@ -604,13 +661,24 @@ them; this table is why the plans are trustworthy.
 | F707 | Phase 7's dotfiles task cannot build from the pinned inputs. `dotfiles` consumes pi-nix transitively through `agent-skills`, which pins `github:joegoldin/pi-nix`, and phase 7's commits are local. | Task 9 is not landed. Landing it needs, in order: push pi-nix, `nix flake update pi-nix` in agent-skills, push that, `nix flake update agent-skills` in dotfiles, then apply the block quoted in the phase-7 section. A second hazard is concurrency rather than pinning: `modules/ai/pi.nix` was being rewritten by phase 6 throughout, and the block was written into it twice and lost to phase 6's own writes both times. Verified meanwhile with `--override-input agent-skills/pi-nix git+file:///home/joe/Development/pi-nix`, which builds the real wrapper. || F600 | `agent-skills` at 347ba41 locks `pi-nix` at **b55eb41**, the phase-2 head, not eee1d07. The phase-2/phase-3 split is invisible from dotfiles: `homeManagerModules.pi` exists either way, so the failure is not an eval error but a missing option surface. | `nix flake update agent-skills` alone gives a pi with no `autoMode` option, no `notifications`, and upstream's two-entry jail default instead of phase 3's. Fixed without a new input: `nix flake update agent-skills/pi-nix` moves the transitive node to eee1d07 inside dotfiles' own lock. Any consumer of `agent-skills` needs both updates until agent-skills relocks pi-nix. |
 | F800 | Mic capture inside bwrap works with nothing but the PulseAudio socket bound. Measured: `audiomemo record -L` lists 0 devices with no audio bind and exits 0; with `--bind $XDG_RUNTIME_DIR/pulse` it lists every device, and `ffmpeg -f pulse -i default` captured 32 KiB. No `/dev/snd`, no added capability. | Voice and the jail are not in conflict; the default jail is simply missing four binds (audio socket, audiomemo closure, agenix keys, audiomemo config). Same silent-empty failure as F5: no error, just nothing. `jail.nix` already ships `pulse` and `pipewire` combinators. |
 | F801 | jail.nix's `base` does `--clearenv` and `--tmpfs ~`, and `--dev /dev` does supply `/dev/shm`. | `~/.config/audiomemo/config.toml` and `~/.claude` vanish inside the jail unless bound. Without the config, `record` decides it needs onboarding and dies on `/dev/tty`, so the bind is required rather than convenient. PulseAudio's SHM transport has somewhere to land, so no extra tmpfs is needed. |
-| F802 | `jail.permissions` is `functionTo (listOf raw)`. Function-typed options do not merge across module definitions. | No module can *contribute* jail permissions. `pi.coding-agent.voice` exposes a read-only `jailPermissions` function the consumer splices into its own definition by hand. Every future permission contributor has the same constraint. |
+| F802 | `jail.permissions` is `functionTo (listOf raw)`. **Superseded by F809: this type does merge.** The original claim, that no module can contribute jail permissions, is false. | Kept for the record because tasks 11 and 12 were designed around it. `voice.jailPermissions` still exists as a read-only function, but it is now a fallback for a consumer who *replaces* the permission list rather than the only route in. |
 | F803 | `ctx.ui.pasteToEditor(text)` exists at `pi-coding-agent/src/core/extensions/types.ts:213`, beside `setEditorText` (`:216`) and `getEditorText` (`:219`). | The rejected `rpiv-voice`'s usage was real. pasteToEditor is the right call: it triggers paste handling and does not discard what the user already typed. |
 | F804 | pi injects `@earendil-works/pi-tui` and `pi-coding-agent` as jiti **virtual modules** (`core/extensions/loader.ts:50-74`, aliases at `:81-120`). | An extension at a bare store path can import them with no `node_modules`. But `bun test` cannot, so any code path under test must not import them. pi-voice imports nothing; `agent-statusline`'s extension took the devDependency road instead, because it needs far more than two functions. |
 | F805 | ffmpeg's `astats` RMS is dBFS and can be the literal `inf`/`-inf`, which `strconv.ParseFloat` accepts. `encoding/json` returns `UnsupportedValueError` for `±Inf`. | An unclamped level event does not lose a field, it loses the whole line. Both wire scales are clamped at the emitter. |
 | F806 | `--no-live-transcription` emits an `error` event. The plan's task-4 fallback is `else if streamNote != "" && rStream`, and `streamNote` is already `"live transcription disabled"` before the key check ever runs (`cmd/record.go`), so the first line of a deliberately live-free stream is `{"type":"error","scope":"stream","fatal":false,"message":"live transcription disabled"}`. Reproduced on every `--stream --no-live-transcription` run. | Implemented as planned, but pi-voice (tasks 9-10) must not render `scope:"stream"`, `fatal:false` errors as user-visible failures, or `--no-live-transcription` shows an error banner for a user choice that `mode:"none"` already states. Either the consumer filters it or a follow-up narrows the branch to the missing-key case. |
 | F807 | `astats` does not print 100 RMS lines a second here. Measured over two live runs: 29 lines in 3.1 s and 103 in 13.0 s, both ~8/s, well under the 20 Hz the `levelInterval` throttle caps at. | The 50 ms coalescing window is currently inert on this hardware — it is insurance against a device that does report at 100 Hz, not the thing producing the observed rate. A consumer must not assume a 20 Hz tick; `level` arrival is bursty and irregular (gaps of 96 ms and 149 ms in the same run), so smoothing on the consumer side has to be time-aware rather than per-event. |
 | F808 | `gofmt -l .` under Go 1.26 already flags five files at `6018d29`: `cmd/transcribe.go`, `internal/transcribe/elevenlabs.go`, `internal/transcribe/elevenlabs_test.go`, `internal/tui/devices.go`, `internal/tui/onboarding.go`. All are `var (...)` block alignment, none were touched by this work. | The plan's `gofmt -l . \| grep -v '^vendor/'` gate cannot print nothing on this toolchain. Read it as "no *new* files listed" instead. Reformatting them is a separate commit the author should make deliberately, since it touches four packages this work does not otherwise change. |
+| F809 | **F802 is wrong.** `lib.types.functionTo (lib.types.listOf x)` *does* merge across module definitions: every definition is applied to the same argument and the results are concatenated by the element type's merge. Measured directly — two `mkDefault` definitions of a `functionTo (listOf str)` option applied to `"X"` return `[ "b" "a" "X" ]`, both lists present. | A module *can* contribute jail permissions. pi-nix's own `jailPermissions` therefore splices `voice.jailPermissions` in directly, so a consumer who never touches `jail.permissions` still gets a working microphone; `dotfiles` adds nothing. The read-only function stays for the case that genuinely does not merge: a consumer defining `jail.permissions` at plain priority, which outranks and discards both `mkDefault` lists. F701 already recorded the two composing in practice and told the reader not to assume it worked; this is why it does. |
+| F810 | The plan's `truncateToWidth` tests contradict each other. `truncateToWidth("hello world", 5)` is asserted to be exactly `"hello"`, while the implementation given three lines above unconditionally appends `\x1b[0m` to any cut string, and a second test requires that suffix. | The reset is only repair work for a colour opened before the cut and never closed, so it is emitted only when the retained prefix contains an escape sequence. Both plan tests then pass, and a truncated plain row is plain text rather than text plus a stray SGR 0 that shows up in every downstream assertion. |
+| F811 | The plan's two `renderMeterRow` tests cannot both pass. Its recorder theme returns `<slot>text</slot>`, which `visibleWidth` counts (it strips ANSI, not tags), so at width 60 the themed row measures ~94 cells and truncation eats the bar — failing the "fills the bar in proportion" test — while removing the truncation fails "never exceeds the width it was given". | Layout is decided on plain text and the theme applied afterwards. A row's width must not be a property of how a theme encodes colour; deciding on plain segments makes the recorder faithful (its markup is as invisible to the layout as SGR bytes are) and lets the meter drop whole segments to fit rather than cutting the bar in half. Width assertions strip the recorder's tags for the same reason. |
+| F812 | The plan's first `VoiceSession` test asserts `state.committed == "So the thing is,"` **and** `state.partial == "so the thing is"` after a fixture that emits the partial and then the commit. The plan's own `handleEvent` clears the partial on commit, so the two assertions are mutually exclusive. | The clear is correct: a commit is the settled form of the partial that preceded it, and leaving both would draw the same words twice. The assertion was changed to `""` and a separate test pins the append-and-clear sequence over two utterances. |
+| F813 | `child.kill("SIGINT")` immediately after `spawn` kills the producer outright. Reproduced standalone: a shell script whose *first line* installs an INT trap still closes with `null SIGINT`, because the signal lands before the interpreter has executed anything. | A `/voice` toggle pressed twice quickly would destroy the recording rather than finish it, and it is the failure a user finds first. `stop()` now waits for the `start` event before signalling, with a 2 s fallback so a producer that dies before announcing itself is still stoppable. Watched failing first: the immediate-kill version leaves the plan's own toggle test with nothing to paste. |
+| F814 | `packages/first-party/` does not exist in pi-nix, and `mkPiExtension` grew the `src` argument the plan anticipated. The two existing first-party extensions live at `packages/extensions/pi-{auto-mode,notify}` and are built by `mkPiExtension`'s local-src arm. | pi-voice follows the same convention rather than the plan's `runCommand` + hand-written passthru: one `default.nix` naming `src = ./.` and `entrypoints`. The passthru contract is identical either way, and `tests/extension-tests.nix` is a plain attrset map, so `checks.pi-voice` is one line. |
+| F815 | `tsc --strict` against pi's published `.d.ts` rejected `ChildProcessWithoutNullStreams` for a `spawn` whose stdio is `["ignore","pipe","pipe"]`; the correct type is `ChildProcessByStdio<null, Readable, Readable>`. | The typecheck half of `checks.pi-voice` earned its place on its first run. `bun test` passed the same code, because the fault was in a type annotation the runtime never sees. |
+| F816 | The plan's `device = "mic"` in dotfiles buys nothing. `--stream` sets `rNoTUI`, and `cmd/record.go` runs the interactive picker only when neither `-D` nor headless mode is in play, so the picker is already unreachable. `-D mic` also resolves the alias through the same `config.toml` that `record.device` lives in, so both paths fail together if that bind is missing. | `device` stays null. Both hosts already declare `record.device = "mic"` and the `mic` alias, so naming it in `modules/ai/pi.nix` would duplicate the host's device choice in a second file for no robustness. |
+| F817 | elphael already declares `age.secrets.deepgram_api_key` and `openai_api_key` alongside `elevenlabs_api_key`, and so does torrent. | The plan's task 12 step 2 is a no-op. All three `*_API_KEY_FILE` paths in the voice block resolve today with no host edit. |
+| F818 | Same shape as F707, one layer deeper. `dotfiles` cannot build the voice wiring from its pinned inputs: pi-nix arrives transitively through `agent-skills` and is locked at `2cce7de`, which predates the `voice` option, and the `audiomemo` input is locked at a revision with no `--stream`. Neither repo is pushed. | Landing needs, in order: push audiomemo, push pi-nix, `nix flake update pi-nix` in agent-skills, push that, then in dotfiles `nix flake update agent-skills agent-skills/pi-nix audiomemo`. Until then the committed dotfiles tree does not evaluate from its own lock. Verified meanwhile with `--override-input agent-skills/pi-nix git+file:///home/joe/Development/pi-nix`, which builds the real wrapper and puts the real binds in the real `bwrap` argv. |
+| F819 | `diarize = true` in `modules/home/packages/audiomemo.nix` reaches dictation. The live end-to-end run pasted `Speaker speaker_0: The perfect shot` into the editor. | Correct behaviour for a memo transcript and wrong for dictation, but it is an audiomemo config choice rather than a pi-voice one, and nothing here overrides it. If the speaker labels are unwanted, the fix is `voice.extraArgs` carrying a transcribe override, or a second audiomemo profile. Left as the author's call. |
 
 ## Decisions
 
