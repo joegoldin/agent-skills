@@ -512,6 +512,12 @@ store.
 
 > **Three findings from planning this phase, all from reading source:**
 >
+> **Correction (F304):** F7 predicted the 1Password agent socket would need
+> `try-readwrite`, on the reasoning that an `AF_UNIX` connect requires write on
+> the inode. Both binds were built and run under bubblewrap during phase 3, and
+> `--ro-bind` connects fine: `ssh-add -l` lists the key through a read-only
+> bind. The jail ships `try-readonly`, matching claude.nix's `allowRead` exactly.
+>
 > 1. **The jail would silently break auth.** pi-nix's jail wraps the *wrapper*, so
 >    the `cat /run/agenix/…` that loads keys runs inside bubblewrap, and jail.nix
 >    binds only the runtime closure. Without explicit read binds the keys resolve

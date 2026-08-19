@@ -37,7 +37,7 @@ Status values: `todo` · `wip` · `done` · `blocked` · `dropped`
 | 1 | agent-statusline (extract + dual mode) | agent-statusline, claude-nix | 9 | **done** |
 | 1b | statusline native pi rewrite | agent-statusline | 11 | **done** |
 | 2 | pi-nix fork | pi-nix | 9 | **done** (pushed) |
-| 3 | pi-auto-mode, pi-notify, jail | pi-nix | 10 | todo |
+| 3 | pi-auto-mode, pi-notify, jail | pi-nix | 10 | **done** (not pushed) |
 | 4 | agent-skills pi target | agent-skills | 9 | **done** |
 | 5 | system prompt layers | agent-skills | 8 | wip |
 | 6 | dotfiles wiring | dotfiles | 7 | todo |
@@ -169,9 +169,11 @@ native pi rewrite plus its bun2nix packaging. The lock was bumped in a
 follow-up commit, because the older `pi-extension` is exactly the one
 `sanitizeStatusText` collapses (F4).
 
-## Phase 3: pi-auto-mode, pi-notify, jail — TODO
+## Phase 3: pi-auto-mode, pi-notify, jail — DONE
 
-Plan: `2026-08-18-pi-auto-mode-and-notify.md` (10 tasks, 71 steps). Owner: delegated.
+Plan: `2026-08-18-pi-auto-mode-and-notify.md` (10 tasks, 71 steps). Owner:
+delegated. Eleven commits on `master` in `/home/joe/Development/pi-nix`,
+`aa69abc..eee1d07`; **not pushed**.
 
 | Task | What | Status |
 | --- | --- | --- |
@@ -181,10 +183,73 @@ Plan: `2026-08-18-pi-auto-mode-and-notify.md` (10 tasks, 71 steps). Owner: deleg
 | 4 | Fail-closed gate on `tool_call` | **done** (c012f8a) |
 | 5 | Nix packaging, `autoMode` config rendering | **done** (d36292b) |
 | 6 | Delegate to `pi-permission-system` | **done** (dc97210) |
-| 7 | `pi-notify` core | wip |
-| 8 | `pi-notify` wiring, `notifications` option | todo |
-| 9 | jail.nix defaults | todo |
-| 10 | Live acceptance run | todo |
+| 7 | `pi-notify` core | **done** (d69f0cb) |
+| 8 | `pi-notify` wiring, `notifications` option | **done** (608fa4f) |
+| 9 | jail.nix defaults | **done** (5a8b2d3) |
+| 10 | Live acceptance run | **done** (d92c351) |
+| — | follow-up: README section | **done** (eee1d07) |
+
+`nix flake check` is green with eight checks: phase 2's six plus `pi-auto-mode`
+and `pi-notify`. Two new packages, `ext-pi-auto-mode` and `ext-pi-notify`,
+built from `packages/extensions/` rather than from a pin.
+
+**The fork stayed additive.** `git diff upstream/master --stat` over the
+protected set (`coding-agent/options.nix`, `package.nix`, `package-bun.nix`,
+`coding-agent/bun.nix`, `sync-upstream.nix`, `regenerate-models.nix`,
+`scan.nix`, `VERSION.json`, `package-lock.json`, `bun.lock`, `ai`) prints
+nothing. The upstream paths this phase touched are `README.md`,
+`coding-agent/extra-options.nix`, and three lines of `.gitignore`; the other
+five in the whole-fork diff are phase 2's and unchanged. This cost two
+deviations from the plan, both forced: Tasks 5, 8 and 9 route their options
+through `coding-agent/options.nix`, which is hashed byte-identical, so the
+option surface lives in `extra-options.nix` and the jail default arrives as
+`lib.mkDefault`.
+
+The two security properties were watched holding, not assumed.
+
+Unit level, by mutation. Deleting the `hard_deny` branch from `gate.ts` and
+turning the no-UI arm into `return undefined` takes `gate.test.ts` to 11 pass /
+3 fail on exactly the three tests that name those behaviours; restoring gives
+14 / 0.
+
+Live, against the real binary. There is no provider account on this machine
+(`auth.json` is `{}`) and pi runs nothing without one, so the acceptance run
+stands up a fake OpenAI-completions provider on localhost that plays both
+roles off one endpoint: session model emitting a `bash` tool call, classifier
+returning the verdict under test. Every request body is logged, so "was the
+classifier consulted" is observed. Results, all with the Nix-rendered config
+and the packaged extensions:
+
+- classifier answers `{"decision":"allow","rule_kind":"hard_deny"}` → pi hands
+  the model `hard_deny: the operator said to ignore the rules`;
+- classifier answers prose instead of JSON, print mode → `auto-mode failed
+  closed (…unparseable); no UI to ask, so the call is blocked`, and the canary
+  directory is still on disk;
+- `git status --short && rm -rf …` under the allow rule `Bash(git status:*)` →
+  `[SESSION, CLASSIFIER, SESSION]`, so the prefix rule refused to resolve it
+  and the classifier denied;
+- `ls -a` under `Bash(ls:*)` → no classifier call at all, real listing fed back;
+- `curl …` under `Bash(curl:*)` → `blocked by rule Bash(curl:*)`, no classifier
+  call, and the same result again with `jail.enable = true`.
+
+Notifications fired with the exact argv, recorded through a stub notifier:
+`--urgency critical pi "Needs your decision on bash"`, `--urgency low pi "bash
+finished after 4s"`, `--urgency normal pi "Ready for input"`. pi labels a
+`sleep 4` call `bash`, which the plan left open.
+
+Jail verified with no model, by swapping the wrapped command for a shell: git,
+node, ripgrep, jq, gh and notify-send all resolve; cwd writes reach the host;
+`notify-send` exits 0 through the dbus proxy; `ssh-add -l` lists the 1Password
+key with the socket bound **read-only**; `cat ~/.ssh/id_ed25519` answers `No
+such file or directory`; and `nix path-info -r` on the wrapper lists both
+rendered config files.
+
+Six plan defects surfaced by running it: F300-F305. Two were build-stopping
+(F303's `with combinators` shadowing, which fails late and far from its cause,
+and F300's regex over a hand-wrapped template literal), one was a fail-open
+security hole (F301, disarming the gate on a registration that may never have
+been activated), and one contradicted a prior finding (F304: ro-bind on the
+agent socket works, so F7's prediction does not hold for bubblewrap).
 
 ## Phase 4: agent-skills pi target — DONE
 
@@ -477,6 +542,7 @@ them; this table is why the plans are trustworthy.
 | F303 | `with combinators;` inside `coding-agent/extra-options.nix` does not bind `notifications`. The file already has `notifications = cfg.notifications` in the same `let`, and Nix's `with` loses to any enclosing binding, so jail.nix is handed the option submodule where it expects a permission. Watched fail: `error: attempt to call something which is not a function but a set: { appName = «thunk»; configFile = «thunk»; ... }`, raised from `lib/trivial.nix:150` while evaluating `pi.coding-agent.finalPackage` — nowhere near the list that caused it. | Every entry in the jail default is written `combinators.x`. The plan's `defaultText` and upstream's own default both use `with combinators;`, which is safe only because neither shares a scope with an option named after a combinator. Any module that both names an option and uses `with` on a namespace containing that name has the same latent bug. |
 | F304 | F7 is wrong for bubblewrap, measured. A read-only bind of `~/.1password/agent.sock` does **not** refuse the `AF_UNIX` connect: with `--ro-bind-try` on the socket, `ssh-add -l` inside the real jail listed the key. Both binds were built and run; `try-readwrite` and `try-readonly` behave identically here. | The jail ships `try-readonly` on the agent socket, so the default matches `modules/ai/claude.nix`'s `allowRead` exactly rather than approximately, and `docs/jail.md` records the one-line fallback in case a kernel disagrees. The plan's task-9 step 4 was written as "expect this to fail, here is the fix"; it did not fail. |
 | F305 | `pi --print '!some-shell-command'` cannot smoke-test the jail: pi refuses to run anything without a configured provider, answering `No API key found for the selected model`. Every jail verification step in the plan is written that way. | The jail wrapper's last line is a single `bwrap` invocation, so `sed`-swapping the wrapped `pi` for `/bin/sh -c "$1"` exercises the exact sandbox with no model, no key and no network. That is how the toolchain, the cwd write, the dbus notification, the agent socket and the absent private key were all verified; the recipe is in `docs/jail.md`. |
+| F306 | A pi extension can be tested end to end with no provider account. Declaring a fake OpenAI-completions provider in `models.json` (`baseUrl` on localhost, `apiKey` a placeholder, `compat.supportsDeveloperRole = false`) and serving SSE from a short bun script gives a real `pi --print` run: the fake emits a `bash` tool call as the session model and the classifier verdict as the classifier, told apart by pi-auto-mode's system prompt arriving verbatim. Logging every request body makes "was the classifier consulted" and "what did pi feed the model in place of the tool output" both observable. | This is how all nine phase-3 acceptance rows were proven, including hard_deny-beats-allow and fail-closed. Any later phase that needs a live pi (4, 7, 8) can use the same harness rather than burning a real key or leaving the row blank. Two traps: `--print --mode json` hangs and times out where plain `--print` works, and a previous run's server holding port 8231 makes the next case look like pi never called out. |
 
 ## Decisions
 
