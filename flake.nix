@@ -129,6 +129,7 @@
             name = "agent-skills";
             description = "Agent skills for pi";
             inherit skills;
+            extensionsDir = ./extensions;
             attributionFile = ./ATTRIBUTION.md;
           };
 
@@ -428,6 +429,30 @@
               # ...but they are still shipped as skills
               test -f ${piTree}/skills/format-nix/SKILL.md
               test -f ${piTree}/skills/using-agent-skills/SKILL.md
+
+              touch $out
+            '';
+
+          pi-extensions =
+            let
+              piTree = self.packages.${system}.pi-plugin;
+            in
+            pkgs.runCommand "pi-extensions" { nativeBuildInputs = [ pkgs.jq ]; } ''
+              jq -e '.pi.extensions == ["./extensions"]' ${piTree}/package.json >/dev/null
+              test -f ${piTree}/extensions/agent-skills-session-start.ts
+
+              # The build-time placeholder must be gone and replaced by a
+              # store path that exists and holds the real skill.
+              ! grep -q '@USING_AGENT_SKILLS@' ${piTree}/extensions/agent-skills-session-start.ts
+              p=$(grep -o '/nix/store/[^"]*using-agent-skills-content' \
+                    ${piTree}/extensions/agent-skills-session-start.ts | head -1)
+              test -n "$p"
+              grep -q 'name: using-agent-skills' "$p"
+
+              # Only type imports — a value import from @earendil-works
+              # would fail to resolve from a /nix/store path.
+              ! grep -E '^import[^t]' ${piTree}/extensions/agent-skills-session-start.ts \
+                | grep -q '@earendil-works'
 
               touch $out
             '';

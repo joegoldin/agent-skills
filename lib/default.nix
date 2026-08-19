@@ -561,6 +561,25 @@ let
       _codex = plugin._codex or { };
     };
 
+  # ── pi extensions ──
+  # Same substitution contract as buildSessionStartHooks: every .ts under
+  # the directory gets @USING_AGENT_SKILLS@ replaced with the store path of
+  # the rendered using-agent-skills SKILL.md.
+  buildPiExtensions =
+    name: skills: extensionsDir:
+    let
+      skillContentFile = pkgs.writeText "using-agent-skills-content" (
+        buildUsingAgentSkillsContent skills
+      );
+    in
+    pkgs.runCommand "${name}-pi-extensions" { } ''
+      mkdir -p $out/extensions
+      for item in ${extensionsDir}/*.ts; do
+        substitute "$item" $out/extensions/"$(basename "$item")" \
+          --replace-fail @USING_AGENT_SKILLS@ ${skillContentFile}
+      done
+    '';
+
   # A command-style skill: invoked by the user, hidden from the model's
   # skill list. pi honours `disable-model-invocation` natively
   # (formatSkillsForPrompt filters them out) and registers every skill as
@@ -601,6 +620,7 @@ let
       name,
       description,
       skills,
+      extensionsDir ? null,
       attributionFile ? null,
       extraPackages ? [ ],
     }:
@@ -610,8 +630,15 @@ let
 
       prompts = map mkPiPromptTemplateFor (builtins.filter isPiCommandSkill skills);
 
+      extensions = lib.optional (extensionsDir != null) (buildPiExtensions name skills extensionsDir);
+
       plugin = piLib.mkPlugin {
-        inherit name description prompts;
+        inherit
+          name
+          description
+          prompts
+          extensions
+          ;
         skills = map (s: s.drv) skills;
       };
 
@@ -787,6 +814,7 @@ in
     buildAntigravityPlugin
     buildCodexPlugin
     buildPiPlugin
+    buildPiExtensions
     isPiCommandSkill
     mkPiPromptTemplateFor
     buildAntigravityHooks
