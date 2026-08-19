@@ -561,6 +561,48 @@ let
       _codex = plugin._codex or { };
     };
 
+  # ── pi package ──
+  # pi consumes a *package*: a directory whose package.json carries a `pi`
+  # key naming the resource directories (pi.dev/docs/latest/packages). One
+  # entry in settings.packages loads skills, prompt templates, and
+  # extensions together.
+  #
+  # A3 (design §4): skills are the SAME skill-<name> derivations the Claude
+  # plugin ships, linked in by buildEnv — never copied. pi's loadSkills
+  # consults a realpath set before its name map, so a skill reachable via
+  # both ~/.agents/skills and this package is dropped silently rather than
+  # raising a startup collision warning. checks.pi-skill-realpath-identity
+  # is the gate; do not replace the link with a copy.
+  buildPiPlugin =
+    {
+      name,
+      description,
+      skills,
+      attributionFile ? null,
+      extraPackages ? [ ],
+    }:
+    assert piLib != null;
+    let
+      skillPackages = skillPackagesOf skills;
+
+      plugin = piLib.mkPlugin {
+        inherit name description;
+        skills = map (s: s.drv) skills;
+      };
+
+      attributionDrv = lib.optional (attributionFile != null) (
+        pkgs.runCommand "${name}-pi-attribution" { } ''
+          mkdir -p $out
+          cp ${attributionFile} $out/ATTRIBUTION
+        ''
+      );
+    in
+    pkgs.buildEnv {
+      name = "${name}-pi-complete";
+      paths = [ plugin ] ++ attributionDrv ++ extraPackages ++ skillPackages;
+      passthru.meta = { inherit name description; };
+    };
+
   # ── Cross-agent plugins ──
   # Discovered from ./plugins/<name>/plugin.nix. Each is a function
   # `{ pkgs, lib, target, ... }: { name; description; skill ? null; hooks ? [ ]; packages ? [ ]; }`.
@@ -719,6 +761,7 @@ in
     buildSkillForTarget
     buildAntigravityPlugin
     buildCodexPlugin
+    buildPiPlugin
     buildAntigravityHooks
     buildCodexHooks
     buildSessionStartHooks

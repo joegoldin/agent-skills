@@ -121,6 +121,17 @@
             attributionFile = ./ATTRIBUTION.md;
           };
 
+          # ── pi package ──
+          # Skills ride in as the same per-skill derivations the Claude
+          # plugin ships, which is what makes the ~/.agents/skills double
+          # load free (design §11, assumption A3).
+          pi-plugin = build.buildPiPlugin {
+            name = "agent-skills";
+            description = "Agent skills for pi";
+            inherit skills;
+            attributionFile = ./ATTRIBUTION.md;
+          };
+
           # ── Cross-agent plugins (temporal) ──
           # Discovered from ./plugins; built per target. Exposed as
           # "<name>-<target>" packages (e.g. temporal-claude, temporal-codex).
@@ -193,6 +204,7 @@
             claude-plugin
             antigravity-plugin
             codex-plugin
+            pi-plugin
             vibecad
             pxd
             figr
@@ -201,7 +213,7 @@
       );
 
       checks = forAllSystems (
-        { pkgs, ... }:
+        { pkgs, system, ... }:
         let
           lib = pkgs.lib;
           mcp = import ./lib/mcp.nix { inherit lib; };
@@ -317,6 +329,71 @@
               pkgs.runCommand "pi-frontmatter" { } "touch $out"
             else
               throw "pi frontmatter violations: ${builtins.toJSON offenders}";
+
+          # ── A3 gate ──
+          # pi de-duplicates skills by canonicalised real path BEFORE it
+          # de-duplicates by name (skills.ts loadSkills: realPathSet is
+          # consulted first, and a hit is skipped silently; a name hit that
+          # is not a real-path hit raises a startup collision warning).
+          # ~/.agents/skills and the pi package therefore cost nothing only
+          # while both bottom out at the same skill-<name> derivation.
+          # A cp -r in buildPiPlugin would still "work" and would still
+          # de-duplicate — it would just print one warning per skill on every
+          # session start. This check is the only thing that notices.
+          pi-skill-realpath-identity =
+            let
+              piTree = self.packages.${system}.pi-plugin;
+              claudeTree = self.packages.${system}.claude-plugin;
+              build = import ./lib/default.nix {
+                inherit pkgs lib;
+                claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
+              };
+              skills = build.discoverSkills ./skills;
+            in
+            pkgs.runCommand "pi-skill-realpath-identity"
+              {
+                inherit piTree claudeTree;
+                names = lib.concatStringsSep " " (map (s: s.name) skills);
+                sources = lib.concatStringsSep " " (map (s: "${s.name}=${s.drv}") skills);
+              }
+              ''
+                fail=0
+                for pair in $sources; do
+                  n="''${pair%%=*}"
+                  drv="''${pair#*=}"
+                  want="$(realpath "$drv/skills/$n/SKILL.md")"
+                  got_pi="$(realpath "$piTree/skills/$n/SKILL.md")"
+                  got_cc="$(realpath "$claudeTree/skills/$n/SKILL.md")"
+                  if [ "$got_pi" != "$want" ]; then
+                    echo "pi package copies '$n' instead of linking it:"
+                    echo "  want $want"
+                    echo "  got  $got_pi"
+                    fail=1
+                  fi
+                  if [ "$got_pi" != "$got_cc" ]; then
+                    echo "realpath drift between pi and claude trees for '$n':"
+                    echo "  pi     $got_pi"
+                    echo "  claude $got_cc"
+                    fail=1
+                  fi
+                done
+                [ "$fail" = 0 ] || exit 1
+                touch $out
+              '';
+
+          # The pi manifest must be present and well-formed; pi's
+          # readPiManifest returns null (and silently falls back to
+          # convention directories) for anything it cannot parse.
+          pi-package-manifest =
+            let
+              piTree = self.packages.${system}.pi-plugin;
+            in
+            pkgs.runCommand "pi-package-manifest" { nativeBuildInputs = [ pkgs.jq ]; } ''
+              jq -e '.pi.skills == ["./skills"]' ${piTree}/package.json >/dev/null
+              jq -e '.keywords | index("pi-package")' ${piTree}/package.json >/dev/null
+              jq -e '.name == "agent-skills"' ${piTree}/package.json >/dev/null
+              touch $out
+            '';
 
           prompt-tests =
             let
