@@ -569,6 +569,58 @@ finding from this same phase (F809 supersedes F802), and one is a real
 robustness bug the plan would have shipped (F813, an immediate stop killing the
 recording it was meant to finish).
 
+## Handoff: Darwin sandboxing via sandbox-exec
+
+**Status: not started. Decided, scoped, not built.**
+
+torrent runs pi with no OS-level containment. `jail.enable` is `false` there
+because jail.nix is bubblewrap, and upstream `finalPackage` throws outright on
+a non-Linux host. Every other feature reaches Darwin intact: the ten pinned
+extensions build (`autoPatchelfHook` is gated on `isLinux`), notifications
+switch to `terminal-notifier`, voice resolves audiomemo, and the `!op read`
+provider fallback is correct there precisely because there is no jail to block
+the 1Password socket.
+
+The gap is sharper than a missing feature. On that machine Claude Code *is*
+sandboxed, through its own cross-platform sandbox, so pi is the only one of the
+four agents running unconfined. With plan mode dropped, the permission layer is
+then the whole guard.
+
+Decision: **`sandbox-exec`** (Seatbelt). No new dependency, ships on every
+macOS. Apple marks it deprecated and it still backs Chrome and others.
+`pi-landstrip` was reconsidered and rejected again: its Landlock half is
+redundant with the jail on Linux, and adopting a package for its Darwin half
+alone is a poor trade against a profile we can write directly.
+
+### Shape
+
+- New option in `coding-agent/extra-options.nix`, alongside `jail`. Do not touch
+  `coding-agent/options.nix`; it is protected and `tests/additive-test.nix`
+  enforces that.
+- Upstream's `finalPackage` is `readOnly` and throws on Darwin when `jail.enable`
+  is set, so the Seatbelt wrapper cannot go through it. Add a separate read-only
+  option that returns `finalPackage` untouched on Linux and the wrapped binary on
+  Darwin, then install *that* from `home-manager.nix` line 38 and `module.nix`
+  line 38. `home-manager.nix` is not in the protected set.
+- The profile must mirror what the jail already grants, which is the checklist
+  worth stealing rather than re-deriving: read the store, read/write the cwd and
+  `$PI_CODING_AGENT_DIR`, outbound network, read the agenix key files, the
+  1Password agent socket, and audio for voice.
+
+### The part that needs care
+
+This cannot be verified from the Linux workstation. Evaluation works; building
+and running do not. A wrong profile fails two ways, and only one of them is
+loud: too tight and pi will not start, too loose and it is decoration that
+reads as protection.
+
+So the work ships with an acceptance script that runs **on torrent** and proves
+each clause: that a read outside the allowed set is refused, that a write
+outside the cwd is refused, that the model API is still reachable, and that
+`ssh-add -l` still works while `cat ~/.ssh/id_*` does not. The Linux jail was
+verified exactly this way, by swapping the wrapped command for a shell, and that
+method transfers.
+
 ## Findings
 
 Where reading source corrected what documentation claimed. Add rows as you find
