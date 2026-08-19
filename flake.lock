@@ -31,11 +31,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1787098819,
-        "narHash": "sha256-//UUIXv5eJ9+TWkfh8CtfUjwnxNQfuFqZLsWyG6XRYY=",
+        "lastModified": 1787169892,
+        "narHash": "sha256-m/6E+NyWgg6zBekWJLpC59pyhHStcPSbOaLKuDaRNNM=",
         "owner": "joegoldin",
         "repo": "agent-statusline",
-        "rev": "71e0e20c1c5d2d49237f41569c4c4c82b03b9ac4",
+        "rev": "2d96cb41b495a67aa04879fc2e42f9f038cba1d6",
         "type": "github"
       },
       "original": {
@@ -314,11 +314,11 @@
         "systems": "systems_4"
       },
       "locked": {
-        "lastModified": 1787171253,
-        "narHash": "sha256-83ae/fjl3VIUGpyYjAkjNbuigcb9D8Fxp+rblBxDJE0=",
+        "lastModified": 1787171374,
+        "narHash": "sha256-/qz0ExF6vH7uFdrYQKRDh3y4EQoaM5gGo5zo2bEVzE4=",
         "owner": "joegoldin",
         "repo": "pi-nix",
-        "rev": "c77aa290505e8f664da5536c1f66bd8a7ba013a7",
+        "rev": "d10e041712c79202eb861c858ee49bfdff600b5c",
         "type": "github"
       },
       "original": {
