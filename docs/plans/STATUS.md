@@ -36,7 +36,7 @@ Status values: `todo` · `wip` · `done` · `blocked` · `dropped`
 | --- | --- | --- | --- | --- |
 | 1 | agent-statusline (extract + dual mode) | agent-statusline, claude-nix | 9 | **done** |
 | 1b | statusline native pi rewrite | agent-statusline | 11 | **done** |
-| 2 | pi-nix fork | pi-nix | 9 | wip |
+| 2 | pi-nix fork | pi-nix | 9 | **done** (not pushed) |
 | 3 | pi-auto-mode, pi-notify, jail | pi-nix | 10 | todo |
 | 4 | agent-skills pi target | agent-skills | 9 | todo |
 | 5 | system prompt layers | agent-skills | 8 | wip |
@@ -111,11 +111,12 @@ tool's `warning` yellow — the `path`/`warn` split the intent table exists for,
 which the ANSI path cannot express because Go emits SGR 33 for both. No
 orphaned processes after exit.
 
-## Phase 2: pi-nix fork — WIP
+## Phase 2: pi-nix fork — DONE
 
-Plan: `2026-08-18-pi-nix-fork.md` (9 tasks, 72 steps). Plan revised and ready to
-execute: **10 third-party pins**, `bun2nix` throughout instead of
-`buildNpmPackage`, and the Bun-built pi as the module default. Owner: unassigned.
+Plan: `2026-08-18-pi-nix-fork.md` (9 tasks, 72 steps). Executed in full:
+**10 third-party pins**, `bun2nix` throughout instead of `buildNpmPackage`, and
+the Bun-built pi as the module default. Owner: delegated. Committed on `master`
+in `/home/joe/Development/pi-nix`; **not pushed**.
 
 Pins: `pi-mcp-adapter`, `pi-subagents`, `pi-background-tasks`,
 `@juicesharp/rpiv-ask-user-question`, `@narumitw/pi-goal`,
@@ -136,7 +137,37 @@ Pins: `pi-mcp-adapter`, `pi-subagents`, `pi-background-tasks`,
 | 6 | `extensionPackages` | done (4a1411a) |
 | 7 | `statusline` option | done (a1b7ba2) |
 | 8 | `notifications` option | done (a313660) |
-| 9 | Document the fork, prove it stayed additive | wip |
+| 9 | Document the fork, prove it stayed additive | done (e74cf7a) |
+| — | follow-up: bump the `agent-statusline` lock to 71e0e20 | done (b55eb41) |
+
+**Phase 2 is complete, committed on `master` in `/home/joe/Development/pi-nix`,
+not pushed.** `nix flake check` is green with six checks (`additive`,
+`builders`, `extensions`, `options`, `smoke`, `update-app`) and all ten
+`packages.ext-*` evaluate.
+
+The additive promise holds and is now a test. `git diff upstream/master
+--name-only` names eight upstream paths and nothing else: `README.md`,
+`coding-agent/extra-options.nix` (new), the three one-line `imports` additions
+in `lib.nix`/`module.nix`/`home-manager.nix`, insertions in `flake.nix`, three
+added lines in `update.nix`, and `flake.lock` (the `agent-statusline` input
+Task 7 adds). `git diff upstream/master --stat` over the protected set —
+`options.nix`, `package.nix`, `package-bun.nix`, `coding-agent/bun.nix`,
+`sync-upstream.nix`, `regenerate-models.nix`, `scan.nix`, `VERSION.json`,
+`package-lock.json`, `bun.lock`, `ai` — prints nothing. `tests/additive-test.nix`
+was watched failing on a deliberate one-line tamper of `options.nix` and passing
+again after the revert.
+
+Five plan defects were found by running it: F200-F204 and F206. Two were
+build-stopping (`F201` the malformed synthetic SRI, `F206` the statusline
+`environment` guard's infinite recursion), one was silent and dangerous (`F200`,
+`nix fmt` reformatting upstream's `coding-agent/bun.nix`), and one contradicts
+F35 outright (`F204`, `pi-mcp-adapter` needs `zlib`).
+
+Task 7 locked `agent-statusline` at 2828df3, which was its head at the time;
+phase 1b landed 71e0e20 shortly after and that is the commit carrying the
+native pi rewrite plus its bun2nix packaging. The lock was bumped in a
+follow-up commit, because the older `pi-extension` is exactly the one
+`sanitizeStatusText` collapses (F4).
 
 ## Phase 3: pi-auto-mode, pi-notify, jail — TODO
 
