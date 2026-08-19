@@ -766,6 +766,7 @@
 
         pi =
           {
+            config,
             lib,
             pkgs,
             ...
@@ -789,7 +790,28 @@
             # types.attrs and is jq-merged into ~/.pi/agent/settings.json on
             # every launch, so a Nix-declared key wins over an interactive
             # change to that key. Same trade-off as modules/ai/codex.nix.
-            programs.pi.coding-agent.settings.packages = map toString piPackages;
+            #
+            # Auto mode rides along here rather than only on --extension, and
+            # the reason is subagents. pi-subagents spawns a child pi and hands
+            # it a fixed extension list -- the prompt runtime, its fanout child,
+            # and the permission system -- so a child inherits nothing from this
+            # process's command line. It does read settings.json, which is how
+            # the skill packages above reach it, so naming auto mode there is
+            # what gives a child the same classifier the parent has. Without it
+            # the child loads the permission system, finds `pi-automode` named
+            # in its authorizerChain and never registered, skips the link
+            # ("more prompting, never less"), and every ask it cannot settle
+            # deterministically becomes a prompt no child has a terminal to
+            # answer.
+            #
+            # Listing it twice is safe: pi resolves a package directory through
+            # its manifest and de-duplicates the resulting entry paths
+            # (loader.js's addPaths), so the parent loads one copy.
+            programs.pi.coding-agent.settings.packages =
+              map toString piPackages
+              ++ lib.optional config.programs.pi.coding-agent.autoMode.enable (
+                toString config.programs.pi.coding-agent.autoMode.package
+              );
 
             # The curated third-party set, enabled by default because each one
             # restores something pi deliberately omits and this library's
