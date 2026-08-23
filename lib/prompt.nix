@@ -34,6 +34,12 @@ rec {
 
   readLayer = dir: concatStringsSep "\n\n" (map (readFragment dir) (fragmentNames dir));
 
+  wordCount =
+    text:
+    builtins.length (
+      builtins.filter (part: builtins.isString part && part != "") (builtins.split "[ \n\r\t]+" text)
+    );
+
   # `extra` is user-supplied text appended after every layer. It goes last so
   # a local override reads as an amendment to the policy above it.
   mkPrompt =

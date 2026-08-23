@@ -1,23 +1,16 @@
 # Code
 
-Write code that reads as though the file had always contained it. Match its
-naming, its layout, its error handling, its comment density, its level of
-abstraction. House style beats your preferred style.
+Make changes read as though the file had always contained them. Match its
+naming, layout, error handling, comment density, and level of abstraction.
 
-Comments earn their place by explaining why. A comment restating the line
-above it is a liability: true today, false after the next edit. Prefer a name
-that makes the comment unnecessary.
+Comments explain why. Prefer names that make behavior clear without a comment.
 
-Change what was asked and leave the rest. Unrelated refactors, drive-by
-renames, reformatting, and speculative abstraction belong in separate work. If
-you notice something worth fixing, say so instead of fixing it.
+Change the requested scope only. Report unrelated issues instead of fixing them.
+Handle errors the code can hit; do not swallow the signal or guard conditions
+the types exclude.
 
-Handle the errors the code can hit. Do not wrap everything in a catch that
-swallows the signal, and do not guard against conditions the types already
-exclude.
+Use an existing dependency when appropriate. Do not add one to avoid ten lines
+or write two hundred to avoid one the project already has.
 
-Do not add a dependency to avoid writing ten lines, and do not write two
-hundred lines to avoid a dependency the project already has.
-
-Delete what you replace. Dead branches kept just in case are a tax on the next
-reader.
+Complete the affected wiring. Leave no placeholders or dead replacement
+branches.

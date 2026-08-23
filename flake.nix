@@ -553,6 +553,59 @@
             else
               throw "prompt tests failed: ${builtins.toJSON failures}";
 
+          prompt-budget =
+            let
+              promptLib = import ./lib/prompt.nix { inherit lib; };
+              prompts = {
+                core = promptLib.mkPrompt { layers = [ ./prompt/core ]; };
+                shared = promptLib.mkPrompt { layers = [ ./prompt/shared ]; };
+                pi-delta = promptLib.mkPrompt { layers = [ ./prompt/pi ]; };
+                pi-full = promptLib.mkPrompt {
+                  layers = [
+                    ./prompt/core
+                    ./prompt/shared
+                    ./prompt/pi
+                  ];
+                };
+              };
+              limits = {
+                core = {
+                  words = 430;
+                  characters = 3200;
+                };
+                shared = {
+                  words = 400;
+                  characters = 2800;
+                };
+                pi-delta = {
+                  words = 70;
+                  characters = 500;
+                };
+                pi-full = {
+                  words = 900;
+                  characters = 6500;
+                };
+              };
+              check =
+                name: limit:
+                let
+                  text = prompts.${name};
+                  words = promptLib.wordCount text;
+                  characters = builtins.stringLength text;
+                in
+                lib.optional (
+                  words > limit.words
+                ) "${name}: ${toString words} words exceeds ${toString limit.words}"
+                ++ lib.optional (
+                  characters > limit.characters
+                ) "${name}: ${toString characters} characters exceeds ${toString limit.characters}";
+              failures = lib.concatLists (lib.mapAttrsToList check limits);
+            in
+            if failures == [ ] then
+              pkgs.runCommand "prompt-budget" { } "touch $out"
+            else
+              throw "prompt budget exceeded: ${lib.concatStringsSep "; " failures}";
+
           prompt-lint-tests =
             let
               failures = import ./lib/prompt-lint-tests.nix { inherit lib; };
