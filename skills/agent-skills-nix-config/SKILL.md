@@ -67,8 +67,9 @@ repository's `packages/`, use:
 
 Subagents live in `agents/<name>.md`. Their frontmatter requires a description;
 the name defaults to the filename. The parser accepts the modeled agent fields
-and rejects unknown keys. Each target receives only fields supported by its
-agent format, so cross-runtime behavior belongs in the prompt body.
+and rejects unknown keys. Shared subagents currently fan out to Claude, Codex,
+and Antigravity, with only fields supported by each agent format. Pi packages
+skills, prompt templates, and extensions, but does not convert shared subagents.
 
 ## Permissions
 
@@ -95,3 +96,17 @@ nix build .#codex-plugin
 nix build .#antigravity-plugin
 nix build .#pi-plugin
 ```
+
+## Release and Apply
+
+After verification, push this repository, then update its input in the dotfiles
+repository:
+
+```sh
+git push
+cd ~/dotfiles
+nix flake update agent-skills
+```
+
+Apply the host configuration with `just switch` or `nixos-rebuild switch` on
+NixOS, and `darwin-rebuild switch` on macOS.

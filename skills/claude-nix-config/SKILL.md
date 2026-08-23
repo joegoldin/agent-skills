@@ -38,7 +38,7 @@ Repository hooks live under `hooks/` and are folded into
 `programs.claude-nix.extraHooks`. Cross-runtime plugin hooks are collected from
 plugin passthru data in `flake.nix`.
 
-## Build and Apply
+## Target Build
 
 From this repository:
 
@@ -47,5 +47,4 @@ nix build .#claude-plugin
 nix flake check
 ```
 
-Release by pushing this repository, updating the `agent-skills` input in the
-dotfiles repository, and applying the host configuration.
+Use `agent-skills-nix-config` for the shared release and host-apply flow.

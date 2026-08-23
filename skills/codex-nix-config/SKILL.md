@@ -86,18 +86,11 @@ modules/ai/codex.nix   # den.aspects.codex (imports the codex hm module)
 
 This file sets `programs.codex-nix.enable`, `package`, and `settings` (approval_policy, sandbox_mode, etc.). Plugins are wired through the agent-skills flake.
 
-## Build and Apply
+## Target Build
 
 ```sh
 # Build the plugin standalone (quick check, from the agent-skills repo)
 nix build .#codex-plugin
-
-# Release: push agent-skills, bump the dotfiles input, switch
-git push && cd ~/dotfiles && nix flake update agent-skills
-
-# Apply to system (NixOS)
-just switch   # or: sudo nixos-rebuild switch --flake .
-
-# Apply to system (macOS)
-darwin-rebuild switch --flake .
 ```
+
+Use `agent-skills-nix-config` for the shared release and host-apply flow.

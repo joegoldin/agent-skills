@@ -84,7 +84,7 @@ modules/ai/antigravity.nix   # den.aspects.antigravity (imports the hm module)
 
 Plugins are wired through the agent-skills flake.
 
-## Build and Apply
+## Target Build
 
 ```sh
 # Build the antigravity plugin standalone (from the agent-skills repo)
@@ -92,13 +92,6 @@ nix build .#antigravity-plugin
 
 # Inspect the result tree
 find result/ -maxdepth 3
-
-# Release: push agent-skills, bump the dotfiles input, switch
-git push && cd ~/dotfiles && nix flake update agent-skills
-
-# Apply to system (NixOS)
-just switch   # or: sudo nixos-rebuild switch --flake .
-
-# Apply to system (macOS)
-darwin-rebuild switch --flake .
 ```
+
+Use `agent-skills-nix-config` for the shared release and host-apply flow.
