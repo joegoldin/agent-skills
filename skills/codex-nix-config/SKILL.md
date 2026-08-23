@@ -1,11 +1,14 @@
 ---
 name: codex-nix-config
-description: Use when creating, editing, or managing Codex configuration, skills, or agent setup in this dotfiles repo
+description: Use when changing Codex runtime settings, approval or sandbox policy, custom agent TOML, plugin layout, or Home Manager integration in this Nix and dotfiles stack
 ---
 
 # Codex Nix Configuration
 
 This dotfiles repo manages Codex declaratively via Nix using the `codex-nix` library and home-manager module.
+
+Shared skill, frontmatter, sidecar, and cross-runtime subagent authoring belongs
+to `agent-skills-nix-config`.
 
 ## Config File
 

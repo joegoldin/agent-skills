@@ -1,12 +1,15 @@
 ---
 name: antigravity-cli-nix-config
-description: Use when creating, editing, or managing Antigravity CLI configuration, skills, or setup in this dotfiles repo
+description: Use when changing Antigravity CLI runtime settings, plugin layout, permissions, or Home Manager integration in this Nix and dotfiles stack
 ---
 
 # Antigravity CLI Nix Configuration
 
 This dotfiles repo manages Google Antigravity CLI declaratively via Nix using
 the `antigravity-cli-nix` library and home-manager module.
+
+Shared skill, frontmatter, sidecar, and cross-runtime subagent authoring belongs
+to `agent-skills-nix-config`.
 
 ## Config Paths
 
