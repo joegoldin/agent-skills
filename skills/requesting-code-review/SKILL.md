@@ -1,103 +1,45 @@
 ---
 name: requesting-code-review
-description: Use when completing tasks, implementing major features, or before merging to verify work meets requirements
+description: Use when a feature or branch is ready for independent review, before integration, or when an ad-hoc change needs a fresh technical assessment
 ---
 
 # Requesting Code Review
 
-Dispatch a code reviewer subagent to catch issues before they cascade. The reviewer gets precisely crafted context for evaluation — never your session's history. This keeps the reviewer focused on the work product, not your thought process, and preserves your own context for continued work.
-
-**Core principle:** Review early, review often.
+Dispatch a reviewer with the requirements and exact change range, not the
+authoring session's history.
 
 ## When to Request Review
 
-**Mandatory:**
-- After each task in subagent-driven development
-- After completing major feature
-- Before merge to main
+Request review:
 
-**Optional but valuable:**
-- When stuck (fresh perspective)
-- Before refactoring (baseline check)
-- After fixing complex bug
+- When a feature or branch is complete
+- Before integration or merge
+- When an ad-hoc change needs an independent assessment
+- When stuck and a fresh technical reading would help
+
+`subagent-driven-development` owns its task-scoped spec and quality gates. Do
+not add another general review after each task; use this skill for that
+workflow's final whole-branch review.
 
 ## How to Request
 
-**1. Get git SHAs:**
-```bash
-BASE_SHA=$(git rev-parse HEAD~1)  # or origin/main
-HEAD_SHA=$(git rev-parse HEAD)
-```
+1. Resolve the base and head commits for the review range.
+2. Dispatch a reviewer using [code-reviewer.md](code-reviewer.md).
+3. Provide:
+   - A concise description of the change
+   - The plan or requirements it must satisfy
+   - The base and head commit IDs
+4. Evaluate the findings against the code and tests.
 
-**2. Dispatch code reviewer subagent:**
-
-Dispatch a `general-purpose` subagent, filling the template at [code-reviewer.md](code-reviewer.md)
-
-**Placeholders:**
-- `{DESCRIPTION}` - Brief summary of what you built
-- `{PLAN_OR_REQUIREMENTS}` - What it should do
-- `{BASE_SHA}` - Starting commit
-- `{HEAD_SHA}` - Ending commit
-
-**3. Act on feedback:**
-- Fix Critical issues immediately
-- Fix Important issues before proceeding
-- Note Minor issues for later
-- Push back if reviewer is wrong (with reasoning)
-
-## Example
-
-```
-[Just completed Task 2: Add verification function]
-
-You: Let me request code review before proceeding.
-
-BASE_SHA=$(git log --oneline | grep "Task 1" | head -1 | awk '{print $1}')
-HEAD_SHA=$(git rev-parse HEAD)
-
-[Dispatch code reviewer subagent]
-  DESCRIPTION: Added verifyIndex() and repairIndex() with 4 issue types
-  PLAN_OR_REQUIREMENTS: Task 2 from docs/plans/deployment-plan.md
-  BASE_SHA: a7981ec
-  HEAD_SHA: 3df7661
-
-[Subagent returns]:
-  Strengths: Clean architecture, real tests
-  Issues:
-    Important: Missing progress indicators
-    Minor: Magic number (100) for reporting interval
-  Assessment: Ready to proceed
-
-You: [Fix progress indicators]
-[Continue to Task 3]
-```
-
-## Integration with Workflows
-
-**Subagent-Driven Development:**
-- Review after EACH task
-- Catch issues before they compound
-- Fix before moving to next task
-
-**Executing Plans:**
-- Review after each task or at natural checkpoints
-- Get feedback, apply, continue
-
-**Ad-Hoc Development:**
-- Review before merge
-- Review when stuck
+Fix critical issues immediately and important issues before integration. If a
+finding is wrong, push back with technical evidence.
 
 ## Red Flags
 
-**Never:**
-- Skip review because "it's simple"
-- Ignore Critical issues
-- Proceed with unfixed Important issues
-- Argue with valid technical feedback
+- Omitting requirements and asking for a generic review
+- Reviewing an arbitrary diff range
+- Ignoring critical or important findings
+- Accepting feedback without checking its premise
+- Treating the final branch review as a replacement for task-scoped gates
 
-**If reviewer wrong:**
-- Push back with technical reasoning
-- Show code/tests that prove it works
-- Request clarification
-
-See template at: [code-reviewer.md](code-reviewer.md)
+See [code-reviewer.md](code-reviewer.md) for the reviewer prompt.

@@ -52,6 +52,14 @@ lib.debug.runTests {
     expr = prompt.mkPrompt { layers = [ (fixtures + "/layer-empty") ]; };
     expected = "";
   };
+  testWordCountNormalizesWhitespace = {
+    expr = prompt.wordCount "one  two\nthree\tfour";
+    expected = 4;
+  };
+  testWordCountOfEmptyStringIsZero = {
+    expr = prompt.wordCount "";
+    expected = 0;
+  };
   testValidFragmentName = {
     expr = prompt.validateFragmentName "00-tone.md";
     expected = true;

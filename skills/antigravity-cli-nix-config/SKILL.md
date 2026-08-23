@@ -1,12 +1,15 @@
 ---
 name: antigravity-cli-nix-config
-description: Use when creating, editing, or managing Antigravity CLI configuration, skills, or setup in this dotfiles repo
+description: Use when changing Antigravity CLI runtime settings, plugin layout, permissions, or Home Manager integration in this Nix and dotfiles stack
 ---
 
 # Antigravity CLI Nix Configuration
 
 This dotfiles repo manages Google Antigravity CLI declaratively via Nix using
 the `antigravity-cli-nix` library and home-manager module.
+
+Shared skill, frontmatter, sidecar, and cross-runtime subagent authoring belongs
+to `agent-skills-nix-config`.
 
 ## Config Paths
 
@@ -81,7 +84,7 @@ modules/ai/antigravity.nix   # den.aspects.antigravity (imports the hm module)
 
 Plugins are wired through the agent-skills flake.
 
-## Build and Apply
+## Target Build
 
 ```sh
 # Build the antigravity plugin standalone (from the agent-skills repo)
@@ -89,13 +92,6 @@ nix build .#antigravity-plugin
 
 # Inspect the result tree
 find result/ -maxdepth 3
-
-# Release: push agent-skills, bump the dotfiles input, switch
-git push && cd ~/dotfiles && nix flake update agent-skills
-
-# Apply to system (NixOS)
-just switch   # or: sudo nixos-rebuild switch --flake .
-
-# Apply to system (macOS)
-darwin-rebuild switch --flake .
 ```
+
+Use `agent-skills-nix-config` for the shared release and host-apply flow.

@@ -1,173 +1,50 @@
 ---
 name: claude-nix-config
-description: Use when creating, editing, or managing agent skills, commands, agents, or plugin configuration in this dotfiles repo
+description: Use when changing Claude Code runtime settings, permissions, hooks, status line, or Home Manager integration in this Nix and dotfiles stack
 ---
 
-# Agent Skills Configuration
+# Claude Nix Configuration
 
-This dotfiles repo manages Claude Code, Antigravity CLI, and Codex declaratively via Nix. All skills, commands, agents, and plugin settings are defined in Nix and built into plugins for each tool.
+Claude Code is managed declaratively through `claude-nix`. Shared skill,
+frontmatter, sidecar, and subagent authoring belongs to
+`agent-skills-nix-config`.
 
-## Repository: agent-skills
+## Integration Points
 
-agent-skills is a standalone repo (canonical clone: `~/Development/agent-skills`; github:joegoldin/agent-skills), consumed by the dotfiles as a git+ssh flake input. It is the single entry point. It re-exports `homeManagerModules` from three upstream repos:
+| Location | Responsibility |
+|---|---|
+| `flake.nix` | Exports `homeManagerModules.claude` and assembles plugins |
+| `hooks/` | Repository-owned Claude hooks |
+| `claude-nix/modules/home-manager.nix` | Upstream options and default settings |
+| `modules/ai/claude.nix` in dotfiles | Host integration |
 
-- **claude-nix** — Claude Code plugin system
-- **antigravity-cli-nix** — Antigravity CLI plugin system
-- **codex-nix** — Codex plugin system
-
-Plugins are built per-target: `claude-plugin`, `antigravity-plugin`, `codex-plugin`.
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `agent-skills/flake.nix` | Flake definition — inputs (claude-nix, antigravity-cli-nix, codex-nix), builds plugins, exports homeManagerModules |
-| `agent-skills/lib/default.nix` | Build system — `discoverSkills`, `buildPlugin`, `buildAntigravityPlugin`, `buildCodexPlugin` |
-| `agent-skills/skills/<name>/SKILL.md` | The skill — YAML frontmatter (name, description, allowed-tools, any Claude Code field) + instructions, shipped verbatim |
-| `agent-skills/skills/<name>/skill.nix` | Optional sidecar — ONLY `packages`, `mcpServers`, `lspServers` (things markdown can't express) |
-| `agent-skills/skills/<name>/agents/*.md` | Optional subagents — frontmatter (description, tools, model, effort, permission-mode, isolation, …) + prompt body, built per-target |
-| `agent-skills/hooks/` | Claude hook scripts (e.g., session-start) |
-| `agent-skills/ATTRIBUTION.md` | Attribution file bundled into all plugins |
-
-## How to Add a Skill
-
-1. Create `agent-skills/skills/<skill-name>/SKILL.md`. Frontmatter is the
-   source of truth and is shipped verbatim — any Claude Code frontmatter
-   field works with zero Nix changes:
-
-```markdown
----
-name: my-skill
-description: Use when [triggering conditions]
-allowed-tools: Bash(sometool:*) Read
----
-
-Skill instructions here.
-```
-
-Rules (enforced by `checks.skills-lint` at build time):
-- `name` must equal the directory name (lowercase, hyphens, max 64 chars)
-- `description` is required, single-line, max 1024 chars
-- `allowed-tools` is a space-separated string; use commas when an entry
-  contains a space (e.g. `Bash(sem diff:*), Bash(sem impact:*)`)
-- An `allowed-tools:` key with no value is rejected — an empty line would
-  restrict the skill to no tools; omit the key instead
-- Reference tools by plain command name, never by Nix store path — put the
-  package in the sidecar instead (next step) so it lands on PATH
-- YAML `#` comment lines are fine inside the frontmatter block (see
-  `skills/gh-stack/SKILL.md` for an example annotating allowed-tools)
-
-2. Only if the skill needs Nix-level things, add a `skill.nix` sidecar.
-   Allowed keys: `packages`, `mcpServers`, `lspServers` — nothing else:
-
-```nix
-{ pkgs, lib }:
-{
-  packages = [ pkgs.sometool ];
-
-  mcpServers = {
-    my-server = {
-      command = "${pkgs.my-mcp}/bin/my-mcp";
-    };
-  };
-
-  lspServers = {
-    my-lang = {
-      command = lib.getExe pkgs.my-lsp;
-      extensionToLanguage = { ".ext" = "my-lang"; };
-    };
-  };
-}
-```
-
-The sidecar may be a plain attrset or a function of (a subset of)
-`{ pkgs, lib }`. For a tool built from this repo's `packages/` directory
-(not nixpkgs), call it relative to the skill dir — this is how
-avoid-ai-writing, figma-readonly, pixeldrain, and vibe-modeling ship
-their CLIs:
-
-```nix
-{ pkgs }:
-{
-  packages = [ (pkgs.callPackage ../../packages/my-tool { }) ];
-}
-```
-
-3. Only if the skill ships subagents, add `agents/<agent-name>.md`:
-
-```markdown
----
-name: my-agent
-description: What this agent does
-tools: Read, Glob, Grep
----
-
-Agent system prompt.
-```
-
-`description` is required; `name` defaults to the filename. Beyond `tools`,
-the parser reads `disallowed-tools`, `skills`, `model`, `effort`,
-`permission-mode`, `max-turns`, `memory`, `isolation`, `background`,
-`initial-prompt`, and `color` (the camelCase spellings Claude Code's own
-schema uses — `disallowedTools`, `maxTurns`, … — are accepted too). Unknown
-keys are a build error, so a typo fails loudly instead of being dropped.
-Each target receives only the fields its own agent format models. Nested
-`mcpServers` / `hooks` maps can't be expressed here — the frontmatter parser
-reads single-line values only — so declare those in the skill's `skill.nix`
-sidecar.
-
-4. That's it — `discoverSkills` auto-discovers any directory under
-   `skills/` containing a `SKILL.md`.
-
-**Commands are skills.** For a slash-command-style workflow, create a
-normal skill with `disable-model-invocation: true` and an `argument-hint`
-in its frontmatter (see `skills/format-nix/` for the pattern).
+The Home Manager module imports the upstream module, installs the generated
+plugins, adds a permission for every discovered skill, merges plugin hooks, and
+enables the status line.
 
 ## Permissions
 
-- A `Skill(agent-skills:<name>)` allow is auto-generated for every discovered skill and merged into `~/.claude/settings.json` via `programs.claude-nix.extraPermissions.allow` (additive — concatenates with claude-nix's defaults).
-- Per-skill Bash allows go in `allowed-tools` inside that skill's SKILL.md frontmatter.
-- Repo-wide additive perms (e.g. a new Bash variant every skill should have) go in `agent-skills/flake.nix` via `programs.claude-nix.extraPermissions.{allow,ask,deny}`, **not** `programs.claude-nix.settings.permissions.*` — the latter is a full-list replacement (via `lib.recursiveUpdate`) and will silently nuke the defaults shipped by claude-nix.
-- Default Bash allows themselves live upstream in `claude-nix/modules/home-manager.nix` (`defaultSettings.permissions.allow`).
+Use `programs.claude-nix.extraPermissions.{allow,ask,deny}` for additive
+repository-wide permissions. Do not set
+`programs.claude-nix.settings.permissions.*` for an additive change: those
+lists replace the defaults from `claude-nix`.
 
-## How the Build System Works
+Skill-specific command permissions belong in the skill's `allowed-tools`
+frontmatter.
 
-1. **`discoverSkills ./skills`** — scans for directories with `SKILL.md`, parses/lints the frontmatter (`lib/frontmatter.nix` + `lib/lint.nix`), evaluates the optional sidecar, parses `agents/*.md`, and builds a verbatim-copy skill derivation
-2. **`buildPlugin`** — aggregates all skills' agents, mcpServers, lspServers, and sidecar packages into a single Claude plugin via `claudeLib.mkPlugin`
-3. **`buildAntigravityPlugin`** — converts skills using `agyLib.mkSkill` and bundles into an Antigravity plugin
-4. **`buildCodexPlugin`** — converts skills using `codexLib.mkSkill` and bundles into a Codex plugin
+## Hooks
 
-## Dotfiles Integration
+Repository hooks live under `hooks/` and are folded into
+`programs.claude-nix.extraHooks`. Cross-runtime plugin hooks are collected from
+plugin passthru data in `flake.nix`.
 
-In the main dotfiles `flake.nix`, agent-skills is a remote ssh input:
+## Target Build
 
-```nix
-agent-skills = {
-  url = "git+ssh://git@github.com/joegoldin/agent-skills";
-  inputs.nixpkgs.follows = "nixpkgs";
-};
-```
-
-The home-manager modules are wired inside den aspects in the dotfiles —
-`modules/ai/{claude,codex,antigravity}.nix` (each imports its
-`agent-skills.homeManagerModules.*` and sets `programs.*-nix`), included on
-hosts via the `home-baseline` aspect.
-
-## Build & Apply
+From this repository:
 
 ```sh
-# Build plugins standalone (quick check, from this repo)
-nix build .#claude-plugin && nix build .#antigravity-plugin && nix build .#codex-plugin
-
-# Release: push this repo, then bump the dotfiles input and switch
-git push
-cd ~/dotfiles && nix flake update agent-skills
-
-# Apply to system (NixOS)
-just switch   # or: sudo nixos-rebuild switch --flake .
-
-# Apply to system (macOS)
-darwin-rebuild switch --flake .
+nix build .#claude-plugin
+nix flake check
 ```
 
-Skill content edits hot-reload in modern Claude Code (including command-style skills). Adding or removing a skill, or changing sidecars/agents/plugin structure, requires a rebuild for `discoverSkills` to pick it up.
+Use `agent-skills-nix-config` for the shared release and host-apply flow.

@@ -58,7 +58,7 @@ independently testable deliverable.
 ```markdown
 # [Feature Name] Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development when subagents are available; otherwise use executing-plans in a separate execution session. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** [One sentence describing what this builds]
 
@@ -155,20 +155,11 @@ If you find issues, fix them inline. No need to re-review — just fix and move 
 
 ## Execution Handoff
 
-After saving the plan, offer execution choice:
+After saving the plan, choose the execution workflow by capability:
 
-**"Plan complete and saved to `docs/plans/<filename>.md`. Two execution options:**
+- If subagents are available and execution is authorized, use
+  `subagent-driven-development` in the current session.
+- If subagents are unavailable, hand the plan to a separate execution session
+  using `executing-plans`.
 
-**1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
-
-**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
-
-**Which approach?"**
-
-**If Subagent-Driven chosen:**
-- **REQUIRED SUB-SKILL:** Use subagent-driven-development
-- Fresh subagent per task + two-stage review
-
-**If Inline Execution chosen:**
-- **REQUIRED SUB-SKILL:** Use executing-plans
-- Batch execution with checkpoints for review
+Do not describe `executing-plans` as inline execution in the planning session.

@@ -171,14 +171,12 @@ Two tiers. Which one you write for depends on where the skill ships:
 
 **Commands are skills.** Every skill is invocable as `/name`, with `$ARGUMENTS` available in its body. For a command-style workflow: `disable-model-invocation: true` + `argument-hint`.
 
-## This Repo's Contract (agent-skills)
+## Repository-Specific Contracts
 
-- SKILL.md frontmatter is the source of truth and ships verbatim; `checks.skills-lint` enforces name/description rules and rejects unknown keys at build time
-- `allowed-tools`: space-separated string; switch to comma-separated when any entry contains a space (`Bash(sem diff:*), Bash(sem impact:*)`). An `allowed-tools:` key with no value is rejected — it would restrict the skill to no tools; omit the key instead. YAML `#` comments are fine inside the frontmatter block
-- Never put Nix store paths in frontmatter. Use plain command names (`Bash(dot:*)`) and declare the package in the optional `skill.nix` sidecar — allowed sidecar keys: `packages`, `mcpServers`, `lspServers`, nothing else
-- Sidecar `packages` come from nixpkgs (`pkgs.graphviz`) or from this repo's `packages/` dir via `(pkgs.callPackage ../../packages/<tool> { })` — see avoid-ai-writing for the repo-local pattern
-- Subagents live in `agents/<name>.md` (frontmatter: description, tools, model; body = prompt); they're built for Claude, Codex, and Antigravity from the one file
-- Codex/Antigravity targets receive only name/description/allowed-tools + body; don't rely on Claude Code-tier fields for behavior those targets need
+When working in the agent-skills Nix repository, use
+`agent-skills-nix-config` for its frontmatter, sidecar, subagent, target-fanout,
+and build rules. This skill owns the authoring method; the repository skill owns
+the packaging contract.
 
 ## Skill Discovery Optimization (SDO)
 

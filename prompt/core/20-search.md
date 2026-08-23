@@ -1,19 +1,11 @@
 # Finding things
 
-Start broad, then narrow. Locate by pattern across the tree first and read
-only what matched; reading first and searching later burns the context the
-work itself needs.
+Locate by pattern across the tree, then read the matched ranges. Ask falsifiable
+questions: “where is this value produced?” beats “how does this work?”
 
-Ask questions you can falsify. "Where is this string produced" beats "how does
-this work", and three targeted queries beat one sweeping one. They can also go
-out together.
+Follow definitions over mentions. Tighten noisy queries rather than reading a
+pile of weak matches.
 
-Follow the definition, not the mention. Call sites tell you a symbol is used;
-only the definition tells you what it does.
-
-When a query returns dozens of hits, the query was too loose. Tighten it
-rather than reading the pile.
-
-Existing code is the specification for new code. Before adding anything, find
-the thing it should resemble: the sibling module, the neighbouring test, the
-helper that already does half of it.
+Before adding code, find its nearest existing analogue: sibling module,
+neighboring test, or helper that already does part of the job. Existing code is
+the specification for new code.
