@@ -132,7 +132,7 @@ cycle.
 
 ### Execution handoff
 
-`writing-plans` will offer capability-based choices:
+`writing-plans` will choose the execution workflow by capability:
 
 - subagent-driven execution in the current session when subagents are
   available;
@@ -226,7 +226,7 @@ The pull request contains:
 - prompt prose and prompt-budget checks;
 - the six approved skill-audit fixes;
 - required reference, lint, and build-test updates;
-- this design and the implementation plan.
+- this design.
 
 It does not add prompt profiles, new runtime dependencies, new tools, or
 unrelated skill rewrites. It does not change the MCP, auto-mode, or plugin
