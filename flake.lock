@@ -287,6 +287,27 @@
         "type": "sourcehut"
       }
     },
+    "microvm": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "spectrum": "spectrum"
+      },
+      "locked": {
+        "lastModified": 1787524185,
+        "narHash": "sha256-8c6dFnJpFLa/LdQx/+6Ae+GF5eTMzJ07gzjmssUR0Nk=",
+        "owner": "microvm-nix",
+        "repo": "microvm.nix",
+        "rev": "238f6d2884aec6aafb72442b9d8d10086d06accc",
+        "type": "github"
+      },
+      "original": {
+        "owner": "microvm-nix",
+        "repo": "microvm.nix",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1785747939,
@@ -378,11 +399,28 @@
         "antigravity-cli-nix": "antigravity-cli-nix",
         "claude-nix": "claude-nix",
         "codex-nix": "codex-nix",
+        "microvm": "microvm",
         "nixpkgs": "nixpkgs",
         "pi-nix": "pi-nix",
         "pyproject-build-systems": "pyproject-build-systems",
         "pyproject-nix": "pyproject-nix",
         "uv2nix": "uv2nix"
+      }
+    },
+    "spectrum": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1785761586,
+        "narHash": "sha256-MWOMVqJJERwjQGgRIv8d6rlEBqbLM3VZWxHkNKIIZNw=",
+        "ref": "refs/heads/main",
+        "rev": "a7762d6f54b40560dd5255ce902e6e6a5d980fe9",
+        "revCount": 1416,
+        "type": "git",
+        "url": "https://spectrum-os.org/git/spectrum"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://spectrum-os.org/git/spectrum"
       }
     },
     "systems": {

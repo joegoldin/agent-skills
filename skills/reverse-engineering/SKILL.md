@@ -13,17 +13,65 @@ this skill for the shared tools below.
 
 ## The environment
 
-The toolchain is a Nix devShell shipped by this repo. Enter it before you start:
+The toolchain is a Nix devShell shipped by this repo. Enter it before you start
+with the `re-shell` launcher, which is on PATH wherever this skill is installed:
 
 ```sh
-nix develop github:joegoldin/agent-skills#re-shell   # or `.#re-shell` from a checkout
+re-shell              # interactive shell, in the current directory
+re-shell <command>    # run one command in it, exit with the command's status
+re-shell -f .         # take the shell from a local agent-skills checkout
 ```
 
-The shell is x86_64-linux only and pulls a large unfree closure on first use
-(Ghidra alone is ~2 GB). It sets the environment variables the
-tools need (`GHIDRA_INSTALL_DIR`, `GHIDRA_JAVA_HOME`, `PICO_SDK_PATH`,
-`LIBUSB1_SO`, `_JAVA_OPTIONS`, with JVM scratch redirected into `tmp/jtmp`), and
-links a `wordlists/` directory into your working directory.
+`nix develop github:joegoldin/agent-skills#re-shell` does the same thing on
+Linux and is what the launcher runs there.
+
+The shell is x86_64-linux and pulls a large unfree closure on first use (Ghidra
+alone is ~2 GB). It sets the environment variables the tools need
+(`GHIDRA_INSTALL_DIR`, `GHIDRA_JAVA_HOME`, `PICO_SDK_PATH`, `LIBUSB1_SO`,
+`_JAVA_OPTIONS`, with JVM scratch redirected into `tmp/jtmp`), and links a
+`wordlists/` directory into your working directory.
+
+### On macOS
+
+The shell cannot run natively there: it is x86_64-linux, and wine, ddcutil,
+i2c-tools, edid-decode, hid-tools, and pe-bear need Linux kernel interfaces that
+macOS does not have. `re-shell` therefore boots a disposable NixOS microVM
+(vfkit, on Virtualization.framework) and enters the same shell inside it.
+
+- **Only the launch directory is shared, as `/work`**, read-write, and it is the
+  shell's working directory. The guest cannot see the rest of the Mac — which is
+  the point when the sample is untrusted.
+- **x86_64 binaries run under Rosetta**, so the toolchain is the one Linux gets,
+  not a macOS subset.
+- **The guest's Nix store persists** in `~/.local/share/re-shell`, so the
+  multi-GB download happens once. Everything else in the guest is discarded: the
+  VM powers off when the shell exits.
+- **One session, and no display.** The terminal that ran `re-shell` *is* the
+  VM's console: the guest runs no sshd, and microvm.nix's vfkit backend wires up
+  neither port forwarding nor vsock (it throws on both), so there is no second
+  way in. Drive Ghidra headless (`ghidra-analyzeHeadless`, pyghidra); the GUI
+  tools are unusable in there.
+- **Ctrl-C interrupts the tool; Ctrl-] kills the VM.** The console is the
+  terminal's own tty, so the launcher hands the interrupt key to the guest —
+  otherwise Ctrl-C would reach vfkit and shut the machine down mid-analysis.
+- **No AVX.** Rosetta translates x86_64 userspace without AVX, AVX2, AVX-512,
+  BMI1/2, or F16C, and there is no 32-bit x86 at all. A sample or tool that
+  requires them dies with SIGILL rather than a clear message.
+- **No USB.** vfkit passes no USB devices through, so nothing that talks to
+  attached hardware — adb over USB, `lsusb`, hid-tools, ddcutil, i2c — can see
+  it. Network-reachable targets still work: the guest has outbound NAT, so
+  `adb connect <host>:5555` and a remote frida-server are the way in.
+- **Frida is the one tool Rosetta cannot run.** The x86_64 build dies on an
+  unimplemented `eventfd` syscall, for the Python module and every CLI. The
+  guest carries a native aarch64 build outside the shell: call it by path,
+  `/run/current-system/sw/bin/frida{,-ps,-trace}`, since the shell's broken
+  x86_64 copy comes first on PATH. Everything else in the toolchain — Ghidra,
+  radare2, wine, jadx, apktool, floss, diec, pyghidra, capstone, unicorn, lief,
+  yara — runs under Rosetta.
+
+Tunable with `RE_SHELL_CPUS` (default 6), `RE_SHELL_MEM` in MiB (8192),
+`RE_SHELL_STORE_SIZE` in MiB (81920), and `RE_SHELL_STATE_DIR`. Use `re-shell -r`
+to rebuild the VM runner after changing the flake.
 
 ## Output conventions
 
@@ -233,7 +281,8 @@ When a task needs a tool that isn't in the shell:
   then re-enter the shell.
 - **Permanent system tool**: search nixpkgs (the `nixos` MCP is faster than
   `nix search`), add it to the `re-shell` devShell in `flake.nix` under the
-  matching category comment, then re-enter.
+  matching category comment, then re-enter (on macOS, `re-shell -r -f <checkout>`,
+  which rebuilds the VM runner against your change).
 
 npm packages whose install scripts download binaries (e.g. the `frida` npm
 package) fail in the Nix sandbox, so use the nixpkgs equivalent. After adding a

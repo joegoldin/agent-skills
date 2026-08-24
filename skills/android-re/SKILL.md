@@ -120,6 +120,13 @@ mitmproxy --listen-port 8080   # then intercept
 
 - `frida` requires a `frida-server` on the device matching the frida-tools
   version.
+- On macOS the shell runs in a VM with no USB passthrough, so `-U` (USB) device
+  work — `adb devices`, `frida -U`, `scrcpy` over cable — sees nothing. Reach the
+  device over the network instead: `adb connect <phone-ip>:5555` after enabling
+  wireless debugging, and `frida -H <phone-ip>:27042` against a listening
+  frida-server. Frida itself must be the guest's native build,
+  `/run/current-system/sw/bin/frida{,-ps,-trace}`; the shell's x86_64 copy
+  crashes under Rosetta. See the **reverse-engineering** skill.
 - For HTTPS interception, push the mitmproxy CA to the device:
   `adb push ~/.mitmproxy/mitmproxy-ca-cert.cer /sdcard/` and install it.
 - `bytecode-viewer` and `jadx-gui` need a display server; use the CLI

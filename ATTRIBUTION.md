@@ -169,7 +169,12 @@ set, the same environment variables and `wordlists` linkFarm, and the
 files (upstream's lockfiles, which pin a known-building dependency closure).
 Local changes: it is scoped to `x86_64-linux` (the toolchain is x86_64-centric —
 some tools have no aarch64 build — and this keeps Darwin and aarch64 evaluation
-of the plugin outputs intact); it is exposed as an opt-in
+of the plugin outputs intact); Python is pinned to 3.13 because `uv.lock`'s
+wheels stop at cp313; it is entered through the `re-shell` launcher
+(`packages/re-shell`), which on macOS boots the shell in a vfkit microVM built
+by `lib/re-vm.nix` — original code, using
+[microvm.nix](https://github.com/microvm-nix/microvm.nix) (MIT) as a flake
+input, with no upstream equivalent; it is exposed as an opt-in
 `nix develop .#re-shell` rather than bundled into the plugin buildEnv; upstream's
 `treefmt`/`systems` inputs and the in-shell formatter are dropped; and it uses
 this repo's `config.allowUnfree = true` instead of upstream's per-package

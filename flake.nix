@@ -42,6 +42,12 @@
       inputs.uv2nix.follows = "uv2nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Carries the macOS half of re-shell only: `lib.mkReShellVm` builds a
+    # vfkit microVM so a Mac can enter the Linux shell. See lib/re-vm.nix.
+    microvm = {
+      url = "github:microvm-nix/microvm.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -55,6 +61,7 @@
       pyproject-nix,
       uv2nix,
       pyproject-build-systems,
+      microvm,
       ...
     }:
     let
@@ -125,10 +132,12 @@
           pxd = pkgs.callPackage ./packages/pxd { };
           figr = pkgs.callPackage ./packages/figr { };
           avoidAiDetect = pkgs.callPackage ./packages/avoid-ai-detect { };
+          re-shell = pkgs.callPackage ./packages/re-shell { };
 
           # ── Claude plugin ──
-          # Skill-owned tool packages (figr, pxd, vibecad, avoid-ai-detect)
-          # ride in via each skill's sidecar `packages`, not extraPackages.
+          # Skill-owned tool packages (figr, pxd, vibecad, avoid-ai-detect,
+          # re-shell) ride in via each skill's sidecar `packages`, not
+          # extraPackages.
           claude-plugin = build.buildPlugin {
             name = "agent-skills";
             description = "Agent skills, commands, and agents";
@@ -245,16 +254,19 @@
             vibecad
             pxd
             figr
+            re-shell
             ;
         }
       );
 
-      # ── re-shell reverse-engineering devShell (Linux only) ──
+      # ── re-shell reverse-engineering devShell ──
       # Faithful port of schlarpc/re-shell's dev environment: the general RE
       # toolchain plus the android/windows/web discipline tools, a uv2nix-built
-      # Python venv, and the apk-mitm Node tool. Entered with
-      # `nix develop github:joegoldin/agent-skills#re-shell`. Documented by the
-      # reverse-engineering, android-re, windows-re, and web-re skills.
+      # Python venv, and the apk-mitm Node tool. Entered with the `re-shell`
+      # launcher (packages/re-shell, shipped by the reverse-engineering skill)
+      # or `nix develop github:joegoldin/agent-skills#re-shell` directly.
+      # Documented by the reverse-engineering, android-re, windows-re, and
+      # web-re skills.
       devShells = nixpkgs.lib.genAttrs reShellSystems (
         system:
         let
@@ -263,7 +275,11 @@
             config.allowUnfree = true;
           };
           lib = pkgs.lib;
-          python = pkgs.python3;
+          # Pinned, not pkgs.python3: uv.lock's wheels stop at cp313, so on
+          # 3.14 every package falls back to its sdist — slow where it works,
+          # and a hard failure where the sdist omits a build system (jpype1
+          # does). requires-python is >=3.13; the lock is what fixes it here.
+          python = pkgs.python313;
 
           nodeModules = pkgs.importNpmLock.buildNodeModules {
             npmRoot = self;
@@ -1192,6 +1208,10 @@
       };
 
       # ── Re-exported libs ──
+      # System-keyed, with one system-agnostic function alongside: mkReShellVm
+      # takes a host system as an argument rather than being indexed by one,
+      # because the runner it returns is a darwin package wrapping a Linux
+      # guest and neither system alone names it.
       lib = forAllSystems (
         { pkgs, ... }:
         {
@@ -1209,7 +1229,12 @@
             lib = pkgs.lib;
           };
         }
-      );
+      )
+      // {
+        # The macOS `re-shell` VM. Called by packages/re-shell's launcher with
+        # the directory it was run in, so the runner is built per invocation.
+        mkReShellVm = import ./lib/re-vm.nix { inherit nixpkgs microvm; };
+      };
 
       # ── Positive list of claude-targeted plugin packages ──
       # Same set the homeManagerModules.claude wires into
