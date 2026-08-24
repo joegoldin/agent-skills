@@ -145,3 +145,34 @@ Vendored with minor modifications:
 See `plugins/temporal/README.md` for the diff narrative. The gist's license
 is not explicitly declared (GitHub gist default); we credit upstream by
 linkback as a courtesy.
+
+## Reverse Engineering Skills + re-shell devShell
+
+The `reverse-engineering`, `android-re`, `windows-re`, and `web-re` skills, and
+the `devShells.<linux>.re-shell` output in `flake.nix`, are derived from
+[schlarpc/re-shell](https://github.com/schlarpc/re-shell) and the accompanying
+write-up
+[*Everything I own, owned*](https://schlarp.com/posts/everything-i-own-owned/).
+
+**No upstream license.** re-shell declares no license (no `LICENSE` file, GitHub
+reports no SPDX id), so its prose is all-rights-reserved and is not vendored.
+Following the same courtesy-credit approach this repo uses for `vibe-modeling`
+and `prose-craft`: the skills port the *facts* — tool names, invocations,
+command tables, workflow steps, and technical gotchas, which are uncopyrightable
+methods and facts under 17 USC 102(b) — and the prose in every `SKILL.md` is
+original to this repo. No `SKILL.md` or `CLAUDE.md` text from re-shell is copied.
+
+**devShell.** The `re-shell` devShell adapts upstream's `flake.nix`: the same
+uv2nix + pyproject-nix + pyproject-build-systems machinery, the same package
+set, the same environment variables and `wordlists` linkFarm, and the
+`pyproject.toml` / `uv.lock` / `package.json` / `package-lock.json` workspace
+files (upstream's lockfiles, which pin a known-building dependency closure).
+Local changes: it is scoped to `x86_64-linux` (the toolchain is x86_64-centric —
+some tools have no aarch64 build — and this keeps Darwin and aarch64 evaluation
+of the plugin outputs intact); it is exposed as an opt-in
+`nix develop .#re-shell` rather than bundled into the plugin buildEnv; upstream's
+`treefmt`/`systems` inputs and the in-shell formatter are dropped; and it uses
+this repo's `config.allowUnfree = true` instead of upstream's per-package
+`allowUnfreePredicate`. Upstream's own exclusions are carried over with their
+reasons: `androguard` (broken `dataset` dep in nixpkgs) and `blackboxprotobuf`
+(hard-pins `protobuf==3.10.0`).

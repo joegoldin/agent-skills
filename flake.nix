@@ -23,6 +23,25 @@
       url = "github:joegoldin/pi-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # ── re-shell reverse-engineering devShell inputs ──
+    # Only the `devShells.<linux>.re-shell` output uses these; the plugin
+    # builds do not. See ATTRIBUTION.md (schlarpc/re-shell).
+    pyproject-nix = {
+      url = "github:pyproject-nix/pyproject.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    uv2nix = {
+      url = "github:pyproject-nix/uv2nix";
+      inputs.pyproject-nix.follows = "pyproject-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    pyproject-build-systems = {
+      url = "github:pyproject-nix/build-system-pkgs";
+      inputs.pyproject-nix.follows = "pyproject-nix";
+      inputs.uv2nix.follows = "uv2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -33,6 +52,9 @@
       antigravity-cli-nix,
       codex-nix,
       pi-nix,
+      pyproject-nix,
+      uv2nix,
+      pyproject-build-systems,
       ...
     }:
     let
@@ -54,6 +76,18 @@
             inherit system;
           }
         );
+
+      # ── re-shell devShell plumbing ──
+      # The RE toolchain is heavy, unfree, and Linux-only, so it ships as an
+      # opt-in `nix develop .#re-shell` rather than riding into the plugin
+      # buildEnv. These bindings are system-independent (they only read the
+      # workspace files) and are forced only by the Linux devShells below.
+      # x86_64-linux only: the toolchain is x86_64-centric and several tools
+      # (e.g. aapt) have no aarch64-linux build, so an aarch64 shell would fail
+      # to even evaluate.
+      reShellSystems = [ "x86_64-linux" ];
+      reWorkspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ./.; };
+      rePyOverlay = reWorkspace.mkPyprojectOverlay { sourcePreference = "wheel"; };
     in
     {
       packages = forAllSystems (
@@ -212,6 +246,254 @@
             pxd
             figr
             ;
+        }
+      );
+
+      # ── re-shell reverse-engineering devShell (Linux only) ──
+      # Faithful port of schlarpc/re-shell's dev environment: the general RE
+      # toolchain plus the android/windows/web discipline tools, a uv2nix-built
+      # Python venv, and the apk-mitm Node tool. Entered with
+      # `nix develop github:joegoldin/agent-skills#re-shell`. Documented by the
+      # reverse-engineering, android-re, windows-re, and web-re skills.
+      devShells = nixpkgs.lib.genAttrs reShellSystems (
+        system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
+          lib = pkgs.lib;
+          python = pkgs.python3;
+
+          nodeModules = pkgs.importNpmLock.buildNodeModules {
+            npmRoot = self;
+            inherit (pkgs) nodejs;
+          };
+
+          pythonSet =
+            (pkgs.callPackage pyproject-nix.build.packages {
+              inherit python;
+            }).overrideScope
+              (
+                lib.composeManyExtensions [
+                  pyproject-build-systems.overlays.default
+                  rePyOverlay
+                  # Add dependency fixups here as needed, e.g.:
+                  # (_final: prev: {
+                  #   some-package = prev.some-package.overrideAttrs (old: {
+                  #     buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.some-lib ];
+                  #   });
+                  # })
+                ]
+              );
+
+          venv = pythonSet.mkVirtualEnv "re-env" reWorkspace.deps.default;
+
+          # A dir-of-symlinks of common wordlists/rules linked into
+          # $PWD/wordlists by the shellHook so cracking tools don't need
+          # /nix/store paths. Add more entries here as needed.
+          wordlists = pkgs.linkFarm "re-wordlists" [
+            {
+              name = "rockyou.txt";
+              path = "${pkgs.rockyou}/share/wordlists/rockyou.txt";
+            }
+            {
+              name = "seclists";
+              path = "${pkgs.seclists}/share/wordlists/seclists";
+            }
+            {
+              name = "john-password.lst";
+              path = "${pkgs.john}/share/john/password.lst";
+            }
+            {
+              name = "hashcat-rules";
+              path = "${pkgs.hashcat}/share/doc/hashcat/rules";
+            }
+            {
+              name = "john-rules";
+              path = "${pkgs.john}/share/john/rules";
+            }
+            {
+              # best64.rule ships with john (not this hashcat build)
+              name = "best64.rule";
+              path = "${pkgs.john}/share/john/rules/best64.rule";
+            }
+          ];
+        in
+        {
+          re-shell = pkgs.mkShell {
+            packages = [
+              venv
+              pkgs.uv
+              pkgs.nodejs
+              pkgs.importNpmLock.hooks.linkNodeModulesHook
+
+              # --- General: native binary reverse engineering ---
+              pkgs.ghidra # NSA's SRE suite (disassembler + decompiler)
+              pkgs.radare2 # UNIX-like RE framework and CLI toolset
+              pkgs.rizin # Modern fork of radare2
+              pkgs.binwalk # Firmware/binary analysis and extraction
+
+              # --- General: dynamic instrumentation ---
+              pkgs.frida-tools # frida, frida-ps, frida-trace, etc.
+
+              # --- General: static analysis ---
+              pkgs.yara # Pattern matching for malware research
+
+              # --- General: network interception & discovery ---
+              pkgs.mitmproxy # HTTPS man-in-the-middle proxy
+              pkgs.wireshark-cli # tshark
+              pkgs.nmap # Host/port/service discovery
+              pkgs.avahi # avahi-browse - mDNS/DNS-SD discovery
+
+              # --- General: utilities ---
+              pkgs.unzip
+              pkgs.p7zip
+              pkgs.binutils # strings/nm/objdump/readelf
+              pkgs.file
+              pkgs.curl
+              pkgs.jq
+              pkgs.sqlite
+              pkgs.openssl
+              pkgs.upx # Executable packer/unpacker
+              pkgs.unixtools.xxd
+              pkgs.exiftool
+              pkgs.innoextract # Inno Setup installer extraction
+              pkgs.asar # Electron app.asar archives
+
+              # --- General: display / monitor firmware ---
+              pkgs.v4l-utils # edid-decode
+              pkgs.ddcutil # DDC/CI VCP codes
+              pkgs.i2c-tools # raw I2C frames
+
+              # --- General: USB ---
+              pkgs.libusb1 # backend for pyusb
+              pkgs.usbutils # lsusb -v, usbhid-dump
+              pkgs.hid-tools # hid-decode/hid-recorder/hid-replay
+
+              # --- General: password / hash cracking ---
+              pkgs.hashcat
+              pkgs.john # John the Ripper (Jumbo)
+
+              # --- General: FPGA bitstream & netlist analysis ---
+              pkgs.trellis # ecpunpack/ecppack (Lattice ECP5)
+              pkgs.yosys
+              pkgs.hal-hardware-analyzer
+
+              # --- General: embedded / RP2040-RP2350 (Pico) firmware ---
+              pkgs.picotool
+              pkgs.pico-sdk
+              pkgs.cmake
+              pkgs.gcc-arm-embedded
+
+              # --- Android: APK disassembly & manipulation ---
+              pkgs.apktool
+              pkgs.apkeditor
+              pkgs.apksigner
+              pkgs.apksigcopier
+              pkgs.apkid
+              pkgs.aapt
+              pkgs.bundletool
+
+              # --- Android: Java/DEX decompilation ---
+              pkgs.jadx
+              pkgs.dex2jar
+              pkgs.bytecode-viewer
+
+              # --- Android: dynamic instrumentation ---
+              pkgs.jnitrace
+
+              # --- Android: static analysis & security scanning ---
+              pkgs.trueseeing
+              pkgs.quark-engine
+              pkgs.koodousfinder
+
+              # --- Android: ADB & device interaction ---
+              pkgs.android-tools # ADB + fastboot
+              pkgs.scrcpy
+
+              # --- Android: image & OTA tools ---
+              pkgs.simg2img
+              pkgs.sdat2img
+              pkgs.payload-dumper-go
+              pkgs.imgpatchtools
+
+              # --- Windows: PE analysis & inspection ---
+              pkgs.pe-bear
+              pkgs.detect-it-easy # diec
+              pkgs.imhex
+
+              # --- Windows: .NET decompilation ---
+              pkgs.ilspycmd
+              pkgs.avalonia-ilspy # ILSpy
+
+              # --- Windows: string & capability analysis ---
+              pkgs.flare-floss # floss
+
+              # --- Windows: memory forensics ---
+              pkgs.volatility3
+
+              # --- Windows: archive & installer extraction ---
+              pkgs.cabextract
+              pkgs.msitools # msiinfo/msiextract
+
+              # --- Windows: signing & verification ---
+              pkgs.osslsigncode
+
+              # --- Windows: running Windows binaries ---
+              pkgs.wineWow64Packages.stable
+              pkgs.winetricks
+
+              # --- Web: protocol buffers & gRPC ---
+              pkgs.protobuf # protoc
+              pkgs.protoscope
+              pkgs.grpcurl
+              pkgs.grpcui
+
+              # --- Web: HTTP & TLS ---
+              pkgs.curl-impersonate
+              pkgs.httpie
+
+              # --- Web: WebSocket ---
+              pkgs.websocat
+
+              # --- Web: HTML parsing ---
+              pkgs.pup
+            ];
+
+            npmDeps = nodeModules;
+
+            env = {
+              GHIDRA_JAVA_HOME = "${pkgs.jdk}/lib/openjdk";
+              GHIDRA_INSTALL_DIR = "${pkgs.ghidra}/lib/ghidra";
+              PICO_SDK_PATH = "${pkgs.pico-sdk}/lib/pico-sdk";
+              # pyusb resolves its backend with ctypes.util.find_library, which
+              # finds nothing on NixOS. Point it at the shared object directly.
+              LIBUSB1_SO = "${pkgs.libusb1}/lib/libusb-1.0.so";
+              # Nix manages the venv; keep uv from creating/downloading its own.
+              UV_NO_SYNC = "1";
+              UV_PYTHON = "${venv}/bin/python";
+              UV_PYTHON_DOWNLOADS = "never";
+            };
+
+            shellHook = ''
+              unset PYTHONPATH
+              if [ -d "$npmDeps/node_modules" ]; then
+                linkNodeModulesHook
+              fi
+              # Stable wordlists/ symlink at the working dir (gitignored).
+              ln -sfn ${wordlists} "$PWD/wordlists"
+              # pyghidra/JPype spill large temp files into java.io.tmpdir; the
+              # default /tmp tmpfs is too small and it crashes on big programs,
+              # so keep JVM scratch working-dir-local (gitignored).
+              mkdir -p "$PWD/tmp/jtmp"
+              case "''${_JAVA_OPTIONS-}" in
+                *-Djava.io.tmpdir=*) ;;
+                *) export _JAVA_OPTIONS="-Djava.io.tmpdir=$PWD/tmp/jtmp''${_JAVA_OPTIONS:+ $_JAVA_OPTIONS}" ;;
+              esac
+              echo "re-shell RE environment loaded. See the reverse-engineering, android-re, windows-re, and web-re skills for tool docs."
+            '';
+          };
         }
       );
 

@@ -1,0 +1,42 @@
+# Python workspace for the `re-shell` reverse-engineering devShell only.
+# Built into a Nix venv by uv2nix; not part of the agent-skills plugin builds.
+# Ported from schlarpc/re-shell — see ATTRIBUTION.md.
+[project]
+name = "re-env"
+version = "1.0.0"
+requires-python = ">=3.13"
+dependencies = [
+    # General
+    "capstone",
+    "cryptography>=46.0.5",
+    "frida",
+    "ipython",
+    "numpy>=2.5.1",
+    "pillow>=12.3.0",
+    "pyghidra",
+    "pyusb>=1.3.1",
+    "scipy>=1.18.0",
+    "yara-python",
+    # Android
+    "hermes-dec>=0.1.0",
+    "pyaxmlparser",
+    # Windows
+    "dnfile",
+    "lief",
+    "oletools",
+    "pefile",
+    "unicorn",
+    # Web
+    "beautifulsoup4",
+    "grpcio",
+    "grpcio-tools",
+    "haralyzer",
+    "protobuf",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
