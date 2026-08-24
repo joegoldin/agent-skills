@@ -33,10 +33,13 @@ The environment is large and unfree; the first entry downloads several GB.
 macOS specifics:
   The shell runs in a microVM. Only the launch directory is visible to it, as
   /work; the guest's nix store persists in \$RE_SHELL_STATE_DIR
-  ($state_dir) so the download happens once. Tune with
-  RE_SHELL_CPUS (default 6), RE_SHELL_MEM in MiB (default 8192), and
-  RE_SHELL_STORE_SIZE in MiB (default 81920). Ghidra's GUI needs a display the
-  guest does not have — drive it headless (ghidra-analyzeHeadless, pyghidra).
+  ($state_dir) so the download happens once. The interactive shell is fish
+  with a plain prompt (not your dotfiles — a from-scratch guest cannot use a
+  home-manager config hardcoded to the host's nix store); RE_SHELL_SHELL
+  overrides, e.g. RE_SHELL_SHELL=bash. Tune with RE_SHELL_CPUS (default 6),
+  RE_SHELL_MEM in MiB (default 8192), and RE_SHELL_STORE_SIZE in MiB (default
+  81920). Ghidra's GUI needs a display the guest does not have — drive it
+  headless (ghidra-analyzeHeadless, pyghidra).
 EOF
 }
 

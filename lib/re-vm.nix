@@ -68,11 +68,18 @@ let
             --command bash -c "$(cat /run/re-shell/cmd)" \
             > /run/re-shell/out 2> /run/re-shell/err
         else
-          # bash -i, not bash: without it the inner shell runs without job
-          # control, so Ctrl-C is delivered to the whole foreground group —
-          # killing the session and powering off the VM instead of stopping the
-          # tool that is running. Ctrl-C on a long analysis is not optional.
-          nix develop ${lib.escapeShellArg shellRef} --command bash -i
+          # -i, not bare: without it the inner shell runs without job control,
+          # so Ctrl-C is delivered to the whole foreground group — killing the
+          # session and powering off the VM instead of stopping the tool that
+          # is running. Ctrl-C on a long analysis is not optional.
+          #
+          # fish by default: this is a from-scratch guest, not the host, so it
+          # is fish with a plain prompt, not a copy of anyone's dotfiles — the
+          # one on the host is a home-manager-generated file hardcoded to
+          # darwin nix store paths (starship, atuin, direnv, iterm2, brew) that
+          # do not exist here. RE_SHELL_SHELL overrides.
+          nix develop ${lib.escapeShellArg shellRef} \
+            --command "''${RE_SHELL_SHELL:-fish}" -i
         fi
         status=$?
         echo "$status" > /run/re-shell/status
@@ -180,7 +187,33 @@ let
       # sits outside the devShell at /run/current-system/sw/bin so the
       # dynamic-instrumentation workflow has something that works; the shell's
       # own x86_64 frida still shadows it on PATH, which the skills call out.
-      environment.systemPackages = [ pkgs.frida-tools ];
+      environment.systemPackages = [
+        pkgs.frida-tools
+        pkgs.starship
+      ];
+
+      # A plain interactive shell for the console session `enter` drops into.
+      # promptInit rather than the devShell's own prompt: bash's PS1 in the
+      # x86_64 devShell is nixpkgs' generic `\n\[bold\](nix-shell)\[reset\]...`,
+      # unhelpful for telling this VM apart from a real Linux box at a glance.
+      programs.fish = {
+        enable = true;
+        promptInit = ''
+          starship init fish | source
+        '';
+      };
+      environment.etc."starship.toml".text = ''
+        # Plain default prompt for the re-shell guest console. Not the host's
+        # starship.toml: that theme's `format` may reference modules or
+        # symbols assuming fonts/terminfo this serial console does not have.
+        add_newline = false
+        format = "$directory$character"
+
+        [character]
+        success_symbol = "[re-vm ➜](bold green)"
+        error_symbol = "[re-vm ✗](bold red)"
+      '';
+      environment.variables.STARSHIP_CONFIG = "/etc/starship.toml";
 
       # microvm's root filesystem is a tmpfs sized at half of guest RAM, and a
       # Nix build scratch directory defaults onto it — so building anything
