@@ -181,3 +181,30 @@ this repo's `config.allowUnfree = true` instead of upstream's per-package
 `allowUnfreePredicate`. Upstream's own exclusions are carried over with their
 reasons: `androguard` (broken `dataset` dep in nixpkgs) and `blackboxprotobuf`
 (hard-pins `protobuf==3.10.0`).
+
+## tscircuit Skill
+
+The `tscircuit` skill is vendored from
+[tscircuit/skill](https://github.com/tscircuit/skill) (MIT License, Copyright
+(c) 2026 tscircuit), at upstream commit
+`14554d694f38b78c0f7ebde387263074ddd4bf2a`. The upstream `LICENSE` is preserved
+at `skills/tscircuit/LICENSE`.
+
+Upstream's flat layout is restructured for this repo: `CLI.md`, `SYNTAX.md`,
+`WORKFLOW.md`, `CHECKLIST.md`, and `FOOTPRINTS.md` become
+`references/{cli,syntax,workflow,checklist,footprints}.md`, `elements/` becomes
+`references/elements/`, and `templates/` and `scripts/` are kept as-is. The
+`SKILL.md` body is upstream's with its paths updated for that layout. Local
+changes beyond paths:
+
+- The description is rewritten as triggering conditions, and upstream's blanket
+  `allowed-tools: Read, Write, Grep, Glob, Bash` is narrowed to local `tsci`
+  subcommands (`tsci push`, `tsci login`, and `tsci dev` prompt).
+- A "This setup" section notes that `tsci` comes from the dotfiles kicad module
+  (so `tsci upgrade` / `tsci agent` do not apply) and that `tsci export -f
+  kicad_pcb` hands off to the `konnect` skill for KiCAD edits. The CLI primer's
+  prereqs and the scripts' "tsci not found" hint carry the same note.
+- Each element page's "Local docs" link pointed into an uncloned
+  `docs/` checkout that upstream `.gitignore`s; they now point at the matching
+  page on https://docs.tscircuit.com.
+- Upstream's `README.md` and `.gitignore` are not vendored.
