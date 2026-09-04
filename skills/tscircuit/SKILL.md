@@ -88,7 +88,7 @@ When this Skill is active:
 - Run `tsci check shorts` after routing and before sharing, publishing, or producing fabrication outputs. Resolve every reported short before proceeding.
 - Run `tsci build` (and optionally `tsci snapshot`) before sharing/publishing.
 - Use `tsci export` for SVG/netlist/DSN/3D/KiCad/library outputs.
-- For manufacturing, `tsci export <file> -f gerbers` writes the Gerber set; the export UI after `tsci dev` also bundles BOM and pick-and-place.
+- For manufacturing, `tsci export <file> -f gerbers` writes one zip with Gerbers, drills, BOM, and pick-and-place (see `references/field-notes.md` on rotation and `doNotPlace`).
 
 ## Safety and non-goals
 
