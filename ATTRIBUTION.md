@@ -208,3 +208,6 @@ changes beyond paths:
   `docs/` checkout that upstream `.gitignore`s; they now point at the matching
   page on https://docs.tscircuit.com.
 - Upstream's `README.md` and `.gitignore` are not vendored.
+- `references/field-notes.md` is original to this repo: divergences between the
+  installed CLI and upstream's references, recorded from board work here. The
+  `pcbkeepout` element page carries a pointer to it.

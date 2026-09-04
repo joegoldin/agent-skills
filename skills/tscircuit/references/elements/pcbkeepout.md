@@ -2,6 +2,9 @@
 
 Keepout region that blocks copper/features in a PCB area.
 
+> Local note: CLI 0.0.2463 registers this element as `<keepout>`, not
+> `<pcbkeepout>`. See `../field-notes.md`.
+
 ## Example
 
 ```tsx

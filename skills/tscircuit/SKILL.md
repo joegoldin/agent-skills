@@ -27,6 +27,9 @@ When this Skill is active:
   design to KiCAD, run `tsci export <file> -f kicad_pcb` (also `kicad_sch`,
   `kicad_zip`, `kicad-library`), then follow the `konnect` skill for any edits
   to the resulting `.kicad_*` files.
+- Read `references/field-notes.md` before placing keepouts, writing manual
+  trace paths, building custom footprints, tuning autorouter clearance, or
+  exporting to KiCad. It records where the CLI diverges from these references.
 
 ## Default workflow
 
@@ -99,6 +102,7 @@ When this Skill is active:
 - Footprinter strings: `references/footprints.md`
 - Workflow patterns: `references/workflow.md`
 - Pre-export checklist: `references/checklist.md`
+- Local field notes (CLI vs docs divergences): `references/field-notes.md`
 - Ready-to-copy templates: `templates/`
 - Helper scripts: `scripts/` (`smoke_test.sh` builds the enclosing project, `export_svgs.sh` writes schematic and PCB SVGs, `fetch_ai_txt.sh` downloads upstream's `ai.txt` primer)
 
