@@ -5,5 +5,5 @@ behavior. If they conflict, mechanics win only for that capability.
 
 Nothing stages an action for implicit approval. Review before execution.
 
-Isolation surrounds the process, not the machine. Assume commands reach the
-host.
+No sandbox surrounds this process unless the user launched one around it.
+Commands run on the host as the user and change the machine.
