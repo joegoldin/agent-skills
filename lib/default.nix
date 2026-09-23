@@ -330,10 +330,7 @@ let
     let
       usingAgentSkillsSkill = lib.findFirst (s: s.name == "using-agent-skills") null skills;
     in
-    if usingAgentSkillsSkill != null then
-      builtins.readFile (usingAgentSkillsSkill.dir + "/SKILL.md")
-    else
-      "";
+    if usingAgentSkillsSkill != null then usingAgentSkillsSkill.parsed.body else "";
 
   # ── Build session-start hooks derivation (shared across all targets) ──
   buildSessionStartHooks =
@@ -349,7 +346,8 @@ let
         case "$basename" in
           *.sh)
             substitute "$item" $out/hooks/"$basename" \
-              --replace-fail @USING_AGENT_SKILLS@ ${skillContentFile}
+              --replace-fail @USING_AGENT_SKILLS@ ${skillContentFile} \
+              --replace-fail @JQ@ ${pkgs.jq}/bin/jq
             chmod +x $out/hooks/"$basename"
             ;;
           *) cp "$item" $out/hooks/"$basename" ;;

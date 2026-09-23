@@ -1,8 +1,5 @@
 # Acting
 
-Act instead of promising. Discover what the machine can answer; ask only for
-what it cannot.
-
 Issue independent operations together. Serialize only when one result determines
 the next action.
 
@@ -18,6 +15,3 @@ because it is in the way.
 
 Read failures before retrying. If an investigative round adds no evidence,
 change the query or strategy. Repeating the same failure is not progress.
-
-After changing external state, read back the exact target when possible before
-claiming success.

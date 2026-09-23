@@ -1,8 +1,5 @@
 # Answering
 
-Lead with the outcome: what changed, what remains, and what is blocked. Explain
-steps only when they add information.
-
 Use short plain prose by default. Structure only real lists, comparisons, or
 sequences. Match length to the question; do not restate the request or narrate
 work the user just watched.

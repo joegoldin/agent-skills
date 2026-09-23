@@ -708,6 +708,10 @@
 
               test -f ${piTree}/prompts/format-nix.md
               test -f ${piTree}/prompts/nix-dotfiles.md
+              test -f ${piTree}/prompts/brainstorming.md
+              test -f ${piTree}/prompts/writing-plans.md
+              test ! -e ${piTree}/skills/no-plan
+              test ! -e ${piTree}/prompts/no-plan.md
 
               # description and argument-hint carried over from frontmatter
               grep -qxF 'description: Format all Nix files in the project with nixfmt' \
@@ -747,7 +751,10 @@
               p=$(grep -o '/nix/store/[^"]*using-agent-skills-content' \
                     ${piTree}/extensions/agent-skills-session-start.ts | head -1)
               test -n "$p"
-              grep -q 'name: using-agent-skills' "$p"
+              grep -q '^# Using skills' "$p"
+              test "$(wc -w < "$p")" -le 180
+              ! grep -Eq 'EXTREMELY_IMPORTANT|LEGACY_WARNING|Skill tool' \
+                ${piTree}/extensions/agent-skills-session-start.ts
 
               # Only type imports — a value import from @earendil-works
               # would fail to resolve from a /nix/store path.
@@ -1131,7 +1138,11 @@
             piPackages = [ self.packages.${pkgs.system}.pi-plugin ] ++ piPlugins;
           in
           {
-            imports = [ pi-nix.homeManagerModules.coding-agent ];
+            imports = [
+              pi-nix.homeManagerModules.coding-agent
+              self.homeManagerModules.agent-skills
+              ./modules/pi-profile.nix
+            ];
             # pi loads a package directory wholesale — its skills, prompt
             # templates, and extensions in one entry. Local absolute paths
             # are a first-class package source, so the store paths go in
@@ -1178,6 +1189,7 @@
             # behind that option's back.
             programs.pi.coding-agent.extensionPackages = lib.mkDefault (
               map (n: pi-nix.packages.${pkgs.system}.${n}) [
+                "ext-gotgenes-pi-permission-system"
                 "ext-pi-mcp-adapter"
                 "ext-pi-subagents"
                 "ext-pi-background-tasks"
@@ -1185,7 +1197,6 @@
                 "ext-juicesharp-rpiv-todo"
                 "ext-narumitw-pi-goal"
                 "ext-narumitw-pi-btw"
-                "ext-gotgenes-pi-permission-system"
                 "ext-pi-cache-optimizer"
                 "ext-heyhuynhgiabuu-pi-pretty"
               ]
@@ -1199,6 +1210,8 @@
             ...
           }:
           {
+            # Pi and another runtime can both import this function module.
+            key = "${self}/homeManagerModules/agent-skills";
             imports = [ ./modules/agent-skills.nix ];
             programs.agent-skills.enable = lib.mkDefault true;
             programs.agent-skills.plugins = lib.mkBefore [
@@ -1212,29 +1225,30 @@
       # takes a host system as an argument rather than being indexed by one,
       # because the runner it returns is a darwin package wrapping a Linux
       # guest and neither system alone names it.
-      lib = forAllSystems (
-        { pkgs, ... }:
-        {
-          claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
-          agyLib = import "${antigravity-cli-nix}/lib" {
-            inherit pkgs;
-            lib = pkgs.lib;
-          };
-          codexLib = import "${codex-nix}/lib" {
-            inherit pkgs;
-            lib = pkgs.lib;
-          };
-          piLib = import "${pi-nix}/lib" {
-            inherit pkgs;
-            lib = pkgs.lib;
-          };
-        }
-      )
-      // {
-        # The macOS `re-shell` VM. Called by packages/re-shell's launcher with
-        # the directory it was run in, so the runner is built per invocation.
-        mkReShellVm = import ./lib/re-vm.nix { inherit nixpkgs microvm; };
-      };
+      lib =
+        forAllSystems (
+          { pkgs, ... }:
+          {
+            claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
+            agyLib = import "${antigravity-cli-nix}/lib" {
+              inherit pkgs;
+              lib = pkgs.lib;
+            };
+            codexLib = import "${codex-nix}/lib" {
+              inherit pkgs;
+              lib = pkgs.lib;
+            };
+            piLib = import "${pi-nix}/lib" {
+              inherit pkgs;
+              lib = pkgs.lib;
+            };
+          }
+        )
+        // {
+          # The macOS `re-shell` VM. Called by packages/re-shell's launcher with
+          # the directory it was run in, so the runner is built per invocation.
+          mkReShellVm = import ./lib/re-vm.nix { inherit nixpkgs microvm; };
+        };
 
       # ── Positive list of claude-targeted plugin packages ──
       # Same set the homeManagerModules.claude wires into
