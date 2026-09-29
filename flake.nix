@@ -1041,14 +1041,14 @@
             };
             skills = build.discoverSkills ./skills;
             skillPermissions = map (s: "Skill(agent-skills:${s.name})") skills;
-            claudePlugins = map (p: self.packages.${pkgs.system}."${p.name}-claude") (
+            claudePlugins = map (p: self.packages.${pkgs.stdenv.hostPlatform.system}."${p.name}-claude") (
               build.discoverPlugins ./plugins
             );
           in
           {
             imports = [ "${claude-nix}/modules/home-manager.nix" ];
             programs.claude-nix.plugins = lib.mkBefore (
-              [ self.packages.${pkgs.system}.claude-plugin ] ++ claudePlugins
+              [ self.packages.${pkgs.stdenv.hostPlatform.system}.claude-plugin ] ++ claudePlugins
             );
             programs.claude-nix.extraPermissions.allow = skillPermissions;
             programs.claude-nix.extraHooks = build.foldClaudeHooks (
@@ -1089,14 +1089,14 @@
               inherit pkgs lib;
               claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
             };
-            antigravityPlugins = map (p: self.packages.${pkgs.system}."${p.name}-antigravity") (
-              build.discoverPlugins ./plugins
-            );
+            antigravityPlugins = map (
+              p: self.packages.${pkgs.stdenv.hostPlatform.system}."${p.name}-antigravity"
+            ) (build.discoverPlugins ./plugins);
           in
           {
             imports = [ "${antigravity-cli-nix}/modules/home-manager.nix" ];
             programs.antigravity-cli-nix.plugins = lib.mkBefore (
-              [ self.packages.${pkgs.system}.antigravity-plugin ] ++ antigravityPlugins
+              [ self.packages.${pkgs.stdenv.hostPlatform.system}.antigravity-plugin ] ++ antigravityPlugins
             );
           };
 
@@ -1111,14 +1111,14 @@
               inherit pkgs lib;
               claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
             };
-            codexPlugins = map (p: self.packages.${pkgs.system}."${p.name}-codex") (
+            codexPlugins = map (p: self.packages.${pkgs.stdenv.hostPlatform.system}."${p.name}-codex") (
               build.discoverPlugins ./plugins
             );
           in
           {
             imports = [ "${codex-nix}/modules/home-manager.nix" ];
             programs.codex-nix.plugins = lib.mkBefore (
-              [ self.packages.${pkgs.system}.codex-plugin ] ++ codexPlugins
+              [ self.packages.${pkgs.stdenv.hostPlatform.system}.codex-plugin ] ++ codexPlugins
             );
           };
 
@@ -1134,8 +1134,10 @@
               inherit pkgs lib;
               claudeLib = import "${claude-nix}/lib" { inherit pkgs; };
             };
-            piPlugins = map (p: self.packages.${pkgs.system}."${p.name}-pi") (build.discoverPlugins ./plugins);
-            piPackages = [ self.packages.${pkgs.system}.pi-plugin ] ++ piPlugins;
+            piPlugins = map (p: self.packages.${pkgs.stdenv.hostPlatform.system}."${p.name}-pi") (
+              build.discoverPlugins ./plugins
+            );
+            piPackages = [ self.packages.${pkgs.stdenv.hostPlatform.system}.pi-plugin ] ++ piPlugins;
           in
           {
             imports = [
@@ -1188,7 +1190,7 @@
             # its own option in pi-nix, and naming them here would enable them
             # behind that option's back.
             programs.pi.coding-agent.extensionPackages = lib.mkDefault (
-              map (n: pi-nix.packages.${pkgs.system}.${n}) [
+              map (n: pi-nix.packages.${pkgs.stdenv.hostPlatform.system}.${n}) [
                 "ext-gotgenes-pi-permission-system"
                 "ext-pi-mcp-adapter"
                 "ext-pi-subagents"
@@ -1215,7 +1217,7 @@
             imports = [ ./modules/agent-skills.nix ];
             programs.agent-skills.enable = lib.mkDefault true;
             programs.agent-skills.plugins = lib.mkBefore [
-              self.packages.${pkgs.system}.claude-plugin
+              self.packages.${pkgs.stdenv.hostPlatform.system}.claude-plugin
             ];
           };
       };
