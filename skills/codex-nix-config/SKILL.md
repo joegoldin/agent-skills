@@ -48,6 +48,11 @@ The activation script (`copyCodexNixConfig`):
 3. **Agent TOML files** — Copied from collected plugin agent derivations into `~/.codex/agents/`.
 4. **AGENTS.md** — Written from `agentsMd` option if non-empty.
 
+The generated config always carries `features.daemon_auto_start = false`
+unless `settings` overrides it. Codex >= 0.157 otherwise launches the TUI
+through a background app-server daemon that needs a packaged CLI layout a Nix
+store build lacks, failing with "this CLI has no complete local package".
+
 ## Key config.toml Options
 
 ```toml
