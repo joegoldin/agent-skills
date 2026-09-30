@@ -37,9 +37,6 @@ kept minimal and are limited to:
   neutralized to render nothing, which drops the Superpowers brand footer and
   avoids the remote `primeradiant.com` brand-image request (a version-tagged
   beacon) so the companion never phones home.
-- **`using-agent-skills` harness references** — scoped to this plugin's build
-  targets: `references/codex-tools.md` (Codex) and `references/antigravity-tools.md`
-  (Antigravity). Upstream's `copilot`/`gemini`/`pi` reference files are not vendored.
 
 See the superpowers repository for the original versions.
 

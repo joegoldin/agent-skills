@@ -875,20 +875,20 @@
               };
               limits = {
                 core = {
-                  words = 430;
-                  characters = 3200;
+                  words = 100;
+                  characters = 650;
                 };
                 shared = {
-                  words = 400;
-                  characters = 2800;
+                  words = 300;
+                  characters = 1900;
                 };
                 pi-delta = {
-                  words = 70;
-                  characters = 500;
+                  words = 40;
+                  characters = 250;
                 };
                 pi-full = {
-                  words = 900;
-                  characters = 6500;
+                  words = 420;
+                  characters = 2700;
                 };
               };
               check =
