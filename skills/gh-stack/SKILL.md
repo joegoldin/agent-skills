@@ -15,6 +15,8 @@ Two surfaces, both covered here:
 - **`gh stack`** — the GitHub CLI extension that manages the chain locally and on GitHub.
 - **The stacks API** — REST endpoints, the async merge API, read-only GraphQL fields, and webhook payloads.
 
+**In a jj repository** (`.jj/` present), don't build or restack with `gh stack`. Its local tracking follows git branches and conflicts with jj's rewrites. Use the `jujutsu` skill, which drives the same native stacks through stakk. This skill still applies there for merging and the API.
+
 ## Orientation
 
 `gh stack` prints a stack trunk-first, left to right:

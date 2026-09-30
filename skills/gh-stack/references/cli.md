@@ -271,7 +271,7 @@ Commands that take an explicit stack number (`merge 7`, `unstack 7`) sidestep th
 
 ### Driving stacks from another tool or worktree
 
-`gh stack link` creates and updates stacks purely through the API, with no local tracking. Use it when branches are managed by jj, Sapling, git-town, a separate worktree, or any workflow where `.git/gh-stack` would be wrong or absent.
+`gh stack link` creates and updates stacks purely through the API, with no local tracking. Use it when branches are managed by jj, Sapling, git-town, a separate worktree, or any workflow where `.git/gh-stack` would be wrong or absent. For jj specifically, prefer stakk (see the `jujutsu` skill), which pushes the bookmarks and links the stack in one step.
 
 ```bash
 gh stack link branch-a branch-b branch-c        # bottom to top
