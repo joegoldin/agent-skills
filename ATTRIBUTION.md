@@ -179,32 +179,36 @@ this repo's `config.allowUnfree = true` instead of upstream's per-package
 reasons: `androguard` (broken `dataset` dep in nixpkgs) and `blackboxprotobuf`
 (hard-pins `protobuf==3.10.0`).
 
-## tscircuit Skill
+## kicad Skill
 
-The `tscircuit` skill is vendored from
-[tscircuit/skill](https://github.com/tscircuit/skill) (MIT License, Copyright
-(c) 2026 tscircuit), at upstream commit
-`14554d694f38b78c0f7ebde387263074ddd4bf2a`. The upstream `LICENSE` is preserved
-at `skills/tscircuit/LICENSE`.
+The analysis, simulation, and JLCPCB material in the `kicad` skill is vendored
+from [aklofas/kicad-happy](https://github.com/aklofas/kicad-happy) (MIT
+License, Copyright (c) 2025 Andrew Klofas), at upstream commit
+`a6bba1add1e18b89e3aa0824b9769ed1d9d79174`. The upstream `LICENSE` is
+preserved at `skills/kicad/LICENSE`.
 
-Upstream's flat layout is restructured for this repo: `CLI.md`, `SYNTAX.md`,
-`WORKFLOW.md`, `CHECKLIST.md`, and `FOOTPRINTS.md` become
-`references/{cli,syntax,workflow,checklist,footprints}.md`, `elements/` becomes
-`references/elements/`, and `templates/` and `scripts/` are kept as-is. The
-`SKILL.md` body is upstream's with its paths updated for that layout. Local
-changes beyond paths:
+Three of upstream's eleven skills are taken, plus one script from a fourth:
 
-- The description is rewritten as triggering conditions, and upstream's blanket
-  `allowed-tools: Read, Write, Grep, Glob, Bash` is narrowed to local `tsci`
-  subcommands (`tsci push`, `tsci login`, and `tsci dev` prompt).
-- A "This setup" section notes that `tsci` comes from the dotfiles kicad module
-  (so `tsci upgrade` / `tsci agent` do not apply) and that `tsci export -f
-  kicad_pcb` hands off to the `konnect` skill for KiCAD edits. The CLI primer's
-  prereqs and the scripts' "tsci not found" hint carry the same note.
-- Each element page's "Local docs" link pointed into an uncloned
-  `docs/` checkout that upstream `.gitignore`s; they now point at the matching
-  page on https://docs.tscircuit.com.
-- Upstream's `README.md` and `.gitignore` are not vendored.
-- `references/field-notes.md` is original to this repo: divergences between the
-  installed CLI and upstream's references, recorded from board work here. The
-  `pcbkeepout` element page carries a pointer to it.
+- `skills/kicad/{references,scripts,review}` → `kicad-happy/kicad/`, with
+  upstream's `SKILL.md` as `kicad-happy/kicad/guide.md`
+- `skills/spice/{references,scripts}` → `kicad-happy/spice/`, with its
+  `SKILL.md` as `kicad-happy/spice/guide.md`
+- `skills/jlcpcb/SKILL.md` → `references/jlcpcb.md`
+- `skills/bom/scripts/translate_bom_pnp.py` → `kicad-happy/bom/scripts/`
+
+The `kicad-happy/<skill>/` layout keeps upstream's sibling-relative imports
+(`spice` loads `../../kicad/scripts`) working unchanged. Local changes:
+
+- The three vendored `SKILL.md` files lose their YAML frontmatter, so no
+  runtime mistakes them for separate skills. Their bodies are unchanged.
+- `kicad/scripts/gen_output_schema_md.py` is dropped: it is a maintainer tool
+  that regenerates `output-schema.md` and imports the unvendored `emc` skill.
+- The `SKILL.md` is original to this repo. It routes design changes through the
+  Konnect MCP tools and maps upstream's paths onto this layout.
+- Upstream's `bom`, `datasheets`, `digikey`, `element14`, `emc`, `lcsc`,
+  `mouser`, and `pcbway` skills are not vendored. The analyzers' optional
+  `datasheets` imports fall back cleanly without it.
+
+This skill replaces the `tscircuit` skill, which was vendored from
+[tscircuit/skill](https://github.com/tscircuit/skill) (MIT) and has been
+removed.
