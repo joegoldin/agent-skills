@@ -29,6 +29,9 @@ in
         PI_SKIP_VERSION_CHECK.value = "1";
         PI_AUTOMODE_NO_STATUS_SLOT.value = "1";
         PI_CACHE_OPTIMIZER_NO_STATUS_SLOT.value = "1";
+        # Background shell commands only: pi-subagents covers delegation, and
+        # the delegate/fusion/attested tools cost ~5k tokens on every request.
+        PI_BG_FEATURES.value = "process";
       };
       autoMode = {
         enable = true;
