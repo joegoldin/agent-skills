@@ -577,9 +577,10 @@
             jq -e 'has("off") | not' ${piJson} >/dev/null
             jq -e '.ctx.command == "npx" and (.ctx.args == ["-y","ctx"])' ${piJson} >/dev/null
 
-            # pi remote -> pi-mcp-adapter shape: url + headers + auth/bearerTokenEnv
+            # pi remote -> native mcp.json: url + headers, the explicit
+            # Authorization header winning over the bearer-token env var
             jq -e '.remote.url == "https://x/mcp" and .remote.headers.Authorization == "Bearer Y"' ${piJson} >/dev/null
-            jq -e '.remote.auth == "bearer" and .remote.bearerTokenEnv == "TOK"' ${piJson} >/dev/null
+            jq -e '.remote | (has("auth") | not) and (has("bearerTokenEnv") | not)' ${piJson} >/dev/null
 
             # pi must not inherit any other target's remote spelling
             jq -e '.remote | (has("type") | not) and (has("serverUrl") | not) and (has("bearer_token_env_var") | not) and (has("http_headers") | not)' ${piJson} >/dev/null
@@ -1179,8 +1180,9 @@
 
             # The curated third-party set, enabled by default because each one
             # restores something pi deliberately omits and this library's
-            # skills assume: MCP, subagents, todos, background bash, structured
-            # questions, and goal-driven looping. pi-nix packages them; the
+            # skills assume: subagents, todos, background bash, structured
+            # questions, and goal-driven looping. MCP is no longer on the list:
+            # pi has connected servers natively since 0.99.0. pi-nix packages them; the
             # choice of which to run is an opinion, and this is the opinion
             # layer, so it lives here rather than there.
             #
@@ -1192,7 +1194,6 @@
             programs.pi.coding-agent.extensionPackages = lib.mkDefault (
               map (n: pi-nix.packages.${pkgs.stdenv.hostPlatform.system}.${n}) [
                 "ext-gotgenes-pi-permission-system"
-                "ext-pi-mcp-adapter"
                 "ext-pi-subagents"
                 "ext-pi-background-tasks"
                 "ext-juicesharp-rpiv-ask-user-question"

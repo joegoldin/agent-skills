@@ -11,6 +11,7 @@
 let
   cfg = config.programs.agent-skills;
   mcpLib = import ../lib/mcp.nix { inherit lib; };
+  piMcpServers = mcpLib.mcpNativeFor "pi" cfg.mcpServers;
   promptLib = import ../lib/prompt.nix { inherit lib; };
   inherit (lib)
     mkOption
@@ -229,13 +230,13 @@ in
       ++ lib.optional (options.programs ? antigravity-cli-nix) {
         programs.antigravity-cli-nix.mcpServers = mcpLib.mcpNativeFor "antigravity" cfg.mcpServers;
       }
-      # pi has no MCP of its own; pi-mcp-adapter reads a standard MCP config
-      # file. ~/.agents/mcp.json is the tool-agnostic path in its precedence
-      # list, and the sibling of the ~/.agents/skills directory this module
-      # already owns — so no pi-nix option is needed for this.
+      # pi reads its own servers from ~/.pi/agent/mcp.json. Written only when
+      # there is a server to declare: pi also writes that file itself (`pi mcp
+      # add`, exposure changes in `/mcp`, the Radius login), and an empty
+      # store-path symlink would only stop it from doing so.
       ++ lib.optional (options.programs ? pi) {
-        home.file.".agents/mcp.json".text = builtins.toJSON {
-          mcpServers = mcpLib.mcpNativeFor "pi" cfg.mcpServers;
+        home.file.".pi/agent/mcp.json" = lib.mkIf (piMcpServers != { }) {
+          text = builtins.toJSON { mcpServers = piMcpServers; };
         };
       }
       # Auto-mode rules fan out the same way, but with a second guard: the

@@ -57,6 +57,11 @@ in
           "edit(*.env)"
         ];
         log.enable = true;
+        # Let the classifier answer `external_directory` asks (a write to /tmp,
+        # a read in a sibling repo) instead of prompting for every one. `path`
+        # stays excluded: it is the gate the agenix and auth.json denies below
+        # sit on, and a link may never turn it into an allow.
+        permissionSystem.delegationExcludedSurfaces = [ "path" ];
         permissionSystem.settings = {
           debugLog = false;
           permissionReviewLog = true;
@@ -98,6 +103,9 @@ in
         enableAnalytics = false;
         enableInstallTelemetry = false;
         quietStartup = true;
+        # Built in since pi 0.99.0 but registered inactive. MCP servers reach
+        # the model through codemode's searchTools() by default.
+        defaultTools = [ "+codemode" ];
       };
       # The other entrypoint imposes an unrelated Anthropic OAuth requirement.
       entrypointOverrides.pi-background-tasks = [ "./extensions/background-tasks.ts" ];

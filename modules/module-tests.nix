@@ -114,7 +114,7 @@ let
   withPi = evalWith [ piStub ];
   withoutPi = evalWith [ claudeStub ];
 
-  piMcp = builtins.fromJSON withPi.home.file.".agents/mcp.json".text;
+  piMcp = builtins.fromJSON withPi.home.file.".pi/agent/mcp.json".text;
   promptLib = import ../lib/prompt.nix { inherit lib; };
 in
 lib.debug.runTests {
@@ -124,16 +124,15 @@ lib.debug.runTests {
   };
   testPiMcpRemoteShape = {
     expr = {
-      inherit (piMcp.mcpServers.remote) url auth bearerTokenEnv;
+      inherit (piMcp.mcpServers.remote) url headers;
     };
     expected = {
       url = "https://x/mcp";
-      auth = "bearer";
-      bearerTokenEnv = "TOK";
+      headers.Authorization = "Bearer \${TOK}";
     };
   };
   testNoPiNoMcpFile = {
-    expr = withoutPi.home.file ? ".agents/mcp.json";
+    expr = withoutPi.home.file ? ".pi/agent/mcp.json";
     expected = false;
   };
   testAutoModeFansOutToPi = {

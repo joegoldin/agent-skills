@@ -84,17 +84,20 @@ let
       // optionalAttrs (s.bearerTokenEnvVar != null) { bearer_token_env_var = s.bearerTokenEnvVar; }
       // optionalAttrs (s.headers != { }) { http_headers = s.headers; }
     else if target == "pi" then
-      # pi has no native MCP; this is pi-mcp-adapter's mcp.json schema.
-      # `headers` is spelled the same as claude/antigravity; the bearer-token
-      # env var is `bearerTokenEnv` and must be paired with auth = "bearer".
+      # pi's native mcp.json has no bearer-token field. It expands ${VAR} in
+      # header values instead, which is what `pi mcp add --bearer-token-env-var`
+      # writes. An explicit Authorization header wins over the env var.
+      let
+        headers =
+          optionalAttrs (s.bearerTokenEnvVar != null) {
+            Authorization = "Bearer \${${s.bearerTokenEnvVar}}";
+          }
+          // s.headers;
+      in
       {
         url = s.url;
       }
-      // optionalAttrs (s.headers != { }) { inherit (s) headers; }
-      // optionalAttrs (s.bearerTokenEnvVar != null) {
-        auth = "bearer";
-        bearerTokenEnv = s.bearerTokenEnvVar;
-      }
+      // optionalAttrs (headers != { }) { inherit headers; }
     else
       throw "agent-skills mcpServers.${name}: unknown target '${target}' (known: claude, antigravity, codex, pi)";
 
