@@ -67,7 +67,14 @@ in
           permissionReviewLog = true;
           yoloMode = false;
           permission = {
-            # The chain can deny external paths but cannot approve them.
+            # Unlisted tools fall to the default `"*": "ask"`, and every ask
+            # costs a classifier call. These two cannot do harm: `todo` edits
+            # the agent's own task list, and a `read` outside the working
+            # directory still asks through external_directory below, so in
+            # practice this frees only /nix/store reads.
+            read = "allow";
+            todo = "allow";
+            # Auto mode answers the ask for any other external path.
             external_directory = {
               "*" = "ask";
               "/nix/store" = "allow";
