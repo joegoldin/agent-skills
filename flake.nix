@@ -1190,7 +1190,10 @@
             # fighting a priority. The first-party extensions (auto-mode,
             # notify, statusline, intercom) are not listed: each arrives from
             # its own option in pi-nix, and naming them here would enable them
-            # behind that option's back.
+            # behind that option's back. pi-ui is the exception: first-party,
+            # but with no option of its own, so it is enabled here. It replaces
+            # pi-pretty, whose tool rendering, prompt box and FFF search it
+            # carries over.
             programs.pi.coding-agent.extensionPackages = lib.mkDefault (
               map (n: pi-nix.packages.${pkgs.stdenv.hostPlatform.system}.${n}) [
                 "ext-gotgenes-pi-permission-system"
@@ -1201,7 +1204,7 @@
                 "ext-narumitw-pi-goal"
                 "ext-narumitw-pi-btw"
                 "ext-pi-cache-optimizer"
-                "ext-heyhuynhgiabuu-pi-pretty"
+                "ext-pi-ui"
                 "ext-narumitw-pi-usage"
               ]
               ++ [
