@@ -1181,7 +1181,7 @@
             # The curated third-party set, enabled by default because each one
             # restores something pi deliberately omits and this library's
             # skills assume: subagents, todos, background bash, structured
-            # questions, and goal-driven looping. MCP is no longer on the list:
+            # questions, goal-driven looping, and web search. MCP is no longer on the list:
             # pi has connected servers natively since 0.99.0. pi-nix packages them; the
             # choice of which to run is an opinion, and this is the opinion
             # layer, so it lives here rather than there.
@@ -1202,6 +1202,22 @@
                 "ext-narumitw-pi-btw"
                 "ext-pi-cache-optimizer"
                 "ext-heyhuynhgiabuu-pi-pretty"
+              ]
+              ++ [
+                # Search only through the ChatGPT subscription pi is signed
+                # into. An explicit provider is strict, so a failed search
+                # errors rather than falling back to Exa or another service.
+                (
+                  let
+                    webAccess = pi-nix.packages.${pkgs.stdenv.hostPlatform.system}.ext-pi-web-access;
+                  in
+                  webAccess
+                  // {
+                    passthru = webAccess.passthru // {
+                      configFiles."web-search.json".provider = "openai";
+                    };
+                  }
+                )
               ]
             );
           };
