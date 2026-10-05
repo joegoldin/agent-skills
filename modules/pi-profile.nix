@@ -129,21 +129,6 @@ in
       entrypointOverrides.pi-background-tasks = [ "./extensions/background-tasks.ts" ];
     };
 
-    programs.fish.functions = {
-      pi-openrouter = {
-        description = "Pi on OpenRouter (first argument is the model)";
-        body = ''
-          if set -q argv[1]
-              command pi --model openrouter/$argv[1] $argv[2..]
-          else
-              echo "pi-openrouter: name a model, e.g. anthropic/claude-sonnet-4" >&2
-              echo "browse them with: pi --list-models openrouter" >&2
-              return 1
-          end
-        '';
-      };
-    };
-
     home.file.".pi/agent/keybindings.json".text = builtins.toJSON {
       "tui.editor.deleteWordBackward" = [
         "ctrl+w"
