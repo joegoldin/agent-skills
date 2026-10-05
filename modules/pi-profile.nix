@@ -103,8 +103,19 @@ in
         installSkill = false;
       };
       settings = {
-        defaultProvider = "openai-codex";
+        # Sign in with ChatGPT lives on the openai provider since pi 1.0;
+        # openai-codex is the legacy one.
+        defaultProvider = "openai";
         defaultModel = "gpt-6-astra";
+        # Ctrl+P cycles only these; /model still lists every provider. Exact
+        # references, because a glob such as `openai/*` is also checked against
+        # bare model IDs and so matches OpenRouter's `openai/gpt-…` models.
+        enabledModels = [
+          "openai/gpt-6-astra"
+          "openai/gpt-6.1-sol"
+          "openai/gpt-6-sol"
+          "openai/gpt-6-luna"
+        ];
         defaultThinkingLevel = "medium";
         tuiMode = "regular";
         enableAnalytics = false;
