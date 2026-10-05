@@ -32,6 +32,11 @@ in
         # Background shell commands only: pi-subagents covers delegation, and
         # the delegate/fusion/attested tools cost ~5k tokens on every request.
         PI_BG_FEATURES.value = "process";
+        # pi-lens otherwise downloads language servers and linters into
+        # ~/.pi-lens at runtime; it uses whatever the project's devshell puts
+        # on PATH instead.
+        PI_LENS_DISABLE_LSP_INSTALL.value = "1";
+        PI_LENS_DISABLE_TOOL_INSTALL.value = "1";
       };
       autoMode = {
         enable = true;

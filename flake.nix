@@ -1202,8 +1202,25 @@
                 "ext-narumitw-pi-btw"
                 "ext-pi-cache-optimizer"
                 "ext-heyhuynhgiabuu-pi-pretty"
+                "ext-narumitw-pi-usage"
               ]
               ++ [
+                # Diagnostics only: left on, its formatter and autofixer
+                # rewrite files the agent just wrote, outside the agent's view.
+                (
+                  let
+                    lens = pi-nix.packages.${pkgs.stdenv.hostPlatform.system}.ext-pi-lens;
+                  in
+                  lens
+                  // {
+                    passthru = lens.passthru // {
+                      configFiles."extensions/pi-lens.json" = {
+                        format.enabled = false;
+                        autofix.enabled = false;
+                      };
+                    };
+                  }
+                )
                 # Search only through the ChatGPT subscription pi is signed
                 # into. An explicit provider is strict, so a failed search
                 # errors rather than falling back to Exa or another service.
