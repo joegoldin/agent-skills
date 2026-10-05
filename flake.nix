@@ -1203,7 +1203,6 @@
                 "ext-juicesharp-rpiv-todo"
                 "ext-narumitw-pi-goal"
                 "ext-narumitw-pi-btw"
-                "ext-pi-cache-optimizer"
                 "ext-pi-ui"
                 "ext-narumitw-pi-usage"
               ]
