@@ -130,16 +130,6 @@ in
     };
 
     programs.fish.functions = {
-      pi-codex = {
-        description = "Pi on the Codex subscription";
-        body = ''
-          if set -q argv[1]
-              command pi --model openai/$argv[1] $argv[2..]
-          else
-              command pi --model ${cfg.settings.defaultProvider}/${cfg.settings.defaultModel}:${cfg.settings.defaultThinkingLevel} $argv
-          end
-        '';
-      };
       pi-openrouter = {
         description = "Pi on OpenRouter (first argument is the model)";
         body = ''
