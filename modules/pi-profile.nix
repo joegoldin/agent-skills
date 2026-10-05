@@ -35,7 +35,7 @@ in
       };
       autoMode = {
         enable = true;
-        classifierModel = "openai-codex/gpt-6-luna";
+        classifierModel = "openai/gpt-6-luna";
         allowInsideWorkingDirectory = true;
         deniedPaths = [
           "~/.ssh/*"
@@ -134,7 +134,7 @@ in
         description = "Pi on the Codex subscription";
         body = ''
           if set -q argv[1]
-              command pi --model openai-codex/$argv[1] $argv[2..]
+              command pi --model openai/$argv[1] $argv[2..]
           else
               command pi --model ${cfg.settings.defaultProvider}/${cfg.settings.defaultModel}:${cfg.settings.defaultThinkingLevel} $argv
           end
