@@ -122,7 +122,10 @@ in
           "openai/gpt-6-luna"
         ];
         defaultThinkingLevel = "medium";
-        tuiMode = "regular";
+        # Fullscreen owns the mouse, which is what lets a click on a tool card
+        # expand or collapse just that card; regular mode leaves the mouse to
+        # the terminal. The transcript is printed when pi exits.
+        tuiMode = "fullscreen";
         enableAnalytics = false;
         enableInstallTelemetry = false;
         quietStartup = true;
