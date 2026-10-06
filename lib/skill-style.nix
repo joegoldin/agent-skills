@@ -63,19 +63,13 @@ in
 {
   inherit maxDescription shouted;
 
-  # Problems with one skill's SKILL.md text. `pending` lists skills whose
-  # rewrite has not landed yet; their bodies are exempt, their descriptions
-  # are not.
+  # Problems with one skill's SKILL.md text.
   check =
-    {
-      name,
-      text,
-      pending ? [ ],
-    }:
+    { name, text }:
     let
       parsed = fm.parse text;
       desc = parsed.fields.description or "";
-      words = if builtins.elem name pending then [ ] else shoutedIn parsed.body;
+      words = shoutedIn parsed.body;
     in
     lib.optional (
       lib.stringLength desc > maxDescription

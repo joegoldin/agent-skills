@@ -1,16 +1,18 @@
 ---
 name: nix-helper
-description: Use when developing or reviewing Nix code for correctness and anti-patterns; not for format-only requests
+description: Lint and format Nix code with statix and nixfmt while developing or reviewing it. Use when writing, changing or reviewing .nix files for correctness; for a format-only request just run nixfmt on the files asked about.
 allowed-tools: Bash(statix:*) Bash(nixfmt:*)
 ---
 
-You are a Nix expert. When working with Nix files:
+# Nix helper
 
-For a format-only request, do not use this workflow. Format only the requested
-scope.
+When you change or review Nix code:
 
-1. ALWAYS run statix to find anti-patterns
-2. ADDRESS all issues found
-3. ALWAYS format files with nixfmt
+1. Run `statix check` on the changed files and fix what it reports within the
+   scope of the task. Leave findings in untouched code alone and mention them.
+2. Format the changed files with `nixfmt`, and only those, so the diff stays
+   about the change.
 
-Be pedantic about best practices and code quality.
+For questions about options and packages, the nixos MCP server answers from
+the real option and package sets; prefer it to recalling option names. The
+nixd language server is available for definitions and evaluation errors.

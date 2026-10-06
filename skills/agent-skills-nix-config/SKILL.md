@@ -1,6 +1,6 @@
 ---
 name: agent-skills-nix-config
-description: Use when authoring or changing shared skills, skill frontmatter, sidecars, subagents, or cross-runtime skill packaging in this Nix repository
+description: Build contract and release flow for the agent-skills Nix repository, plus each runtime's Home Manager settings (Claude Code, Codex, Antigravity, Pi). Use when changing skill packaging, sidecars, subagents, or how a runtime is configured through Nix.
 ---
 
 # Agent Skills Nix Configuration
@@ -8,6 +8,16 @@ description: Use when authoring or changing shared skills, skill frontmatter, si
 This repository is the source of truth for skills shared by Claude Code,
 Codex, Antigravity CLI, and Pi. Use `writing-skills` for authoring method and
 this skill for the repository's build contract.
+
+For one runtime's settings, permissions, hooks and Home Manager options, read
+its reference:
+
+- [references/claude.md](references/claude.md): Claude Code through `claude-nix`
+- [references/codex.md](references/codex.md): Codex through `codex-nix`
+- [references/antigravity.md](references/antigravity.md): Antigravity CLI
+  through `antigravity-cli-nix`
+- Pi: `modules/pi-profile.nix` here holds the profile (extensions, auto-mode
+  denied paths, prompt); `modules/ai/pi.nix` in the dotfiles enables it
 
 ## Source Layout
 
@@ -30,7 +40,9 @@ central registry entry is needed.
 
 - `name` equal to the directory name, using lowercase letters, numbers, and
   single hyphens, with a maximum of 64 characters
-- A single-line `description`, maximum 1024 characters
+- A single-line `description`, maximum 1024 characters for the build and 300
+  for the `skill-style` check, with no unquoted `: ` or ` #` (runtimes parse
+  it as YAML and drop a skill whose value breaks)
 - `allowed-tools` as a space-separated string; use commas when an entry itself
   contains a space
 - No empty `allowed-tools` value
@@ -97,16 +109,34 @@ nix build .#antigravity-plugin
 nix build .#pi-plugin
 ```
 
-## Release and Apply
-
-After verification, push this repository, then update its input in the dotfiles
-repository:
+To try a change on this machine before releasing it, build the dotfiles
+against the working copy:
 
 ```sh
-git push
-cd ~/dotfiles
-nix flake update agent-skills
+cd ~/Development/dotfiles
+nix build --no-link --override-input agent-skills path:$HOME/Development/agent-skills \
+  .#darwinConfigurations.torrent.config.home-manager.users.joe.home.path
 ```
 
-Apply the host configuration with `just switch` or `nixos-rebuild switch` on
-NixOS, and `darwin-rebuild switch` on macOS.
+## Release and Apply
+
+This repository and the dotfiles are colocated jj repositories; make VCS
+writes with jj. After verification, commit, move the bookmark and push:
+
+```sh
+jj commit -m "feat(skills): ..." <paths>
+jj bookmark set main -r @-
+jj git push -b main
+```
+
+Then update the input in the dotfiles, commit the lock, and apply:
+
+```sh
+cd ~/Development/dotfiles
+nix flake update agent-skills
+jj commit -m "chore(flake): bump agent-skills" flake.lock
+jj bookmark set main -r @-
+just switch
+```
+
+`just switch` picks nix-darwin or NixOS for the current host.

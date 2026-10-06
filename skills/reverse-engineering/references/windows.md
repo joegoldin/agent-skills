@@ -1,13 +1,8 @@
----
-name: windows-re
-description: Reverse engineering Windows targets (PE files, .NET assemblies, drivers, installers, memory dumps). Use when the target is a Windows executable, DLL, driver or installer.
----
+# Windows targets
 
-# Windows Reverse Engineering
-
-Windows-specific tools in the `re-shell` devShell. For the shared toolchain
-(Ghidra, radare2, rizin, binwalk, Frida, YARA, the output-directory conventions,
-and the Python/Node environments), see the **reverse-engineering** skill.
+PE files, .NET assemblies, installers, memory dumps and Wine. The shared
+toolchain (Ghidra, radare2, YARA, `upx`) and the `tmp/` and `artifacts/`
+conventions are in SKILL.md.
 
 ## PE analysis and inspection
 

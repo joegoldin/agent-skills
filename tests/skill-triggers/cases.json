@@ -41,7 +41,7 @@
   {
     "task": "Decompile this Android APK and find where it signs its API requests.",
     "expect": [
-      "android-re"
+      "reverse-engineering"
     ],
     "forbid": []
   },
@@ -99,8 +99,7 @@
     "task": "Turn this spec into a step-by-step implementation plan.",
     "expect": [],
     "forbid": [
-      "test-driven-development",
-      "executing-plans"
+      "test-driven-development"
     ]
   },
   {

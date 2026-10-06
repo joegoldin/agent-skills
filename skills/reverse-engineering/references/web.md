@@ -1,13 +1,8 @@
----
-name: web-re
-description: Reverse engineering web and network protocols (protobuf and gRPC, HAR captures, undocumented HTTP or WebSocket APIs, TLS-fingerprinted endpoints). Use when decoding or replaying traffic from a service with no published API.
----
+# Web and network protocols
 
-# Web Reverse Engineering
-
-Web/protocol tools in the `re-shell` devShell. For the shared toolchain
-(mitmproxy, tshark, nmap, avahi, jq, the output-directory conventions, and the
-Python/Node environments), see the **reverse-engineering** skill.
+Protobuf and gRPC, HAR captures, undocumented HTTP and WebSocket APIs, and
+TLS-fingerprinted endpoints. Interception and discovery (mitmproxy, tshark,
+nmap, avahi) and the `tmp/` and `artifacts/` conventions are in SKILL.md.
 
 ## Protocol Buffers and gRPC
 

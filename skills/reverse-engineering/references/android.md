@@ -1,14 +1,8 @@
----
-name: android-re
-description: Reverse engineering Android targets (APKs, DEX and smali, native .so libraries, OTA images, devices over ADB). Use when the target is an Android app, its libraries, or an Android device or image.
----
+# Android targets
 
-# Android Reverse Engineering
-
-Android-specific tools in the `re-shell` devShell. For the shared toolchain
-(Ghidra, radare2, rizin, binwalk, Frida, YARA, mitmproxy, the output-directory
-conventions, and the Python/Node environments), see the **reverse-engineering**
-skill.
+APKs, DEX and smali, native `.so` libraries, devices over ADB, and OTA images.
+The shared toolchain (Ghidra, radare2, Frida, mitmproxy) and the `tmp/` and
+`artifacts/` conventions are in SKILL.md.
 
 ## APK disassembly and manipulation
 
@@ -126,7 +120,7 @@ mitmproxy --listen-port 8080   # then intercept
   wireless debugging, and `frida -H <phone-ip>:27042` against a listening
   frida-server. Frida itself must be the guest's native build,
   `/run/current-system/sw/bin/frida{,-ps,-trace}`; the shell's x86_64 copy
-  crashes under Rosetta. See the **reverse-engineering** skill.
+  crashes under Rosetta. The VM notes in SKILL.md cover this.
 - For HTTPS interception, push the mitmproxy CA to the device:
   `adb push ~/.mitmproxy/mitmproxy-ca-cert.cer /sdcard/` and install it.
 - `bytecode-viewer` and `jadx-gui` need a display server; use the CLI

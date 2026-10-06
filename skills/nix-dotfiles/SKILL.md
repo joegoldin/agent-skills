@@ -11,25 +11,19 @@ the dendritic pattern with den (github:denful/den): every non-underscore
 are den *aspects* (one file per feature, carrying nixos/darwin/homeManager
 halves together), and hosts are den *entities* that select aspects via
 `includes`. Read the repo's README.md for the architecture; the key rule:
-a NEW file under modules/ is immediately live — disable by underscore-
-prefixing, never by commenting an import.
+a new file under modules/ is immediately live, so disable one by
+underscore-prefixing it rather than commenting out an import.
 
-## Hosts (modules/hosts/<dir>/)
+## Hosts (modules/hosts/<name>/)
 
-| Host | Platform | Config dir |
-|------|----------|------------|
-| joe-desktop | NixOS (x86_64-linux), KDE Plasma 6 | modules/hosts/joe-desktop/ |
-| office-pc | NixOS (x86_64-linux), compute/training, AMD GPU | modules/hosts/office-pc/ |
-| joe-steamdeck | NixOS (x86_64-linux), Jovian/Steam Deck | modules/hosts/joe-steamdeck/ |
-| Joes-MacBook-Pro | macOS (aarch64-darwin) | modules/hosts/macbook/ |
-| cloud-proxy | NixOS VPS (caddy reverse proxy) | modules/hosts/cloud-proxy/ |
-| oracle-cloud-bastion | NixOS server (hostName "bastion") | modules/hosts/oracle-cloud-bastion/ |
-| racknerd-cloud-agent | NixOS server (attic cache) | modules/hosts/racknerd-cloud-agent/ |
+README.md holds the host table (name, platform, role); `ls modules/hosts/`
+lists every host, and each `default.nix` opens with a comment on what the
+machine is for. This machine is `torrent` (aarch64-darwin).
 
-Each host dir: default.nix (entity + aspect includes + agenix secrets),
-system.nix (base system), machine.nix (hardware tuning), home.nix
-(host-specific home config), plus per-concern sibling files — all merge
-into den.aspects.<host> by name.
+A host dir usually has default.nix (entity, aspect includes, agenix
+secrets), system.nix (base system), machine.nix (hardware tuning) and home.nix
+(host-specific home config), plus per-concern sibling files; all merge into
+den.aspects.<host> by name.
 
 ## Key Files — Where to make changes
 
@@ -41,15 +35,15 @@ into den.aspects.<host> by name.
 | Define a custom package from source | modules/flake/_pkgs/ (register in its default.nix) |
 | Add a flake input | flake.nix (inputs; reference it only in the owning aspect) |
 | Add an overlay | modules/flake/_overlays/default.nix (see its README) |
-| New home-manager feature | modules/home/<feature>.nix as den.aspects.<feature>.homeManager, then add to a host's includes / home-baseline / users/joe.nix |
+| New home-manager feature | modules/home/<feature>.nix as den.aspects.<feature>.homeManager, then add to a host's includes, home-baseline (modules/home/baseline.nix) or modules/users/joe.nix |
 | NixOS system config for one host | modules/hosts/<host>/system.nix or a new sibling aspect file |
 | Shared system feature | modules/system/<feature>.nix (aspect) |
-| macOS homebrew package | modules/hosts/macbook/homebrew.nix |
-| macOS system settings | modules/hosts/macbook/mac-system.nix |
+| macOS homebrew package | modules/hosts/torrent/homebrew.nix |
+| macOS system settings | modules/hosts/torrent/mac-system.nix |
 | KDE Plasma config | modules/home/plasma.nix (shared) or modules/hosts/<host>/home.nix + _plasma-panels.nix |
 | Fish shell config | modules/home/fish/ |
 | Git config | modules/home/git.nix |
-| AI tooling (claude/codex/antigravity/mcp) | modules/ai/ |
+| AI tooling (claude, codex, antigravity, pi, mcp) | modules/ai/ |
 | User scripts (bins) | modules/home/bin/_scripts/<name>.nix |
 
 ## Package Patterns (copy these)
@@ -68,18 +62,22 @@ into den.aspects.<host> by name.
 - `additions` — custom packages from `modules/flake/_pkgs/`
 - `modifications` — patches to existing packages
 - `unstable-packages` — makes `pkgs.unstable.*` available
-- `llm-agents-packages` — Claude Code, Codex, Gemini CLI
+- `llm-agents-packages` — `pkgs.llm-agents.*` (Claude Code, Codex, Antigravity)
 - `mcps-packages` — MCP servers
 
 ## Conventions
 
-- Formatter: nixfmt (pre-commit hook enforced)
-- Lint: statix, gitleaks
+- Formatter: nixfmt (pre-commit hook; `just lint` runs `nix fmt`)
+- Secrets scan: gitleaks (pre-commit hook)
 - Dual nixpkgs: stable (nixos-26.05) + unstable channel (`pkgs.unstable.*`)
 - No URL pins (flake.lock is the pin; update via `just flake-update`)
-- Apply NixOS: `just switch` (nh) or `sudo nixos-rebuild switch --flake .`
-- Apply macOS: `darwin-rebuild switch --flake .`
+- Apply: `just switch` (nh; picks NixOS or nix-darwin for the current host),
+  or `just build` to build without activating. Remote hosts have
+  `just build-to-<host>` recipes.
 - Test build: `nix build .#packageName`
+- VCS: the repo is a colocated jj repo; commit with
+  `jj commit -m "..." <paths>` and move the bookmark with
+  `jj bookmark set main -r @-`, never with git
 
 ## Your task
 

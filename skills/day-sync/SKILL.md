@@ -35,7 +35,7 @@ the daily note.
 }
 ```
 
-`query_exclude_statuses` filters server-side and MUST name real status
+`query_exclude_statuses` filters server-side and has to name real status
 options from the Notion DB (Notion 400s on unknown names); leave it out to
 filter client-side only via `done_statuses`.
 

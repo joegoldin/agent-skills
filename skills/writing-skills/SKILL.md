@@ -1,7 +1,6 @@
 ---
 name: writing-skills
 description: Write and revise agent skills so they load when they should and read well to current models. Use when creating or editing a skill, or changing its description.
-allowed-tools: Bash(dot:*)
 ---
 
 # Writing Skills
@@ -91,9 +90,9 @@ not scope reliably, so restructure so the rule cannot reach what is exempt.
 Refer to other skills by name. Don't `@`-include files; that loads them into
 context immediately.
 
-One good example beats several adequate ones. Flowcharts only for a decision a
-reader would otherwise get wrong; `graphviz-conventions.dot` has the style and
-`render-graphs.js` renders them.
+One good example beats several adequate ones. Write a decision as a numbered
+list or a table rather than a flowchart; models follow prose steps more
+reliably than graph source.
 
 ## Frontmatter
 

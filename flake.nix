@@ -265,8 +265,7 @@
       # Python venv, and the apk-mitm Node tool. Entered with the `re-shell`
       # launcher (packages/re-shell, shipped by the reverse-engineering skill)
       # or `nix develop github:joegoldin/agent-skills#re-shell` directly.
-      # Documented by the reverse-engineering, android-re, windows-re, and
-      # web-re skills.
+      # Documented by the reverse-engineering skill and its references.
       devShells = nixpkgs.lib.genAttrs reShellSystems (
         system:
         let
@@ -507,7 +506,7 @@
                 *-Djava.io.tmpdir=*) ;;
                 *) export _JAVA_OPTIONS="-Djava.io.tmpdir=$PWD/tmp/jtmp''${_JAVA_OPTIONS:+ $_JAVA_OPTIONS}" ;;
               esac
-              echo "re-shell RE environment loaded. See the reverse-engineering, android-re, windows-re, and web-re skills for tool docs."
+              echo "re-shell RE environment loaded. See the reverse-engineering skill for tool docs."
             '';
           };
         }
@@ -921,19 +920,11 @@
             else
               throw "skill style tests failed: ${builtins.toJSON failures}";
 
-          # writing-skills' rules as a gate: short descriptions, no shouted
-          # imperatives. `pending` holds skills whose rewrite has not landed;
-          # it shrinks to empty as they do.
+          # writing-skills' rules as a gate: short descriptions that parse as
+          # YAML, no shouted imperatives.
           skill-style =
             let
               style = import ./lib/skill-style.nix { inherit lib; };
-              pending = [
-                "day-sync"
-                "nix-helper"
-                "receiving-code-review"
-                "using-garnix-ci"
-                "using-git-worktrees"
-              ];
               names = lib.attrNames (
                 lib.filterAttrs (
                   n: t: t == "directory" && builtins.pathExists (./skills + "/${n}/SKILL.md")
@@ -942,7 +933,7 @@
               failures = lib.concatMap (
                 name:
                 style.check {
-                  inherit name pending;
+                  inherit name;
                   text = builtins.readFile (./skills + "/${name}/SKILL.md");
                 }
               ) names;

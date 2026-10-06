@@ -1,13 +1,6 @@
----
-name: claude-nix-config
-description: Use when changing Claude Code runtime settings, permissions, hooks, status line, or Home Manager integration in this Nix and dotfiles stack
----
+# Claude Code
 
-# Claude Nix Configuration
-
-Claude Code is managed declaratively through `claude-nix`. Shared skill,
-frontmatter, sidecar, and subagent authoring belongs to
-`agent-skills-nix-config`.
+Claude Code is managed declaratively through `claude-nix`.
 
 ## Integration Points
 
@@ -25,9 +18,8 @@ enables the status line.
 ## Permissions
 
 Use `programs.claude-nix.extraPermissions.{allow,ask,deny}` for additive
-repository-wide permissions. Do not set
-`programs.claude-nix.settings.permissions.*` for an additive change: those
-lists replace the defaults from `claude-nix`.
+repository-wide permissions. Setting `programs.claude-nix.settings.permissions.*`
+replaces the defaults from `claude-nix` rather than adding to them.
 
 Skill-specific command permissions belong in the skill's `allowed-tools`
 frontmatter.
@@ -46,5 +38,3 @@ From this repository:
 nix build .#claude-plugin
 nix flake check
 ```
-
-Use `agent-skills-nix-config` for the shared release and host-apply flow.

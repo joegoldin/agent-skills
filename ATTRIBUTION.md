@@ -7,7 +7,6 @@ The following skills are derived from [obra/superpowers](https://github.com/obra
 
 - brainstorming
 - dispatching-parallel-agents
-- executing-plans
 - finishing-a-development-branch
 - receiving-code-review
 - requesting-code-review
@@ -19,16 +18,30 @@ The following skills are derived from [obra/superpowers](https://github.com/obra
 - writing-plans
 - writing-skills
 
-These skills have been copied and modified from their originals. Local changes are
-kept minimal and are limited to:
+These skills are adapted from their originals. The workflows (red-green-refactor,
+root-cause debugging, plan execution through subagents with per-task review,
+brainstorming into a design) are upstream's; the text has been rewritten for
+current models:
 
+- **Rewritten as guidance.** Iron laws, rationalization tables, red-flag lists,
+  shouted imperatives, "announce at start" lines, and pressure-test fixtures are
+  removed; each skill states its method, what done means, and when to involve
+  the user. Descriptions say what the skill does and a narrow when. The
+  `skill-style` flake check holds these rules.
+- **Removed.** `executing-plans` (subagent-driven-development covers running a
+  plan without subagents) and `verification-before-completion` (the reporting
+  rules in `prompt/shared` cover it). writing-skills drops upstream's
+  persuasion-principles, the vendored Anthropic best-practices copy and the
+  graphviz helpers, and replaces testing-skills-with-subagents with a shorter
+  `testing.md`.
+- **jj-aware.** `using-git-worktrees` and `finishing-a-development-branch` use
+  jj workspaces and bookmarks where a repository has `.jj/`.
 - **Genericization** — the `Superpowers` project name and its filesystem
   conventions are renamed for this plugin: cross-skill references drop the
   `superpowers:` namespace prefix, `~/.config/superpowers/` → `~/.config/agent-skills/`,
   `.superpowers/brainstorm/` → `.agent-skills/brainstorm/`, `docs/superpowers/{plans,specs}/`
   → `docs/plans/`, `using-superpowers` → `using-agent-skills`, and visible
-  "Superpowers" UI branding is dropped. Frontmatter is moved into each skill's
-  `skill.nix` (the Nix build regenerates it).
+  "Superpowers" UI branding is dropped.
 - **Worktree conventions** — `using-git-worktrees` / `finishing-a-development-branch`
   default new worktrees to `~/.worktrees/$project/$BRANCH_NAME` and recognize the
   legacy `~/.config/agent-skills/worktrees/` path.
@@ -142,10 +155,12 @@ See `plugins/temporal/README.md` for the diff narrative. The gist's license
 is not explicitly declared (GitHub gist default); we credit upstream by
 linkback as a courtesy.
 
-## Reverse Engineering Skills + re-shell devShell
+## Reverse Engineering Skill + re-shell devShell
 
-The `reverse-engineering`, `android-re`, `windows-re`, and `web-re` skills, and
-the `devShells.<linux>.re-shell` output in `flake.nix`, are derived from
+The `reverse-engineering` skill (including its `references/` for Android,
+Windows, web, and hardware targets, formerly the separate `android-re`,
+`windows-re`, and `web-re` skills), and the `devShells.<linux>.re-shell`
+output in `flake.nix`, are derived from
 [schlarpc/re-shell](https://github.com/schlarpc/re-shell) and the accompanying
 write-up
 [*Everything I own, owned*](https://schlarp.com/posts/everything-i-own-owned/).
@@ -155,7 +170,7 @@ reports no SPDX id), so its prose is all-rights-reserved and is not vendored.
 Following the same courtesy-credit approach this repo uses for `vibe-modeling`
 and `prose-craft`: the skills port the *facts* — tool names, invocations,
 command tables, workflow steps, and technical gotchas, which are uncopyrightable
-methods and facts under 17 USC 102(b) — and the prose in every `SKILL.md` is
+methods and facts under 17 USC 102(b) — and the prose in `SKILL.md` and its references is
 original to this repo. No `SKILL.md` or `CLAUDE.md` text from re-shell is copied.
 
 **devShell.** The `re-shell` devShell adapts upstream's `flake.nix`: the same

@@ -1,241 +1,99 @@
 ---
 name: finishing-a-development-branch
-description: Use when implementation is complete, all tests pass, and you need to decide how to integrate the work - guides completion of development work by presenting structured options for merge, PR, or cleanup
+description: Wrap up a finished branch or jj change stack by merging locally, opening a PR, keeping it, or discarding it, then clean up the workspace. Use when implementation is done and the work needs integrating.
 ---
 
 # Finishing a Development Branch
 
-## Overview
+Done means the tests pass on what you integrate, the user's chosen outcome is
+carried out, and only a workspace this workflow created is removed.
 
-Guide completion of development work by presenting clear options and handling chosen workflow.
+## 1. Check the tests
 
-**Core principle:** Verify tests → Detect environment → Present options → Execute choice → Clean up.
+Run the project's suite. If it fails, show the failures and stop; don't merge
+or open a PR on a red build.
 
-**Announce at start:** "I'm using the finishing-a-development-branch skill to complete this work."
+## 2. Work out where you are
 
-## The Process
+- **jj repository** (`.jj/` exists): find the change stack (`jj log -r
+  'trunk()..@'`) and whether you are in a secondary workspace (`.jj/repo` is a
+  file there, a directory in the default one).
+- **git**: compare `git rev-parse --git-dir` with `--git-common-dir` (both
+  resolved with `pwd -P`). If they differ you are in a linked worktree. Check
+  whether HEAD is on a branch or detached; a detached worktree is managed by
+  the harness.
 
-### Step 1: Verify Tests
+Find the base: usually `trunk()` in jj, or `git merge-base HEAD main` (or
+`master`) in git. If it is unclear, ask.
 
-**Before presenting options, verify tests pass:**
+## 3. Choose the outcome
 
-```bash
-# Run project's test suite
-npm test / cargo test / pytest / go test ./...
-```
+The outcomes are merging into the base locally, pushing and opening a pull
+request, keeping the work as it is, and discarding it. When the user has
+already said which they want, do that. Otherwise ask, briefly. A detached
+worktree can't be merged locally; it can be pushed as a new branch, kept or
+discarded.
 
-**If tests fail:**
-```
-Tests failing (<N> failures). Must fix before completing:
+Pushing, opening a PR and deleting a branch reach outside the session or
+destroy work, so they need the user's go-ahead.
 
-[Show failures]
+## 4. Carry it out
 
-Cannot proceed with merge/PR until tests pass.
-```
-
-Stop. Don't proceed to Step 2.
-
-**If tests pass:** Continue to Step 2.
-
-### Step 2: Detect Environment
-
-**Determine workspace state before presenting options:**
-
-```bash
-GIT_DIR=$(cd "$(git rev-parse --git-dir)" 2>/dev/null && pwd -P)
-GIT_COMMON=$(cd "$(git rev-parse --git-common-dir)" 2>/dev/null && pwd -P)
-```
-
-This determines which menu to show and how cleanup works:
-
-| State | Menu | Cleanup |
-|-------|------|---------|
-| `GIT_DIR == GIT_COMMON` (normal repo) | Standard 4 options | No worktree to clean up |
-| `GIT_DIR != GIT_COMMON`, named branch | Standard 4 options | Provenance-based (see Step 6) |
-| `GIT_DIR != GIT_COMMON`, detached HEAD | Reduced 3 options (no merge) | No cleanup (externally managed) |
-
-### Step 3: Determine Base Branch
+**Merge locally.** Merge first and check the result before removing anything.
 
 ```bash
-# Try common base branches
-git merge-base HEAD main 2>/dev/null || git merge-base HEAD master 2>/dev/null
-```
+# jj: rebase the stack onto the base and move the base bookmark to its tip
+# (@- assumes @ is the empty change left by `jj commit`; check with `jj log`)
+jj rebase -b @ -d main
+jj bookmark set main -r @-
 
-Or ask: "This branch split from main - is that correct?"
-
-### Step 4: Present Options
-
-**Normal repo and named-branch worktree — present exactly these 4 options:**
-
-```
-Implementation complete. What would you like to do?
-
-1. Merge back to <base-branch> locally
-2. Push and create a Pull Request
-3. Keep the branch as-is (I'll handle it later)
-4. Discard this work
-
-Which option?
-```
-
-**Detached HEAD — present exactly these 3 options:**
-
-```
-Implementation complete. You're on a detached HEAD (externally managed workspace).
-
-1. Push as new branch and create a Pull Request
-2. Keep as-is (I'll handle it later)
-3. Discard this work
-
-Which option?
-```
-
-**Don't add explanation** - keep options concise.
-
-### Step 5: Execute Choice
-
-#### Option 1: Merge Locally
-
-```bash
-# Get main repo root for CWD safety
+# git: from the main checkout
 MAIN_ROOT=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel)
 cd "$MAIN_ROOT"
-
-# Merge first — verify success before removing anything
-git checkout <base-branch>
-git pull
-git merge <feature-branch>
-
-# Verify tests on merged result
-<test command>
-
-# Only after merge succeeds: cleanup worktree (Step 6), then delete branch
+git checkout main && git pull && git merge <feature-branch>
 ```
 
-Then: Cleanup worktree (Step 6), then delete branch:
+Run the tests on the merged result, then clean up the workspace (step 5) and,
+in git, delete the branch with `git branch -d <feature-branch>`. Delete it
+after removing the worktree, because git won't delete a branch a worktree
+still has checked out.
+
+**Push and open a PR.**
 
 ```bash
-git branch -d <feature-branch>
+jj bookmark create <feature> -r @-  &&  jj git push -b <feature>   # jj
+git push -u origin <feature-branch>                                 # git
 ```
 
-#### Option 2: Push and Create PR
+Then open the PR (gh-stack for stacked PRs). Keep the workspace; the user
+will need it for review feedback.
+
+**Keep.** Report the branch or bookmark and the workspace path, and leave
+both alone.
+
+**Discard.** List what will be lost (the branch or bookmark, its commits, the
+workspace path) and wait for the user to confirm. Then abandon the changes
+(`jj abandon 'trunk()..<feature>'`) or, in git, clean up the worktree and
+force-delete the branch with `git branch -D <feature-branch>`.
+
+## 5. Clean up the workspace
+
+This applies only after a merge or discard. Remove a workspace only if this
+workflow made it, meaning it lives under `~/.worktrees/`, a project-local
+`.worktrees/` or `worktrees/`, or `~/.config/agent-skills/worktrees/`.
+Anything else belongs to the harness: use its exit tool if it has one, or
+leave the workspace in place.
+
+Run removal from the main checkout, not from inside the workspace, where it
+fails. In git, `MAIN_ROOT` is as in step 4; in jj, it is the default
+workspace's directory (`jj workspace list` names the workspaces).
 
 ```bash
-# Push branch
-git push -u origin <feature-branch>
+# jj
+cd "$MAIN_ROOT" && jj workspace forget <name> && rm -rf "$WORKSPACE_PATH"
+
+# git
+cd "$MAIN_ROOT" && git worktree remove "$WORKTREE_PATH" && git worktree prune
 ```
 
-**Do NOT clean up worktree** — user needs it alive to iterate on PR feedback.
-
-#### Option 3: Keep As-Is
-
-Report: "Keeping branch <name>. Worktree preserved at <path>."
-
-**Don't cleanup worktree.**
-
-#### Option 4: Discard
-
-**Confirm first:**
-```
-This will permanently delete:
-- Branch <name>
-- All commits: <commit-list>
-- Worktree at <path>
-
-Type 'discard' to confirm.
-```
-
-Wait for exact confirmation.
-
-If confirmed:
-```bash
-MAIN_ROOT=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel)
-cd "$MAIN_ROOT"
-```
-
-Then: Cleanup worktree (Step 6), then force-delete branch:
-```bash
-git branch -D <feature-branch>
-```
-
-### Step 6: Cleanup Workspace
-
-**Only runs for Options 1 and 4.** Options 2 and 3 always preserve the worktree.
-
-```bash
-GIT_DIR=$(cd "$(git rev-parse --git-dir)" 2>/dev/null && pwd -P)
-GIT_COMMON=$(cd "$(git rev-parse --git-common-dir)" 2>/dev/null && pwd -P)
-WORKTREE_PATH=$(git rev-parse --show-toplevel)
-```
-
-**If `GIT_DIR == GIT_COMMON`:** Normal repo, no worktree to clean up. Done.
-
-**If worktree path is under `~/.worktrees/`, `.worktrees/`, `worktrees/`, or `~/.config/agent-skills/worktrees/`:** this skill created this worktree — we own cleanup.
-
-```bash
-MAIN_ROOT=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel)
-cd "$MAIN_ROOT"
-git worktree remove "$WORKTREE_PATH"
-git worktree prune  # Self-healing: clean up any stale registrations
-```
-
-**Otherwise:** The host environment (harness) owns this workspace. Do NOT remove it. If your platform provides a workspace-exit tool, use it. Otherwise, leave the workspace in place.
-
-## Quick Reference
-
-| Option | Merge | Push | Keep Worktree | Cleanup Branch |
-|--------|-------|------|---------------|----------------|
-| 1. Merge locally | yes | - | - | yes |
-| 2. Create PR | - | yes | yes | - |
-| 3. Keep as-is | - | - | yes | - |
-| 4. Discard | - | - | - | yes (force) |
-
-## Common Mistakes
-
-**Skipping test verification**
-- **Problem:** Merge broken code, create failing PR
-- **Fix:** Always verify tests before offering options
-
-**Open-ended questions**
-- **Problem:** "What should I do next?" is ambiguous
-- **Fix:** Present exactly 4 structured options (or 3 for detached HEAD)
-
-**Cleaning up worktree for Option 2**
-- **Problem:** Remove worktree user needs for PR iteration
-- **Fix:** Only cleanup for Options 1 and 4
-
-**Deleting branch before removing worktree**
-- **Problem:** `git branch -d` fails because worktree still references the branch
-- **Fix:** Merge first, remove worktree, then delete branch
-
-**Running git worktree remove from inside the worktree**
-- **Problem:** Command fails silently when CWD is inside the worktree being removed
-- **Fix:** Always `cd` to main repo root before `git worktree remove`
-
-**Cleaning up harness-owned worktrees**
-- **Problem:** Removing a worktree the harness created causes phantom state
-- **Fix:** Only clean up worktrees under `~/.worktrees/`, `.worktrees/`, `worktrees/`, or `~/.config/agent-skills/worktrees/`
-
-**No confirmation for discard**
-- **Problem:** Accidentally delete work
-- **Fix:** Require typed "discard" confirmation
-
-## Red Flags
-
-**Never:**
-- Proceed with failing tests
-- Merge without verifying tests on result
-- Delete work without confirmation
-- Force-push without explicit request
-- Remove a worktree before confirming merge success
-- Clean up worktrees you didn't create (provenance check)
-- Run `git worktree remove` from inside the worktree
-
-**Always:**
-- Verify tests before offering options
-- Detect environment before presenting menu
-- Present exactly 4 options (or 3 for detached HEAD)
-- Get typed confirmation for Option 4
-- Clean up worktree for Options 1 & 4 only
-- `cd` to main repo root before worktree removal
-- Run `git worktree prune` after removal
+Force-push only when the user asks for it.

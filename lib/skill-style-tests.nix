@@ -20,18 +20,6 @@ let
     hashInPlainDescription = builtins.length (check "Does a #thing." "ok") == 1;
     colonInQuotedDescription = check "\"Does things: a, b.\"" "ok" == [ ];
     colonWithoutSpaceIsFine = check "Handles foo:bar keys and https://x.y." "ok" == [ ];
-    pendingBodyIsExempt =
-      style.check {
-        name = "x";
-        text = skill "d" "NEVER";
-        pending = [ "x" ];
-      } == [ ];
-    pendingDescriptionIsNot =
-      builtins.length (style.check {
-        name = "x";
-        text = skill (lib.concatStrings (lib.replicate 301 "a")) "ok";
-        pending = [ "x" ];
-      }) == 1;
   };
 in
 lib.attrNames (lib.filterAttrs (_: ok: !ok) cases)

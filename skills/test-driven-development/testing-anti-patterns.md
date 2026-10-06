@@ -4,19 +4,15 @@
 
 ## Overview
 
-Tests must verify real behavior, not mock behavior. Mocks are a means to isolate, not the thing being tested.
+Tests verify real behaviour, not mock behaviour. Mocks are a means to isolate,
+not the thing being tested. Writing the test first, against real code, avoids
+most of what follows.
 
-**Core principle:** Test what the code does, not what the mocks do.
+## The three rules
 
-**Following strict TDD prevents these anti-patterns.**
-
-## The Iron Laws
-
-```
-1. NEVER test mock behavior
-2. NEVER add test-only methods to production classes
-3. NEVER mock without understanding dependencies
-```
+1. Assert on what the code does, not on the mock.
+2. Keep test-only methods out of production classes.
+3. Understand a dependency before mocking it.
 
 ## Anti-Pattern 1: Testing Mock Behavior
 
@@ -34,7 +30,7 @@ test('renders sidebar', () => {
 - Test passes when mock is present, fails when it's not
 - Tells you nothing about real behavior
 
-**your human partner's correction:** "Are we testing the behavior of a mock?"
+**The question to ask:** "Are we testing the behavior of a mock?"
 
 **The fix:**
 ```typescript
@@ -256,7 +252,7 @@ TDD cycle:
 - Mocks missing methods real components have
 - Test breaks when mock changes
 
-**your human partner's question:** "Do we need to be using a mock here?"
+**The question to ask:** "Do we need to be using a mock here?"
 
 **Consider:** Integration tests with real components often simpler than complex mocks
 
@@ -268,7 +264,8 @@ TDD cycle:
 3. **Minimal implementation** → No test-only methods creep in
 4. **Real dependencies** → You see what the test actually needs before mocking
 
-**If you're testing mock behavior, you violated TDD** - you added mocks without watching test fail against real code first.
+Testing mock behaviour usually means the mocks went in before the test had
+failed against real code.
 
 ## Quick Reference
 
