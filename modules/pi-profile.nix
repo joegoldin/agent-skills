@@ -103,7 +103,6 @@ in
       messaging = {
         enable = true;
         askTimeoutSeconds = 300;
-        installSkill = false;
       };
       settings = {
         # Sign in with ChatGPT lives on the openai provider since pi 1.0;
