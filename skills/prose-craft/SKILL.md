@@ -1,6 +1,6 @@
 ---
 name: prose-craft
-description: Use when drafting or strengthening prose and you want craft rather than merely clean copy. Provides compression (freighting, telescoping, melted-together words), direct metaphor (line-ups), refreshing stale phrases (recyclables), powerful lists (netting), and punctuation rhythm (hieroglyphics). The generative companion to avoid-ai-writing, which strips machine tells while this skill adds craft.
+description: Craft techniques for stronger prose: compression, direct metaphor, fresh phrasing, lists and rhythm. Use when drafting or improving prose where quality of writing matters, not just correctness.
 ---
 
 # Prose Craft — Techniques for Vivid, Compressed Writing

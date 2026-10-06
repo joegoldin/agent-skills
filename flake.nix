@@ -912,6 +912,48 @@
             else
               throw "prompt budget exceeded: ${lib.concatStringsSep "; " failures}";
 
+          skill-style-tests =
+            let
+              failures = import ./lib/skill-style-tests.nix { inherit lib; };
+            in
+            if failures == [ ] then
+              pkgs.runCommand "skill-style-tests" { } "touch $out"
+            else
+              throw "skill style tests failed: ${builtins.toJSON failures}";
+
+          # writing-skills' rules as a gate: short descriptions, no shouted
+          # imperatives. `pending` holds skills whose rewrite has not landed;
+          # it shrinks to empty as they do.
+          skill-style =
+            let
+              style = import ./lib/skill-style.nix { inherit lib; };
+              pending = [
+                "day-sync"
+                "nix-helper"
+                "receiving-code-review"
+                "systematic-debugging"
+                "using-garnix-ci"
+                "using-git-worktrees"
+                "verification-before-completion"
+              ];
+              names = lib.attrNames (
+                lib.filterAttrs (
+                  n: t: t == "directory" && builtins.pathExists (./skills + "/${n}/SKILL.md")
+                ) (builtins.readDir ./skills)
+              );
+              failures = lib.concatMap (
+                name:
+                style.check {
+                  inherit name pending;
+                  text = builtins.readFile (./skills + "/${name}/SKILL.md");
+                }
+              ) names;
+            in
+            if failures == [ ] then
+              pkgs.runCommand "skill-style" { } "touch $out"
+            else
+              throw "skill style: ${lib.concatStringsSep "; " failures}";
+
           prompt-lint-tests =
             let
               failures = import ./lib/prompt-lint-tests.nix { inherit lib; };

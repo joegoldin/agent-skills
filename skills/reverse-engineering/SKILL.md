@@ -1,6 +1,6 @@
 ---
 name: reverse-engineering
-description: Use when reverse engineering a binary, firmware image, executable, or hardware device — disassembly, decompilation, unpacking, dynamic instrumentation, or protocol recovery. Triggers on Ghidra, radare2, rizin, binwalk, Frida, YARA, dropping an unknown file to analyze, extracting firmware, USB/HID/I2C/DDC device probing, EDID, FPGA bitstreams, RP2040/Pico firmware, password/hash cracking, or mitmproxy/tshark network capture. Android, Windows, and web targets have their own skills (android-re, windows-re, web-re) that build on this one.
+description: Toolchain and method for reverse engineering binaries, firmware and hardware: disassembly, unpacking, instrumentation, protocol recovery. Use when analysing an unknown binary, firmware image or device; Android, Windows and web targets have their own skills.
 ---
 
 # Reverse Engineering

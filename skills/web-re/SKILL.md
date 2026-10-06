@@ -1,6 +1,6 @@
 ---
 name: web-re
-description: Use when reverse engineering a web or network protocol — protobuf or gRPC messages, a HAR capture, an undocumented HTTP or JSON API, a WebSocket stream, or a TLS-fingerprinted endpoint. Triggers on decoding protobuf wire format (protoscope, protoc --decode_raw), grpcurl or grpcui, curl-impersonate for bot-protected APIs, websocat, HTML scraping with pup or BeautifulSoup, or parsing HAR files. Builds on the reverse-engineering skill for the shared toolchain (mitmproxy, tshark, jq).
+description: Reverse engineering web and network protocols: protobuf and gRPC, HAR captures, undocumented HTTP or WebSocket APIs, TLS-fingerprinted endpoints. Use when decoding or replaying traffic from a service with no published API.
 ---
 
 # Web Reverse Engineering

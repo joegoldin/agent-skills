@@ -1,6 +1,6 @@
 ---
 name: apple-mail
-description: Use when searching, reading, triaging, or counting email in Apple Mail / Mail.app on macOS, or creating and revising draft replies — inbox questions, unread counts, finding messages from a sender, reading a message body, listing mailboxes or accounts. Trigger on mentions of Apple Mail, Mail.app, Envelope Index, emlx, or "my email"/"my inbox" on a Mac.
+description: Search, read, triage and draft replies in Apple Mail on macOS. Use when the user asks about their email, inbox or Mail.app on a Mac.
 allowed-tools: Bash(sqlite3:*) Bash(python3:*)
 ---
 

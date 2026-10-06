@@ -1,6 +1,6 @@
 ---
 name: android-re
-description: Use when reverse engineering an Android target — APK, XAPK, AAB, DEX bytecode, smali, AndroidManifest, or a native .so from an app. Triggers on decompiling an app to Java, jadx/apktool/dex2jar, ADB or fastboot device work, Frida on Android, JNI tracing, APK malware or vulnerability scanning, certificate-pinning bypass, or extracting OTA/system images (payload.bin, sparse images). Builds on the reverse-engineering skill for the shared toolchain.
+description: Reverse engineering Android targets: APKs, DEX and smali, native .so libraries, OTA images, devices over ADB. Use when the target is an Android app, its libraries, or an Android device or image.
 ---
 
 # Android Reverse Engineering

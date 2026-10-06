@@ -1,6 +1,6 @@
 ---
 name: windows-re
-description: Use when reverse engineering a Windows target — a PE file (.exe, .dll, .sys), a .NET assembly, a driver, Windows malware, or an x86/x64 Windows binary. Triggers on PE header or import inspection, packer/protector detection, decompiling .NET to C#, extracting obfuscated strings, Windows memory-dump forensics, unpacking MSI/CAB/Inno/BitRock/NSIS installers, running a Windows binary under Wine, or verifying Authenticode signatures. Builds on the reverse-engineering skill for the shared toolchain.
+description: Reverse engineering Windows targets: PE files, .NET assemblies, drivers, installers, memory dumps. Use when the target is a Windows executable, DLL, driver or installer.
 ---
 
 # Windows Reverse Engineering

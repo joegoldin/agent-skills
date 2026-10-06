@@ -1,6 +1,6 @@
 ---
 name: google-workspace-cli
-description: Use when interacting with Google Calendar, Drive, Docs, Sheets, or Slides from the terminal via the gws CLI — checking the calendar agenda or event windows, searching/exporting Drive files, reading or appending Sheets values, appending Docs text. Trigger on mentions of gws, Google Workspace CLI, or gcal/agenda/Drive-file requests.
+description: Use Google Calendar, Drive, Docs, Sheets and Slides from the terminal with the gws CLI. Use when the user asks about their calendar or Google files, or mentions gws.
 allowed-tools: Bash(gws) Bash(gws:*)
 ---
 
