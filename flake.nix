@@ -1180,30 +1180,24 @@
 
             # The curated third-party set, enabled by default because each one
             # restores something pi deliberately omits and this library's
-            # skills assume: subagents, todos, background bash, structured
-            # questions, goal-driven looping, and web search. MCP is no longer on the list:
-            # pi has connected servers natively since 0.99.0. pi-nix packages them; the
-            # choice of which to run is an opinion, and this is the opinion
-            # layer, so it lives here rather than there.
+            # skills assume: subagents, permissions, usage, code diagnostics
+            # and web search. Todos, background bash, structured questions,
+            # goal-driven looping and side questions come from pi-nix's
+            # first-party pi-custom, enabled through its own option. MCP is no
+            # longer on the list: pi has connected servers natively since
+            # 0.99.0. pi-nix packages them; the choice of which to run is an
+            # opinion, and this is the opinion layer, so it lives here rather
+            # than there.
             #
             # mkDefault, so a host can replace the list wholesale without
             # fighting a priority. The first-party extensions (auto-mode,
-            # notify, statusline, intercom) are not listed: each arrives from
-            # its own option in pi-nix, and naming them here would enable them
-            # behind that option's back. pi-ui is the exception: first-party,
-            # but with no option of its own, so it is enabled here. It replaces
-            # pi-pretty, whose tool rendering, prompt box and FFF search it
-            # carries over.
+            # notify, statusline, intercom, pi-custom) are not listed: each
+            # arrives from its own option in pi-nix, and naming them here would
+            # enable them behind that option's back.
             programs.pi.coding-agent.extensionPackages = lib.mkDefault (
               map (n: pi-nix.packages.${pkgs.stdenv.hostPlatform.system}.${n}) [
                 "ext-gotgenes-pi-permission-system"
                 "ext-pi-subagents"
-                "ext-pi-background-tasks"
-                "ext-juicesharp-rpiv-ask-user-question"
-                "ext-juicesharp-rpiv-todo"
-                "ext-narumitw-pi-goal"
-                "ext-narumitw-pi-btw"
-                "ext-pi-ui"
                 "ext-narumitw-pi-usage"
               ]
               ++ [

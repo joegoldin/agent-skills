@@ -28,9 +28,6 @@ in
       environment = {
         PI_SKIP_VERSION_CHECK.value = "1";
         PI_AUTOMODE_NO_STATUS_SLOT.value = "1";
-        # Background shell commands only: pi-subagents covers delegation, and
-        # the delegate/fusion/attested tools cost ~5k tokens on every request.
-        PI_BG_FEATURES.value = "process";
         # pi-lens otherwise downloads language servers and linters into
         # ~/.pi-lens at runtime; it uses whatever the project's devshell puts
         # on PATH instead.
@@ -102,7 +99,7 @@ in
         ];
       };
       foreignSkills.enable = true;
-      extras.enable = true;
+      custom.enable = true;
       messaging = {
         enable = true;
         askTimeoutSeconds = 300;
@@ -131,8 +128,6 @@ in
         # the model through codemode's searchTools() by default.
         defaultTools = [ "+codemode" ];
       };
-      # The other entrypoint imposes an unrelated Anthropic OAuth requirement.
-      entrypointOverrides.pi-background-tasks = [ "./extensions/background-tasks.ts" ];
     };
 
     home.file.".pi/agent/keybindings.json".text = builtins.toJSON {
