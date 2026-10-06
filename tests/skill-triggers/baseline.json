@@ -2,55 +2,50 @@
   "Add a --verbose flag to the CLI that prints each file as it is processed.": [
     "pi-lens-ast-grep",
     "pi-lens-lsp-navigation",
-    "test-driven-development",
-    "using-agent-skills",
-    "verification-before-completion"
+    "using-agent-skills"
   ],
   "Let's do this one test-first: write a failing test for the slug() helper handling unicode, then make it pass.": [
-    "test-driven-development",
-    "verification-before-completion"
+    "pi-lens-ast-grep",
+    "pi-lens-lsp-navigation",
+    "test-driven-development"
   ],
   "The login test is flaky. I already tried bumping the timeout and it still fails about one run in five; figure out why.": [
-    "systematic-debugging",
-    "using-agent-skills"
+    "systematic-debugging"
   ],
   "Rename the config key `retries` to `max_retries` across the repo.": [
     "pi-lens-ast-grep",
     "pi-lens-lsp-navigation",
-    "using-agent-skills",
-    "verification-before-completion"
+    "using-agent-skills"
   ],
   "Squash my last three jj changes into one and give it a better description.": [
-    "jujutsu"
+    "jujutsu",
+    "using-agent-skills"
   ],
   "Decompile this Android APK and find where it signs its API requests.": [
-    "android-re",
     "reverse-engineering"
   ],
   "Our garnix CI build for the dotfiles flake is stuck; check what it's doing.": [
     "gh-checks",
-    "systematic-debugging",
     "using-garnix-ci"
   ],
   "Route the power traces on this KiCad PCB and run DRC.": [
-    "kicad",
-    "using-agent-skills",
-    "verification-before-completion"
+    "kicad"
   ],
   "Which functions does this diff change, and what calls them?": [
     "pi-lens-lsp-navigation",
     "sem"
   ],
   "Edit this blog post so it doesn't read like it was written by an AI.": [
-    "avoid-ai-writing"
+    "avoid-ai-writing",
+    "prose-craft"
   ],
   "Add a new host to my NixOS dotfiles flake.": [
     "nix-helper",
-    "test-driven-development",
     "using-agent-skills"
   ],
   "Add a new skill to this agent-skills repo and enable it for pi.": [
     "agent-skills-nix-config",
+    "nix-helper",
     "using-agent-skills",
     "writing-skills"
   ],
@@ -62,9 +57,7 @@
   "Summarise what this 20-minute screen recording shows.": [
     "watching-videos"
   ],
-  "Fix the typo in the README title.": [
-    "using-agent-skills"
-  ],
+  "Fix the typo in the README title.": [],
   "Reply to the review comments on PR 42 and resolve the threads you addressed.": [
     "gh-pr-review",
     "receiving-code-review"
