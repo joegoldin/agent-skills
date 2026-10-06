@@ -24,6 +24,9 @@ in
       statusline = {
         enable = true;
         barWidth = 8;
+        # A ChatGPT plan reports only its weekly window; with nothing beside
+        # it, it should show from the start rather than from 50% used.
+        sevenDayThreshold = 0;
       };
       environment = {
         PI_SKIP_VERSION_CHECK.value = "1";
