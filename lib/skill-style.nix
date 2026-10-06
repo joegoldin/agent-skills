@@ -4,7 +4,10 @@
 #
 # Descriptions are what every runtime shows the model for every skill on every
 # turn, so their length is a standing cost and a long one usually means a
-# trigger broader than the skill. Shouted imperatives are the style written to
+# trigger broader than the skill. Runtimes parse frontmatter as real YAML,
+# where an unquoted ": " or " #" breaks the value and the skill silently drops
+# out of the listing; the build's own parser is more forgiving and won't
+# notice. Shouted imperatives are the style written to
 # force compliance out of older models; current ones over-apply it.
 let
   fm = import ./frontmatter.nix { inherit lib; };
@@ -44,6 +47,18 @@ let
         m: if builtins.isList m then [ (builtins.elemAt m 1) ] else [ ]
       ) (builtins.split "(^|[^A-Za-z_])(${lib.concatStringsSep "|" shouted})([^A-Za-z_]|$)" (stripFences text))
     );
+  # The description line as written, before any unquoting.
+  rawDescription =
+    text:
+    let
+      m = lib.findFirst (l: lib.hasPrefix "description:" l) null (lib.splitString "\n" text);
+    in
+    if m == null then "" else lib.trim (lib.removePrefix "description:" m);
+
+  brokenPlainScalar =
+    raw:
+    !(lib.hasPrefix "\"" raw || lib.hasPrefix "'" raw)
+    && (lib.hasInfix ": " raw || lib.hasSuffix ":" raw || lib.hasInfix " #" raw);
 in
 {
   inherit maxDescription shouted;
@@ -65,5 +80,6 @@ in
     lib.optional (
       lib.stringLength desc > maxDescription
     ) "${name}: description is ${toString (lib.stringLength desc)} characters, over ${toString maxDescription}"
+    ++ lib.optional (brokenPlainScalar (rawDescription text)) "${name}: unquoted description contains ': ' or ' #', which YAML rejects; reword or quote it"
     ++ lib.optional (words != [ ]) "${name}: shouted imperative(s) in the body: ${toString words}";
 }

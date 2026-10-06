@@ -1,6 +1,6 @@
 ---
 name: android-re
-description: Reverse engineering Android targets: APKs, DEX and smali, native .so libraries, OTA images, devices over ADB. Use when the target is an Android app, its libraries, or an Android device or image.
+description: Reverse engineering Android targets (APKs, DEX and smali, native .so libraries, OTA images, devices over ADB). Use when the target is an Android app, its libraries, or an Android device or image.
 ---
 
 # Android Reverse Engineering

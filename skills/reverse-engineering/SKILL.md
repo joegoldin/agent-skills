@@ -1,6 +1,6 @@
 ---
 name: reverse-engineering
-description: Toolchain and method for reverse engineering binaries, firmware and hardware: disassembly, unpacking, instrumentation, protocol recovery. Use when analysing an unknown binary, firmware image or device; Android, Windows and web targets have their own skills.
+description: Toolchain and method for reverse engineering binaries, firmware and hardware (disassembly, unpacking, instrumentation, protocol recovery). Use when analysing an unknown binary, firmware image or device; Android, Windows and web targets have their own skills.
 ---
 
 # Reverse Engineering

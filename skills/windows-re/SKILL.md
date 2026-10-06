@@ -1,6 +1,6 @@
 ---
 name: windows-re
-description: Reverse engineering Windows targets: PE files, .NET assemblies, drivers, installers, memory dumps. Use when the target is a Windows executable, DLL, driver or installer.
+description: Reverse engineering Windows targets (PE files, .NET assemblies, drivers, installers, memory dumps). Use when the target is a Windows executable, DLL, driver or installer.
 ---
 
 # Windows Reverse Engineering

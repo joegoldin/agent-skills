@@ -19,21 +19,10 @@ Subagent (general-purpose):
 
     [Scene-setting: where this fits, dependencies, architectural context]
 
-    ## Before You Begin
-
-    If you have questions about:
-    - The requirements or acceptance criteria
-    - The approach or implementation strategy
-    - Dependencies or assumptions
-    - Anything unclear in the task description
-
-    **Ask them now.** Raise any concerns before starting work.
-
     ## Your Job
 
-    Once you're clear on requirements:
     1. Implement exactly what the task specifies
-    2. Write tests (following TDD if task says to)
+    2. Write tests (test-first if the task says to)
     3. Verify implementation works
     4. Commit your work
     5. Self-review (see below)
@@ -41,8 +30,9 @@ Subagent (general-purpose):
 
     Work from: [directory]
 
-    **While you work:** If you encounter something unexpected or unclear, **ask questions**.
-    It's always OK to pause and clarify. Don't guess or make assumptions.
+    If something is unclear, make the most reasonable assumption, note it in
+    your report, and continue. Return BLOCKED only when the task cannot be
+    completed without a decision from the controller.
 
     While iterating, run the focused test for what you're changing; run the
     full suite once before committing, not after every edit.
@@ -60,22 +50,17 @@ Subagent (general-purpose):
     - In existing codebases, follow established patterns. Improve code you're touching
       the way a good developer would, but don't restructure things outside your task.
 
-    ## When You're in Over Your Head
+    ## When to Escalate
 
-    It is always OK to stop and say "this is too hard for me." Bad work is worse than
-    no work. You will not be penalized for escalating.
+    Return BLOCKED or NEEDS_CONTEXT, rather than pressing on, when:
+    - the task needs an architectural decision between several valid approaches
+    - it needs restructuring the plan didn't anticipate
+    - you have read file after file without understanding enough to proceed
 
-    **STOP and escalate when:**
-    - The task requires architectural decisions with multiple valid approaches
-    - You need to understand code beyond what was provided and can't find clarity
-    - You feel uncertain about whether your approach is correct
-    - The task involves restructuring existing code in ways the plan didn't anticipate
-    - You've been reading file after file trying to understand the system without progress
-
-    **How to escalate:** Report back with status BLOCKED or NEEDS_CONTEXT. Describe
-    specifically what you're stuck on, what you've tried, and what kind of help you need.
-    The controller can provide more context, re-dispatch with a more capable model,
-    or break the task into smaller pieces.
+    Say specifically what you're stuck on, what you tried, and what would
+    unblock you. The controller can add context, re-dispatch on a more capable
+    model, or split the task. Escalating is cheaper than work that has to be
+    redone.
 
     ## Before Reporting Back: Self-Review
 
@@ -98,7 +83,7 @@ Subagent (general-purpose):
 
     **Testing:**
     - Do tests actually verify behavior (not just mock behavior)?
-    - Did I follow TDD if required?
+    - Did I write the tests first, if the task required it?
     - Are tests comprehensive?
     - Is the test output pristine (no stray warnings or noise)?
 
@@ -115,10 +100,11 @@ Subagent (general-purpose):
     Write your full report to [REPORT_FILE]:
     - What you implemented (or what you attempted, if blocked)
     - What you tested and test results
-    - **TDD Evidence** (if TDD was required for this task):
+    - **Test-first evidence** (if the task required it):
       - RED: command run, relevant failing output before implementation, and why the failure was expected
       - GREEN: command run and relevant passing output after implementation
     - Files changed
+    - Assumptions you made where the task was unclear
     - Self-review findings (if any)
     - Any issues or concerns
 
@@ -135,5 +121,6 @@ Subagent (general-purpose):
 
     Use DONE_WITH_CONCERNS if you completed the work but have doubts about correctness.
     Use BLOCKED if you cannot complete the task. Use NEEDS_CONTEXT if you need
-    information that wasn't provided. Never silently produce work you're unsure about.
+    information that wasn't provided and can't reasonably assume it. Flag work
+    you're unsure about rather than reporting it as DONE.
 ```

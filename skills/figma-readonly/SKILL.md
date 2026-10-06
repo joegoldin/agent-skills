@@ -1,6 +1,6 @@
 ---
 name: figma-readonly
-description: Read Figma files from the terminal: specs, styles, node JSON, rendered images, comments. Use when the user shares a figma.com link or asks for design details, especially when a Figma MCP is unavailable.
+description: Read Figma files from the terminal (specs, styles, node JSON, rendered images, comments). Use when the user shares a figma.com link or asks for design details, especially when a Figma MCP is unavailable.
 allowed-tools: Bash(figr) Bash(figr:*)
 ---
 

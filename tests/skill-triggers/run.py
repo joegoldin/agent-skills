@@ -14,6 +14,10 @@ the build under test:
     tests/skill-triggers/run.py --save baseline.json   # snapshot
     tests/skill-triggers/run.py --compare baseline.json
 
+pi reads skills from ~/.agents/skills, which follows the active home-manager
+generation, so a build's own skills are only seen with --skills pointing at
+its home-files (.agents/skills inside the home-files output).
+
 Exit status is non-zero when any case misses an expected skill or picks a
 forbidden one.
 """
@@ -40,7 +44,7 @@ Task a user just gave you:
 Using only the names and descriptions of the skills available to you, which skills would you load before starting this task? Reply with one line: the skill names separated by commas, or the word none."""
 
 
-def ask(pi: str, task: str, timeout: int) -> list[str]:
+def ask(pi: str, task: str, timeout: int, env: dict[str, str] | None) -> list[str]:
     # An empty directory, so no project context files leak into the choice.
     with tempfile.TemporaryDirectory() as cwd:
         out = subprocess.run(
@@ -49,6 +53,8 @@ def ask(pi: str, task: str, timeout: int) -> list[str]:
             capture_output=True,
             text=True,
             timeout=timeout,
+            env=env,
+            stdin=subprocess.DEVNULL,
         )
     lines = [l for l in out.stdout.strip().splitlines() if l.strip() and not l.startswith("Warning:")]
     answer = lines[-1] if lines else ""
@@ -64,12 +70,22 @@ def main() -> int:
     parser.add_argument("--compare", help="show where picks differ from a saved run")
     parser.add_argument("--jobs", type=int, default=4)
     parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--skills", help="skills directory to list instead of ~/.agents/skills")
     args = parser.parse_args()
 
     pi = os.environ.get("PI", "pi")
     cases = json.loads(Path(args.cases).read_text())
-    with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
-        picks = list(pool.map(lambda c: ask(pi, c["task"], args.timeout), cases))
+    with tempfile.TemporaryDirectory() as home:
+        env = None
+        if args.skills:
+            # A stand-in HOME: the real ~/.pi for login and settings, linked
+            # rather than copied, and the skills under test.
+            (Path(home) / ".agents").mkdir()
+            (Path(home) / ".agents" / "skills").symlink_to(Path(args.skills).resolve())
+            (Path(home) / ".pi").symlink_to(Path.home() / ".pi")
+            env = os.environ | {"HOME": home}
+        with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
+            picks = list(pool.map(lambda c: ask(pi, c["task"], args.timeout, env), cases))
 
     previous = json.loads(Path(args.compare).read_text()) if args.compare else {}
     failures = 0

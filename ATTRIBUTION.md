@@ -16,7 +16,6 @@ The following skills are derived from [obra/superpowers](https://github.com/obra
 - test-driven-development
 - using-git-worktrees
 - using-agent-skills (formerly using-superpowers)
-- verification-before-completion
 - writing-plans
 - writing-skills
 

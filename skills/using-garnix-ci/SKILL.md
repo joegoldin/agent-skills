@@ -1,6 +1,6 @@
 ---
 name: using-garnix-ci
-description: Operate the self-hosted garnix CI on erdtree: deploys, secrets, access, caches, repo builds and failed or stuck builds. Use when working on that garnix instance or a build it runs.
+description: Operate the self-hosted garnix CI on erdtree (deploys, secrets, access, caches, repo builds and failed or stuck builds). Use when working on that garnix instance or a build it runs.
 ---
 
 # Using garnix CI (self-hosted)

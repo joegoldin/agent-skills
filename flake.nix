@@ -931,10 +931,8 @@
                 "day-sync"
                 "nix-helper"
                 "receiving-code-review"
-                "systematic-debugging"
                 "using-garnix-ci"
                 "using-git-worktrees"
-                "verification-before-completion"
               ];
               names = lib.attrNames (
                 lib.filterAttrs (

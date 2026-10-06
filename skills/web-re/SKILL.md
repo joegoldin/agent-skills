@@ -1,6 +1,6 @@
 ---
 name: web-re
-description: Reverse engineering web and network protocols: protobuf and gRPC, HAR captures, undocumented HTTP or WebSocket APIs, TLS-fingerprinted endpoints. Use when decoding or replaying traffic from a service with no published API.
+description: Reverse engineering web and network protocols (protobuf and gRPC, HAR captures, undocumented HTTP or WebSocket APIs, TLS-fingerprinted endpoints). Use when decoding or replaying traffic from a service with no published API.
 ---
 
 # Web Reverse Engineering

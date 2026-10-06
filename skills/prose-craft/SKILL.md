@@ -1,6 +1,6 @@
 ---
 name: prose-craft
-description: Craft techniques for stronger prose: compression, direct metaphor, fresh phrasing, lists and rhythm. Use when drafting or improving prose where quality of writing matters, not just correctness.
+description: Craft techniques for stronger prose (compression, direct metaphor, fresh phrasing, lists and rhythm). Use when drafting or improving prose where quality of writing matters, not just correctness.
 ---
 
 # Prose Craft — Techniques for Vivid, Compressed Writing

@@ -1,6 +1,6 @@
 ---
 name: jujutsu
-description: Work in jj (Jujutsu) repositories: changes, bookmarks, revsets, the operation log, git interop and stacked PRs. Use when a .jj/ directory is present or the user mentions jj.
+description: Work in Jujutsu repositories with jj (changes, bookmarks, revsets, the operation log, git interop and stacked PRs). Use when a .jj/ directory is present or the user mentions jj.
 allowed-tools: Bash(jj status:*), Bash(jj st:*), Bash(jj log:*), Bash(jj diff:*), Bash(jj show:*), Bash(jj evolog:*), Bash(jj op log:*), Bash(jj op show:*), Bash(jj bookmark list:*), Bash(jj b l:*), Bash(jj file show:*), Bash(jj file list:*), Bash(jj config list:*), Bash(jj config get:*), Bash(jj git remote list:*), Bash(jj resolve --list:*), Bash(stakk graph:*)
 ---
 

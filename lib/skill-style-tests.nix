@@ -14,6 +14,12 @@ let
     wordInsideAWord = check "d" "MUSTARD and ALWAYS_ON are fine." == [ ];
     lowercaseIsFine = check "d" "You must never always do this." == [ ];
     codeBlocksAreContent = check "d" "```sql\nSELECT * WHERE x IS NEVER NULL\n```" == [ ];
+    colonInPlainDescription = check "Does things: a, b." "ok" == [
+      "x: unquoted description contains ': ' or ' #', which YAML rejects; reword or quote it"
+    ];
+    hashInPlainDescription = builtins.length (check "Does a #thing." "ok") == 1;
+    colonInQuotedDescription = check "\"Does things: a, b.\"" "ok" == [ ];
+    colonWithoutSpaceIsFine = check "Handles foo:bar keys and https://x.y." "ok" == [ ];
     pendingBodyIsExempt =
       style.check {
         name = "x";
