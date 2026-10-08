@@ -63,6 +63,12 @@ in
           "edit(*.env)"
         ];
         log.enable = true;
+        # A classifier block asks first, with a notification; left unanswered
+        # it stands after 30s, so an unattended run carries on.
+        askOnBlock = {
+          enable = true;
+          timeoutSeconds = 30;
+        };
         # Let the classifier answer `external_directory` asks (a write to /tmp,
         # a read in a sibling repo) instead of prompting for every one. `path`
         # stays excluded: it is the gate the agenix and auth.json denies below

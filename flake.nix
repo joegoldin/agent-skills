@@ -1190,19 +1190,20 @@
             # Auto mode rides along here rather than only on --extension, and
             # the reason is subagents. pi-subagents spawns a child pi and hands
             # it a fixed extension list -- the prompt runtime, its fanout child,
-            # and the permission system -- so a child inherits nothing from this
-            # process's command line. It does read settings.json, which is how
-            # the skill packages above reach it, so naming auto mode there is
-            # what gives a child the same classifier the parent has. Without it
-            # the child loads the permission system, finds `pi-automode` named
-            # in its authorizerChain and never registered, skips the link
-            # ("more prompting, never less"), and every ask it cannot settle
-            # deterministically becomes a prompt no child has a terminal to
-            # answer.
+            # and the permission system, but only when the child has permission
+            # rules -- so a child inherits nothing from this process's command
+            # line. It does read settings.json, which is how the skill packages
+            # above reach it, so naming auto mode's package there is what gives
+            # every child the same gate the parent has. That package is
+            # pi-permissions, both halves.
             #
-            # Listing it twice is safe: pi resolves a package directory through
-            # its manifest and de-duplicates the resulting entry paths
-            # (loader.js's addPaths), so the parent loads one copy.
+            # Listing it twice is safe. In the parent, pi resolves a package
+            # directory through its manifest and de-duplicates the resulting
+            # entry paths (loader.js's addPaths), so it loads one copy. A child
+            # can also be handed it through pi-subagents' npm link, a different
+            # path to the same package that pi does not de-duplicate;
+            # pi-permissions registers once per session however many times it
+            # is loaded.
             programs.pi.coding-agent.settings.packages =
               map toString piPackages
               ++ lib.optional config.programs.pi.coding-agent.autoMode.enable (
@@ -1211,8 +1212,8 @@
 
             # The curated third-party set, enabled by default because each one
             # restores something pi deliberately omits and this library's
-            # skills assume: subagents, permissions, usage, code diagnostics
-            # and web search. Todos, background bash, structured questions,
+            # skills assume: subagents, usage, code diagnostics and web
+            # search. Permissions come with auto mode, in pi-permissions. Todos, background bash, structured questions,
             # goal-driven looping and side questions come from pi-nix's
             # first-party pi-custom, enabled through its own option. MCP is no
             # longer on the list: pi has connected servers natively since
@@ -1227,7 +1228,6 @@
             # enable them behind that option's back.
             programs.pi.coding-agent.extensionPackages = lib.mkDefault (
               map (n: pi-nix.packages.${pkgs.stdenv.hostPlatform.system}.${n}) [
-                "ext-gotgenes-pi-permission-system"
                 "ext-pi-subagents"
                 "ext-narumitw-pi-usage"
               ]
