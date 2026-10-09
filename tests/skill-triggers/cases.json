@@ -133,5 +133,26 @@
       "gh-pr-review"
     ],
     "forbid": []
+  },
+  {
+    "task": "Inside this Herdr pane (HERDR_ENV=1), split a sibling pane and run the test suite there without changing my focus.",
+    "expect": [
+      "herdr"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "Run the development server in the background so it survives this terminal disconnecting.",
+    "expect": [],
+    "forbid": [
+      "herdr"
+    ]
+  },
+  {
+    "task": "Ask another agent to review this change in parallel.",
+    "expect": [],
+    "forbid": [
+      "herdr"
+    ]
   }
 ]

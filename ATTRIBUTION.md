@@ -226,3 +226,18 @@ The `kicad-happy/<skill>/` layout keeps upstream's sibling-relative imports
 This skill replaces the `tscircuit` skill, which was vendored from
 [tscircuit/skill](https://github.com/tscircuit/skill) (MIT) and has been
 removed.
+
+## herdr Skill
+
+`skills/herdr/SKILL.md` is copied from
+[herdrdev/herdr](https://github.com/herdrdev/herdr/blob/v0.9.3/skills/herdr/SKILL.md)
+at **v0.9.3**, commit `7b116c05bfda646af39d2524c54e70c751f57ee8`, matching the
+Herdr release pinned in dotfiles. The upstream Apache-2.0 license is preserved
+at `skills/herdr/LICENSE`.
+
+The body is unchanged. The frontmatter description is shortened to fit this
+repository's 300-character limit while retaining the explicit-Herdr trigger and
+`HERDR_ENV=1` requirement. There is no package sidecar: dotfiles supplies the
+Herdr executable and background service, as it does for zmx. The shared skill
+is discovered and packaged for Claude Code, Codex, Antigravity, and Pi by the
+existing builders. Compare with `herdr --skill` when updating the pinned release.
