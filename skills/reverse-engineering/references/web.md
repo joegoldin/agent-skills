@@ -1,8 +1,24 @@
 # Web and network protocols
 
-Protobuf and gRPC, HAR captures, undocumented HTTP and WebSocket APIs, and
-TLS-fingerprinted endpoints. Interception and discovery (mitmproxy, tshark,
-nmap, avahi) and the `tmp/` and `artifacts/` conventions are in SKILL.md.
+JavaScript/Electron bundles, protobuf and gRPC, HAR captures, undocumented HTTP
+and WebSocket APIs, and TLS-fingerprinted endpoints. Interception and discovery
+(mitmproxy, tshark, nmap, avahi) and the `tmp/` and `artifacts/` conventions are
+in SKILL.md.
+
+## JavaScript and Electron
+
+Start with source maps and readable modules. For an Electron archive, use
+`asar extract app.asar tmp/app`, then inspect `package.json` for the main entry
+point. Trace window creation to preload scripts, exposed `contextBridge` APIs,
+and matching `ipcRenderer` / `ipcMain` channels. Follow the requested behavior
+across renderer, preload, and main process; a renderer-only search is incomplete.
+
+For minified or obfuscated bundles without useful source maps, use
+`webcrack bundle.js -o tmp/webcrack` to deobfuscate and unpack the bundle.
+The shell provides webcrack through its Nix-built Node dependencies.
+Keep the input hash and transformation command with the derived output.
+Recovered names and structure are hypotheses; compare the relevant code with
+the original bundle before drawing conclusions.
 
 ## Protocol Buffers and gRPC
 

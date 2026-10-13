@@ -44,6 +44,12 @@
     };
     # Carries the macOS half of re-shell only: `lib.mkReShellVm` builds a
     # vfkit microVM so a Mac can enter the Linux shell. See lib/re-vm.nix.
+    # SDK 27 must not follow a downstream host's older nixpkgs pin.
+    nixpkgs-vfkit.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    vfkit-src = {
+      url = "github:joegoldin/vfkit/usb-passthrough";
+      flake = false;
+    };
     microvm = {
       url = "github:microvm-nix/microvm.nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -62,6 +68,8 @@
       uv2nix,
       pyproject-build-systems,
       microvm,
+      vfkit-src,
+      nixpkgs-vfkit,
       ...
     }:
     let
@@ -239,6 +247,13 @@
           '';
         in
         perSkillPackages
+        // lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
+          vfkit-usb =
+            nixpkgs-vfkit.legacyPackages.${pkgs.stdenv.hostPlatform.system}.callPackage ./packages/vfkit-usb
+              {
+                src = vfkit-src;
+              };
+        }
         // crossPlugins
         // {
           default = claude-plugin;
@@ -262,8 +277,8 @@
       # ── re-shell reverse-engineering devShell ──
       # Faithful port of schlarpc/re-shell's dev environment: the general RE
       # toolchain plus the android/windows/web discipline tools, a uv2nix-built
-      # Python venv, and the apk-mitm Node tool. Entered with the `re-shell`
-      # launcher (packages/re-shell, shipped by the reverse-engineering skill)
+      # Python venv, and the apk-mitm and webcrack Node tools. Entered with the
+      # `re-shell` launcher (packages/re-shell, shipped by the reverse-engineering skill)
       # or `nix develop github:joegoldin/agent-skills#re-shell` directly.
       # Documented by the reverse-engineering skill and its references.
       devShells = nixpkgs.lib.genAttrs reShellSystems (
@@ -348,6 +363,11 @@
               pkgs.radare2 # UNIX-like RE framework and CLI toolset
               pkgs.rizin # Modern fork of radare2
               pkgs.binwalk # Firmware/binary analysis and extraction
+              pkgs.unblob # Recursive firmware extraction
+              pkgs.gdb # Core dumps and live debugging
+              pkgs.goresym # Go symbol, type, and build-info recovery
+              pkgs.wabt # wasm2wat, wasm-objdump, wasm-decompile
+              pkgs.ipsw # Apple firmware, Mach-O, and dyld shared cache tooling
 
               # --- General: dynamic instrumentation ---
               pkgs.frida-tools # frida, frida-ps, frida-trace, etc.
@@ -385,6 +405,10 @@
               pkgs.libusb1 # backend for pyusb
               pkgs.usbutils # lsusb -v, usbhid-dump
               pkgs.hid-tools # hid-decode/hid-recorder/hid-replay
+
+              # --- General: logic analyzer captures ---
+              pkgs.sigrok-cli # Protocol decoders for UART/SPI/I2C/... recordings
+              pkgs.pulseview # GUI for logic-analyzer captures and protocol decoding
 
               # --- General: password / hash cracking ---
               pkgs.hashcat
@@ -586,6 +610,26 @@
 
             touch $out
           '';
+
+          re-shell-launcher =
+            pkgs.runCommand "re-shell-launcher-tests"
+              {
+                nativeBuildInputs = [
+                  pkgs.python3
+                  pkgs.bash
+                  pkgs.coreutils
+                ]
+                ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.procps ];
+              }
+              ''
+                mkdir -p packages tests
+                cp -r ${./packages/re-shell} packages/re-shell
+                cp ${./tests/re-shell-test.py} tests/re-shell-test.py
+                python3 tests/re-shell-test.py
+                cp ${./tests/vfkit-usb-stop-test.py} tests/vfkit-usb-stop-test.py
+                python3 tests/vfkit-usb-stop-test.py
+                touch $out
+              '';
 
           frontmatter-tests =
             let
@@ -926,9 +970,9 @@
             let
               style = import ./lib/skill-style.nix { inherit lib; };
               names = lib.attrNames (
-                lib.filterAttrs (
-                  n: t: t == "directory" && builtins.pathExists (./skills + "/${n}/SKILL.md")
-                ) (builtins.readDir ./skills)
+                lib.filterAttrs (n: t: t == "directory" && builtins.pathExists (./skills + "/${n}/SKILL.md")) (
+                  builtins.readDir ./skills
+                )
               );
               failures = lib.concatMap (
                 name:

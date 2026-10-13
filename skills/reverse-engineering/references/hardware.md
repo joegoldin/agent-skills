@@ -1,8 +1,11 @@
 # Hardware targets
 
-Monitors over DDC/CI, USB and HID devices, FPGA bitstreams and netlists, and
-RP2040/RP2350 firmware. Most of this needs the device attached, so on macOS,
-where the shell runs in a VM without USB passthrough, run it on a Linux host.
+Use these tools for displays, USB/HID devices, logic-analyzer captures, FPGA
+bitstreams, and RP2040/RP2350 firmware. Live device access needs attached
+hardware; offline analysis can use saved captures, bitstreams, or firmware.
+On macOS 27, the microVM can use native USB passthrough with `re-shell --usb`
+and a locally signed vfkit app. USB/IP from a Mac or Linux server is a separate
+fallback; see [macos.md](macos.md#native-usb-passthrough) for setup and limits.
 
 ## Display and monitor firmware
 
@@ -46,6 +49,15 @@ Control and bulk transfers need write access to `/dev/bus/usb/*`. Note a vendor
 device often changes VID:PID when it switches USB modes, so match on every
 identity it can present.
 
+## Logic-analyzer captures
+
+| Command | What it does |
+|---------|--------------|
+| `sigrok-cli --show -i capture.sr` | Inspect a saved session and its channel names |
+| `sigrok-cli -i capture.sr -P uart:rx=D0:baudrate=115200` | Decode UART traffic; match the channel and baud rate to the capture |
+| `sigrok-cli --list-supported` | List available decoders, including SPI and I2C |
+| `pulseview capture.sr` | Browse captures and decoded protocols in a GUI; needs a display |
+
 ## FPGA bitstream and netlist analysis
 
 | Command | What it does |
@@ -78,5 +90,5 @@ netlist. Use `sat` as a fast falsifier, not a prover.
 |---------|--------------|
 | `picotool info -a firmware.uf2` | Inspect/convert RP2 UF2 firmware, read binary info and chip details |
 | (via `PICO_SDK_PATH`) | Pico SDK; `PICO_SDK_PATH` is set automatically |
-| `cmake -B build` | Build system for pico-sdk projects |
+| `cmake -B tmp/build` | Build system for pico-sdk projects |
 | `arm-none-eabi-gcc` | ARM cross toolchain (`arm-none-eabi-{gcc,objcopy,gdb,...}`) |

@@ -1,6 +1,6 @@
 ---
 name: reverse-engineering
-description: Toolchain and method for reverse engineering binaries, firmware, devices, Android apps, Windows executables and web protocols. Use when analysing an unknown binary, firmware image, device, APK, PE or .NET file, or an undocumented network API.
+description: Use when reverse engineering an unknown binary, firmware image, hardware device, Android APK, Windows PE or .NET file, JavaScript/Electron bundle, or undocumented network API; also for disassembly, decompilation, instrumentation and protocol recovery.
 ---
 
 # Reverse Engineering
@@ -13,10 +13,13 @@ references; read the one that matches the target before starting:
   `.so` libraries, ADB and fastboot, OTA images, certificate pinning.
 - [references/windows.md](references/windows.md): PE files, .NET assemblies,
   installers (MSI, Inno, BitRock), Wine, memory dumps, Authenticode.
-- [references/web.md](references/web.md): protobuf and gRPC, HAR files,
-  undocumented HTTP and WebSocket APIs, TLS-fingerprinted endpoints.
+- [references/web.md](references/web.md): JavaScript/Electron, protobuf and
+  gRPC, HAR files, HTTP and WebSocket APIs, TLS-fingerprinted endpoints.
 - [references/hardware.md](references/hardware.md): monitors over DDC/CI, USB
-  and HID devices, FPGA bitstreams and netlists, RP2040/RP2350 firmware.
+  and HID devices, logic-analyzer captures, FPGA bitstreams and netlists,
+  RP2040/RP2350 firmware.
+- [references/cracking.md](references/cracking.md): password/hash recovery and
+  wordlists.
 
 ## The environment
 
@@ -38,47 +41,7 @@ alone is ~2 GB). It sets the environment variables the tools need
 `_JAVA_OPTIONS`, with JVM scratch redirected into `tmp/jtmp`), and links a
 `wordlists/` directory into your working directory.
 
-### On macOS
-
-The shell cannot run natively there: it is x86_64-linux, and wine, ddcutil,
-i2c-tools, edid-decode, hid-tools, and pe-bear need Linux kernel interfaces that
-macOS does not have. `re-shell` therefore boots a disposable NixOS microVM
-(vfkit, on Virtualization.framework) and enters the same shell inside it.
-
-- **Only the launch directory is shared, as `/work`**, read-write, and it is the
-  shell's working directory. The guest cannot see the rest of the Mac — which is
-  the point when the sample is untrusted.
-- **x86_64 binaries run under Rosetta**, so the toolchain is the one Linux gets,
-  not a macOS subset.
-- **The guest's Nix store persists** in `~/.local/share/re-shell`, so the
-  multi-GB download happens once. Everything else in the guest is discarded: the
-  VM powers off when the shell exits.
-- **One session, and no display.** The terminal that ran `re-shell` *is* the
-  VM's console: the guest runs no sshd, and microvm.nix's vfkit backend wires up
-  neither port forwarding nor vsock (it throws on both), so there is no second
-  way in. Drive Ghidra headless (`ghidra-analyzeHeadless`, pyghidra); the GUI
-  tools are unusable in there.
-- **Ctrl-C interrupts the tool; Ctrl-] kills the VM.** The console is the
-  terminal's own tty, so the launcher hands the interrupt key to the guest —
-  otherwise Ctrl-C would reach vfkit and shut the machine down mid-analysis.
-- **No AVX.** Rosetta translates x86_64 userspace without AVX, AVX2, AVX-512,
-  BMI1/2, or F16C, and there is no 32-bit x86 at all. A sample or tool that
-  requires them dies with SIGILL rather than a clear message.
-- **No USB.** vfkit passes no USB devices through, so nothing that talks to
-  attached hardware — adb over USB, `lsusb`, hid-tools, ddcutil, i2c — can see
-  it. Network-reachable targets still work: the guest has outbound NAT, so
-  `adb connect <host>:5555` and a remote frida-server are the way in.
-- **Frida is the one tool Rosetta cannot run.** The x86_64 build dies on an
-  unimplemented `eventfd` syscall, for the Python module and every CLI. The
-  guest carries a native aarch64 build outside the shell: call it by path,
-  `/run/current-system/sw/bin/frida{,-ps,-trace}`, since the shell's broken
-  x86_64 copy comes first on PATH. Everything else in the toolchain — Ghidra,
-  radare2, wine, jadx, apktool, floss, diec, pyghidra, capstone, unicorn, lief,
-  yara — runs under Rosetta.
-
-Tunable with `RE_SHELL_CPUS` (default 6), `RE_SHELL_MEM` in MiB (8192),
-`RE_SHELL_STORE_SIZE` in MiB (81920), and `RE_SHELL_STATE_DIR`. Use `re-shell -r`
-to rebuild the VM runner after changing the flake.
+On macOS, read [references/macos.md](references/macos.md) for the microVM and its limits.
 
 ## Output conventions
 
@@ -95,6 +58,69 @@ launched the shell, rather than the repo root or ad-hoc locations.
 
 Direct tool output into `tmp/` explicitly: `binwalk -e firmware.bin -C tmp/binwalk_firmware/`.
 
+Save large Ghidra/r2 dumps to `tmp/` and use `rg -n` plus bounded excerpts to
+read them. Keep the full output on disk rather than filling context with it.
+
+Record `sha256sum` for the original and every unpacked, carved, or extracted
+file in `artifacts/<identifier>/findings.md`. Keep the original unchanged. For
+each derived file, record its parent hash and the extraction command or byte
+range; cite the file/hash with addresses and offsets so evidence identifies
+exact bytes.
+
+## Route by target
+
+If the user says "my app" without a name or path, ask which target they mean.
+Do not choose an installed app for them.
+
+For an unknown file, start with `file`, `diec` (Detect It Easy), `binwalk -E`
+(entropy), and `strings -n 8`; save their output under `tmp/`. High entropy can
+mean compression or encryption; it does not identify either by itself.
+
+- **ELF/Mach-O or other native code:** inspect headers, imports, and entry
+  points, then use Ghidra headless for the functions relevant to the question.
+- **APK/DEX or Android bundle:** read [android.md](references/android.md);
+  **PE/.NET:** read [windows.md](references/windows.md).
+- **JavaScript/Electron:** extract `app.asar` with `asar`, then follow package
+  entry points and source maps using [web.md](references/web.md) before
+  analyzing native modules.
+- **Container, packed image, or embedded filesystem:** carve/extract with
+  `binwalk` or `unblob`, hash the results, and triage each relevant payload.
+- **Headerless firmware:** establish architecture, endianness, and load address
+  from the device or image structure before importing as raw binary below.
+
+## Investigation method
+
+Turn the request into a short question checklist in
+`artifacts/<identifier>/findings.md`. Start with the smallest useful overview
+(headers, sections, imports, strings); follow each question from its entry
+point through relevant callers, callees, and data. Deepen analysis only where
+it can answer a question. Split independent questions across parallel
+subagents when available, giving each the sample identity, evidence paths,
+and a bounded question; reconcile their evidence in the same ledger.
+
+Distinguish these in every finding:
+
+| Kind | What it supports |
+|------|------------------|
+| Observation | Bytes at an offset, a tool result, or behavior captured during a specified run |
+| Inference | An interpretation of evidence, with assumptions and confidence |
+| Unknown | What remains untested or could change the conclusion |
+
+Static analysis does not observe execution. Decompiler output is pseudocode,
+not recovered source. A bounded negative search does not prove absence;
+record what was searched and its limits. Decompiling an unpacking stub does
+not recover the unpacked program; extract or capture the payload before
+attributing behavior to it.
+
+Keep one line per claim in the findings ledger:
+
+| Claim / kind | File / SHA-256 | Evidence (address, offset, command, or trace) | Confidence | Open unknowns |
+|--------------|---------------|-----------------------------------------------------|------------|---------------|
+
+Update the ledger as evidence changes. Before finishing, mark every question
+**answered**, **partial**, or **unresolved**, and state which unknowns prevent
+a stronger conclusion.
+
 ## Native binary analysis
 
 | Tool | Command | What it does |
@@ -102,18 +128,23 @@ Direct tool output into `tmp/` explicitly: `binwalk -e firmware.bin -C tmp/binwa
 | Ghidra | `ghidra` | Full SRE suite with a decompiler; x86, x64, ARM, ARM64, MIPS, and more |
 | radare2 | `r2 -A binary` | CLI-first disassembly, analysis, patching, debugging |
 | rizin | `rizin -A binary` | radare2 fork with cleaner APIs and Ghidra decompiler via rz-ghidra |
-| binwalk | `binwalk firmware.bin` | Find and extract embedded files, compressed streams, filesystems |
+| GoReSym | `GoReSym binary` | Recover Go symbols, types, and build information |
+| WABT | `wasm2wat module.wasm` / `wasm-objdump -x module.wasm` | Inspect WebAssembly code and structure |
+| ipsw | `ipsw --help` | Apple firmware, Mach-O, and dyld shared cache tooling |
 
 Ghidra's GUI needs a display server; on headless hosts use the headless
 analyzer (`ghidra-analyzeHeadless tmp/proj Name -import binary -postScript s.java`)
 or drive it from Python with pyghidra. A large image can take Ghidra over an
 hour to auto-analyze, so reach for `capstone` first when you only need a handful
-of instructions.
+of instructions. Keep the project after analysis; reuse it with
+`ghidra-analyzeHeadless tmp/proj Name -process binary -noanalysis -postScript s.java`
+for later queries instead of re-importing and repeating auto-analysis.
 
 ## Dynamic instrumentation
 
 | Command | What it does |
 |---------|--------------|
+| `gdb binary` / `gdb binary core` | Debug a process or inspect a core dump |
 | `frida -p <pid> -l script.js` | Inject JavaScript into a running process |
 | `frida-ps` (`-U` USB, `-R` remote) | List processes |
 | `frida-trace -p <pid> -i "open*"` | Generate handler stubs for matched functions |
@@ -129,25 +160,29 @@ engine for scripting.
 
 ## Firmware extraction and inspection
 
-`binwalk` carves most firmware. For metadata and packaging: `file` identifies
-types, `exiftool` reads embedded metadata, `7z`/`unzip` handle archives,
-`upx -d` unpacks UPX, and `strings -n 8` / `nm` / `objdump` / `readelf`
-(binutils) read symbols and structure. `innoextract` and `asar` unpack the
-installer and Electron formats vendor update tools ship in.
-
-## Password and hash cracking
-
-Wordlists and rules are exposed as a stable dir-of-symlinks at `wordlists/` in
-your working directory (gitignored, points into the Nix store), so no
-`/nix/store` spelunking. Contents: `wordlists/rockyou.txt`,
-`wordlists/seclists/` (full SecLists tree), `wordlists/best64.rule`,
-`wordlists/hashcat-rules/`, `wordlists/john-rules/`, `wordlists/john-password.lst`.
-To add more, edit the `wordlists` linkFarm in `flake.nix`.
-
 | Command | What it does |
 |---------|--------------|
-| `hashcat -m 0 -a 0 hash.txt wordlists/rockyou.txt -r wordlists/best64.rule` | GPU/CPU password recovery |
-| `john --wordlist=wordlists/rockyou.txt hash.txt` | John the Ripper (Jumbo); bundles `*2john` converters like `zip2john` |
+| `binwalk firmware.bin` | Identify embedded signatures before extraction |
+| `unblob -e tmp/unblob firmware.bin` | Extract nested containers and filesystems |
+
+For metadata and packaging: `file` identifies types, `exiftool` reads embedded metadata, `7z`/`unzip` handle archives,
+`upx -d -o tmp/unpacked binary` unpacks UPX into a derived file, and
+`strings -n 8` / `nm` / `objdump` / `readelf` (binutils) read symbols and structure. `innoextract` and `asar` unpack the
+installer and Electron formats vendor update tools ship in.
+
+For headerless firmware, choose the processor and load address from evidence;
+record assumptions in the ledger. For example, a Cortex-M image known to load
+at `0x08000000` can be imported without auto-analysis first:
+
+```sh
+mkdir -p tmp/ghidra_firmware
+ghidra-analyzeHeadless tmp/ghidra_firmware Firmware -import firmware.bin \
+  -loader BinaryLoader -loader-baseAddr 0x08000000 \
+  -processor ARM:LE:32:Cortex -noanalysis > tmp/firmware-import.log 2>&1
+```
+
+Check the memory map and reset/vector addresses before enabling analysis.
+A plausible disassembly alone does not validate the architecture or base.
 
 ## Network interception and discovery
 
@@ -175,7 +210,8 @@ The shell provides a Nix-built virtualenv. General-purpose libraries:
 | `capstone` | Disassemble a few bytes without a full Ghidra run (x86/x64/ARM/ARM64/MIPS/...) |
 | `numpy`, `scipy` | Byte-array math, entropy, FFT, signal processing |
 | `PIL` (Pillow) | Extracted textures, QR, framebuffers |
-| `usb.core` (pyusb) | Raw USB transfers (references/hardware.md covers the backend) |
+| `usb.core` (pyusb) | Raw USB transfers (backend setup in [hardware.md](references/hardware.md)) |
+| `pwn` (pwntools) | Process/socket interaction, ELF inspection, packing, and assembly |
 | `cryptography` | Ed25519/ECDSA/RSA/AES for firmware signature checks |
 
 pyghidra needs a couple of things set before `pyghidra.start()`. The shell
@@ -217,4 +253,3 @@ npm packages whose install scripts download binaries (e.g. the `frida` npm
 package) fail in the Nix sandbox, so use the nixpkgs equivalent. After adding a
 tool, confirm the binary name on PATH with `which` before documenting it: Nix
 package names often differ from binary names.
-

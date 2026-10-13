@@ -12,10 +12,11 @@ set -euo pipefail
 flake=${RE_SHELL_FLAKE:-github:joegoldin/agent-skills}
 state_dir=${RE_SHELL_STATE_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/re-shell}
 refresh=
+usb=false
 
 usage() {
   cat <<EOF
-Usage: re-shell [-f FLAKE] [-r] [command [args...]]
+Usage: re-shell [-f FLAKE] [-r] [--usb] [command [args...]]
 
 Enters the agent-skills reverse-engineering environment in the current
 directory. With no command, starts an interactive shell in it; otherwise runs
@@ -26,6 +27,8 @@ Options:
              (default: \$RE_SHELL_FLAKE, else $flake).
              Use '-f .' to work against a local agent-skills checkout.
   -r         Rebuild rather than reuse the cached macOS VM runner.
+  --usb      Offer native USB passthrough (macOS 27, signed vfkit app required).
+             RE_SHELL_VFKIT_APP defaults to ~/Applications/vfkit.app.
   -h         Show this help.
 
 The environment is large and unfree; the first entry downloads several GB.
@@ -43,10 +46,16 @@ macOS specifics:
 EOF
 }
 
-while getopts ':f:rh' opt; do
+while getopts ':f:rh-:' opt; do
   case $opt in
     f) flake=$OPTARG ;;
     r) refresh=1 ;;
+    -)
+      case $OPTARG in
+        usb) usb=true ;;
+        *) echo "re-shell: unknown option --$OPTARG" >&2; exit 2 ;;
+      esac
+      ;;
     h)
       usage
       exit 0
@@ -70,6 +79,10 @@ if ! command -v nix >/dev/null 2>&1; then
 fi
 
 if [ "$(uname -s)" != Darwin ]; then
+  if [ "$usb" = true ]; then
+    echo "re-shell: --usb requires macOS; Linux tools access host USB directly" >&2
+    exit 2
+  fi
   # Run the user's own shell rather than the devShell's bash: the environment
   # is exported either way, and dropping into a foreign shell loses their
   # prompt, history, and aliases mid-analysis.
@@ -88,6 +101,19 @@ case $(uname -m) in
     exit 1
     ;;
 esac
+
+if [ "$usb" = true ]; then
+  if [ "$(sw_vers -productVersion | cut -d. -f1)" -lt 27 ]; then
+    echo "re-shell: native USB passthrough requires macOS 27" >&2
+    exit 1
+  fi
+  export RE_SHELL_VFKIT_APP=${RE_SHELL_VFKIT_APP:-$HOME/Applications/vfkit.app}
+  if [ ! -x "$RE_SHELL_VFKIT_APP/Contents/MacOS/vfkit" ]; then
+    echo "re-shell: signed app missing at $RE_SHELL_VFKIT_APP; activate your vfkit dotfiles configuration" >&2
+    exit 1
+  fi
+  codesign --verify --strict "$RE_SHELL_VFKIT_APP"
+fi
 
 workdir=$PWD
 # A path flake reference is meaningless inside the guest, so a local checkout
@@ -111,7 +137,7 @@ esac
 session_id=$(printf '%s' "$workdir" | sha256sum | cut -c1-16)
 ctl_dir="$state_dir/sessions/$session_id"
 mkdir -p "$ctl_dir" "$state_dir/sockets"
-rm -f "$ctl_dir/cmd" "$ctl_dir/status"
+rm -f "$ctl_dir/cmd" "$ctl_dir/status" "$ctl_dir/out" "$ctl_dir/err"
 if [ "$#" -gt 0 ]; then
   # %q so the guest's `bash -lc` sees the arguments this shell saw, not a
   # re-split approximation of them.
@@ -119,6 +145,9 @@ if [ "$#" -gt 0 ]; then
 fi
 
 runner_link="$ctl_dir/runner"
+if [ "$usb" = true ]; then
+  runner_link="$ctl_dir/runner-usb"
+fi
 if [ -n "$refresh" ] || [ ! -e "$runner_link" ]; then
   cat > "$ctl_dir/vm.nix" <<EOF
 (builtins.getFlake "$flake_src").lib.mkReShellVm {
@@ -129,6 +158,7 @@ if [ -n "$refresh" ] || [ ! -e "$runner_link" ]; then
   flakeRef = "$flake";
   flakeDir = $flake_dir_nix;
   hostSystem = "aarch64-darwin";
+  usbPassthrough = $usb;
   vcpu = ${RE_SHELL_CPUS:-6};
   mem = ${RE_SHELL_MEM:-8192};
   storeSize = ${RE_SHELL_STORE_SIZE:-81920};
@@ -172,8 +202,8 @@ if [ -r "$ctl_dir/status" ]; then
   rm -f "$ctl_dir/status" "$ctl_dir/cmd"
   exit "$status"
 fi
-if [ -e "$ctl_dir/cmd" ]; then
+if [ -e "$ctl_dir/cmd" ] || [ "$usb" = true ]; then
   rm -f "$ctl_dir/cmd"
-  echo "re-shell: the VM exited without running the command" >&2
+  echo "re-shell: the VM exited without reporting the guest status" >&2
   exit 1
 fi

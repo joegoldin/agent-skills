@@ -31,6 +31,7 @@
   # The guest cannot see host paths that are not shared, so a path flakeRef has
   # to travel as a share rather than as a reference.
   flakeDir ? null,
+  usbPassthrough ? false,
   vcpu ? 6,
   mem ? 8192,
   storeSize ? 81920,
@@ -99,6 +100,10 @@ let
 
       services.getty.autologinUser = "root";
 
+      # USB/IP imports use the guest's native kernel, outside Rosetta. The
+      # connection is outbound to an explicitly selected USB/IP server.
+      boot.kernelModules = [ "vhci-hcd" ];
+
       # The console login and the virtiofs mounts are both wanted by
       # multi-user.target, so without this the shell can start before /work and
       # the control share exist: it then finds no command to run, falls through
@@ -117,12 +122,23 @@ let
         # The runner is a darwin package driving vfkit; only the guest closure
         # is Linux.
         vmHostPackages = nixpkgs.legacyPackages.${hostSystem};
-        vfkit.rosetta = {
-          enable = true;
-          # The x86_64 half of the toolchain is the point of the VM; if Rosetta
-          # is missing, prompt for it rather than boot a guest that cannot run
-          # a single tool.
-          install = true;
+        vfkit = {
+          package = lib.mkIf usbPassthrough (
+            nixpkgs.legacyPackages.${hostSystem}.writeShellScriptBin "vfkit" (
+              builtins.readFile ../packages/re-shell/vfkit-usb.sh
+            )
+          );
+          extraArgs = lib.optionals usbPassthrough [
+            "--device"
+            "usb-passthrough"
+          ];
+          rosetta = {
+            enable = true;
+            # The x86_64 half of the toolchain is the point of the VM; if Rosetta
+            # is missing, prompt for it rather than boot a guest that cannot run
+            # a single tool.
+            install = true;
+          };
         };
 
         interfaces = [
@@ -188,6 +204,7 @@ let
       # dynamic-instrumentation workflow has something that works; the shell's
       # own x86_64 frida still shadows it on PATH, which the skills call out.
       environment.systemPackages = [
+        config.boot.kernelPackages.usbip
         pkgs.frida-tools
         pkgs.starship
       ];
