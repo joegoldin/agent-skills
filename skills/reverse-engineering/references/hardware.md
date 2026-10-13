@@ -3,9 +3,14 @@
 Use these tools for displays, USB/HID devices, logic-analyzer captures, FPGA
 bitstreams, and RP2040/RP2350 firmware. Live device access needs attached
 hardware; offline analysis can use saved captures, bitstreams, or firmware.
-On macOS 27, the microVM can use native USB passthrough with `re-shell --usb`
-and a locally signed vfkit app. USB/IP from a Mac or Linux server is a separate
-fallback; see [macos.md](macos.md#native-usb-passthrough) for setup and limits.
+
+On Linux the shell runs natively, so it sees the host's `/dev/bus/usb`,
+`/dev/hidraw*`, and `/dev/i2c-*` directly — no passthrough, just the usual
+permissions (udev rules or group membership, noted per tool below). The macOS
+shell runs in a microVM instead, so USB is opt-in there: on macOS 27 use native
+passthrough with `re-shell --usb` and a locally signed vfkit app, with USB/IP
+from a Mac or Linux server as a fallback. See
+[macos.md](macos.md#native-usb-passthrough) for that setup and its limits.
 
 ## Display and monitor firmware
 
@@ -28,6 +33,9 @@ Both need the `i2c-dev` kernel module (`sudo modprobe i2c-dev`) and RW access to
 | `hid-decode <report_descriptor>` | Decode a HID report descriptor into named usages |
 | `hid-recorder /dev/hidraw0` | Record descriptor + timestamped live traffic |
 | `hid-replay recording.hid` | Replay a recording through a virtual uhid device |
+
+These read the host's USB and hidraw nodes directly on Linux; on macOS the
+device must first be attached to the guest (see the intro).
 
 A vendor device often exposes several `/dev/hidraw*` nodes; pick the one whose
 descriptor starts with a vendor-defined usage page (`06 XX ff`); `hid-decode`
