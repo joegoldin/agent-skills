@@ -31,6 +31,9 @@ in
       environment = {
         PI_SKIP_VERSION_CHECK.value = "1";
         PI_AUTOMODE_NO_STATUS_SLOT.value = "1";
+        # A Herdr pane sets no SSH variables even when its client is on another
+        # machine, so pi would only write the server's clipboard.
+        PI_CLIPBOARD_OSC52.value = "1";
         # pi-lens otherwise downloads language servers and linters into
         # ~/.pi-lens at runtime; it uses whatever the project's devshell puts
         # on PATH instead.
