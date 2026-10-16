@@ -1256,7 +1256,7 @@
 
             # The curated third-party set, enabled by default because each one
             # restores something pi deliberately omits and this library's
-            # skills assume: subagents, usage, code diagnostics and web
+            # skills assume: subagents, code diagnostics and web
             # search. Permissions come with auto mode, in pi-permissions. Todos, background bash, structured questions,
             # goal-driven looping and side questions come from pi-nix's
             # first-party pi-custom, enabled through its own option. MCP is no
@@ -1273,7 +1273,6 @@
             programs.pi.coding-agent.extensionPackages = lib.mkDefault (
               map (n: pi-nix.packages.${pkgs.stdenv.hostPlatform.system}.${n}) [
                 "ext-pi-subagents"
-                "ext-narumitw-pi-usage"
               ]
               ++ [
                 # Diagnostics only: left on, its formatter and autofixer
