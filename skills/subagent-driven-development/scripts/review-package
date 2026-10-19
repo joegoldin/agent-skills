@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
-# Generate a review package: commit list, stat summary, and the net
-# diff with extended context, written to a file the reviewer reads in one
-# call. Using the recorded per-task BASE (not HEAD~1) keeps multi-commit
-# tasks intact.
-#
+# Write the net change from a recorded BASE, including multi-commit tasks.
+# Git endpoints are commits; jj endpoints can include the working copy (@).
 # Usage: review-package BASE HEAD [OUTFILE]
-# Default OUTFILE: <repo-root>/.agent-skills/sdd/review-<base7>..<head7>.diff
-# (named per range, so a re-review after fixes gets a distinct fresh file).
 set -euo pipefail
 
 if [ $# -lt 2 ] || [ $# -gt 3 ]; then
@@ -14,31 +9,63 @@ if [ $# -lt 2 ] || [ $# -gt 3 ]; then
   exit 2
 fi
 
-base=$1
-head=$2
+scripts=$(cd "$(dirname "$0")" && pwd)
+source "$scripts/vcs.sh"
+sdd_repo
 
-git rev-parse --verify --quiet "$base" >/dev/null || { echo "bad BASE: $base" >&2; exit 2; }
-git rev-parse --verify --quiet "$head" >/dev/null || { echo "bad HEAD: $head" >&2; exit 2; }
+resolve_revision() {
+  local id
+  if [ "$vcs" = jj ]; then
+    id=$(jj --color never log --no-graph -r "$1" -T 'commit_id ++ "\n"') || return
+  else
+    id=$(git rev-parse --verify --end-of-options "$1^{commit}") || return
+  fi
+  # Reject empty and multi-revision revsets before creating a package.
+  [[ "$id" =~ ^[0-9a-f]{40,64}$ ]] || return 1
+  printf '%s\n' "$id"
+}
+
+base=$(resolve_revision "$1") || { echo "bad BASE: $1" >&2; exit 2; }
+head=$(resolve_revision "$2") || { echo "bad HEAD: $2" >&2; exit 2; }
 
 if [ $# -eq 3 ]; then
-  out=$3
+  case "$3" in
+    /*) out=$3 ;;
+    *) out="$PWD/$3" ;;
+  esac
 else
-  dir=$("$(cd "$(dirname "$0")" && pwd)/sdd-workspace")
-  out="$dir/review-$(git rev-parse --short "$base")..$(git rev-parse --short "$head").diff"
+  dir=$("$scripts/sdd-workspace")
+  out="$dir/review-${base:0:12}..${head:0:12}.diff"
 fi
 
+# Publish only a complete package; a failed command must not erase old evidence.
+tmp=$(mktemp "$out.tmp.XXXXXX")
+trap 'rm -f "$tmp"' EXIT
+cd "$root"
 {
-  echo "# Review package: ${base}..${head}"
+  echo "# Review package: ${base}..${head} ($vcs)"
   echo
   echo "## Commits"
-  git log --oneline "${base}..${head}"
+  if [ "$vcs" = jj ]; then
+    jj --ignore-working-copy --color never log --no-graph -r "$base..$head" \
+      -T 'commit_id.short() ++ " " ++ description.first_line() ++ "\n"'
+  else
+    git --no-pager log --no-color --oneline "$base..$head"
+  fi
   echo
   echo "## Files changed"
-  git diff --stat "${base}..${head}"
+  if [ "$vcs" = jj ]; then
+    jj --ignore-working-copy --color never diff --from "$base" --to "$head" --stat
+  else
+    git --no-pager diff --no-ext-diff --no-textconv --stat "$base" "$head"
+  fi
   echo
   echo "## Diff"
-  git diff -U10 "${base}..${head}"
-} > "$out"
-
-commits=$(git rev-list --count "${base}..${head}")
-echo "wrote ${out}: ${commits} commit(s), $(wc -c < "$out" | tr -d ' ') bytes"
+  if [ "$vcs" = jj ]; then
+    jj --ignore-working-copy --color never diff --from "$base" --to "$head" --git --context 10
+  else
+    git --no-pager diff --no-color --no-ext-diff --no-textconv -U10 "$base" "$head"
+  fi
+} > "$tmp"
+mv "$tmp" "$out"
+echo "wrote ${out}: $(wc -c < "$out" | tr -d ' ') bytes"

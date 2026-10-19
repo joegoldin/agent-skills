@@ -15,7 +15,8 @@
 # Usage: sdd-workspace
 set -euo pipefail
 
-root=$(git rev-parse --show-toplevel)
+source "$(dirname "$0")/vcs.sh"
+sdd_repo
 dir="$root/.agent-skills/sdd"
 mkdir -p "$dir"
 printf '*\n' > "$dir/.gitignore"

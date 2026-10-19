@@ -1,11 +1,11 @@
 # Code Reviewer Prompt Template
 
-Use this template when dispatching a code reviewer subagent.
+Use this role template with the harness's native dispatch tool.
 
 **Purpose:** Review completed work against requirements and code quality standards before it cascades into more work.
 
 ```
-Subagent (general-purpose):
+Role: fresh read-only code reviewer
   description: "Review code changes"
   prompt: |
     You are a Senior Code Reviewer with expertise in software architecture,
@@ -20,19 +20,26 @@ Subagent (general-purpose):
 
     [PLAN_OR_REQUIREMENTS]
 
-    ## Git Range to Review
+    ## Source to Review
 
+    **Workspace:** [EXACT_WORKSPACE]
     **Base:** [BASE_SHA]
-    **Head:** [HEAD_SHA]
+    **Head or dirty snapshot:** [HEAD_SHA]
+    **Review package:** [DIFF_FILE]
+    **Verification records:** [EVIDENCE_PATHS]
 
-    ```bash
-    git diff --stat [BASE_SHA]..[HEAD_SHA]
-    git diff [BASE_SHA]..[HEAD_SHA]
-    ```
+    Start with the package, then inspect source for concrete risks. Use the
+    repository's native VCS for history: jj in jj workspaces, Git otherwise.
+    A package for committed code does not cover pending edits or untracked files.
 
     ## Read-Only Review
 
-    Your review is read-only on this checkout. Do not mutate the working tree, the index, HEAD, or branch state in any way. Use tools like `git show`, `git diff`, and `git log` to inspect history. If you need a working copy of a different revision, check it out into a separate temporary directory (e.g. `git worktree add /tmp/review-[SHA] [SHA]`) — never move HEAD on this checkout.
+    Do not mutate the source workspace or VCS state. Ask the parent for a
+    separate validation workspace if a check writes artifacts or needs another
+    revision. Reuse verification records only when source, inputs, environment
+    and coverage match; request missing checks instead of assuming a task's
+    previous pass covers the integrated result. See subagent-driven-development's
+    verification.md for the record format.
 
     ## What to Check
 

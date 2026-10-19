@@ -10,8 +10,12 @@ carried out, and only a workspace this workflow created is removed.
 
 ## 1. Check the tests
 
-Run the project's suite. If it fails, show the failures and stop; don't merge
-or open a PR on a red build.
+Use existing verification evidence when it covers the required gates on the exact
+source, inputs and environment being integrated; otherwise run the missing checks.
+The [verification record](../subagent-driven-development/verification.md) describes
+what makes evidence reusable. A branch name or a worker's summary is not enough.
+If a required check fails, is skipped or cannot run, report it and stop before
+merging or opening a PR.
 
 ## 2. Work out where you are
 
@@ -53,7 +57,8 @@ cd "$MAIN_ROOT"
 git checkout main && git pull && git merge <feature-branch>
 ```
 
-Run the tests on the merged result, then clean up the workspace (step 5) and,
+Verify the merged result: reuse evidence only if its inputs still match, otherwise
+rerun the affected gates. Then clean up the workspace (step 5) and,
 in git, delete the branch with `git branch -d <feature-branch>`. Delete it
 after removing the worktree, because git won't delete a branch a worktree
 still has checked out.

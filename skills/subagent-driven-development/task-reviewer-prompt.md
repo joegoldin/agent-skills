@@ -1,17 +1,16 @@
 # Task Reviewer Prompt Template
 
 Use this template when dispatching a task reviewer subagent. The reviewer
-reads the task's diff once and returns two verdicts: spec compliance and
-code quality.
+uses the task's diff and source to return two verdicts: spec compliance and
+code quality. Adapt these role fields to the harness's native dispatch tool.
 
 **Purpose:** Verify one task's implementation matches its requirements (nothing
 more, nothing less) and is well-built (clean, tested, maintainable)
 
 ```
-Subagent (general-purpose):
+Role: fresh read-only reviewer
   description: "Review Task N (spec + quality)"
-  model: [MODEL — REQUIRED: choose per SKILL.md Model Selection; an omitted
-         model silently inherits the session's most expensive one]
+  model: [configured reviewer role or risk-appropriate override]
   prompt: |
     You are reviewing one task's implementation: first whether it matches its
     requirements, then whether it is well-built. This is a task-scoped gate,
@@ -35,16 +34,14 @@ Subagent (general-purpose):
     **Head:** [HEAD_SHA]
     **Diff file:** [DIFF_FILE]
 
-    Read the diff file once — it contains the commit list, a stat summary,
-    and the full diff with surrounding context, and it is your view of the
-    change. The diff's context lines ARE the changed files: do not Read a
-    changed file separately unless a hunk you must judge is cut off
-    mid-function — and say so in your report. Do not re-run git commands.
-    If the diff file is missing, fetch the diff yourself:
-    `git diff --stat [BASE_SHA]..[HEAD_SHA]` and `git diff [BASE_SHA]..[HEAD_SHA]`.
-    Do not crawl the broader codebase. Inspect code outside the diff only
-    to evaluate a concrete risk you can name — one focused check per named
-    risk, and name both the risk and what you checked in your report.
+    **Workspace:** [EXACT_WORKSPACE]
+    **Verification guide:** [VERIFICATION_GUIDE]
+
+    Start with the diff package. Inspect source and call sites for concrete risks;
+    name the risk and what you checked in your report. The packet is navigation,
+    not a limit on evidence. If it is missing or does not cover the stated source
+    state (including uncommitted task files), request a complete package from the
+    parent or inspect the exact revisions with the repository's native VCS.
     Cross-cutting changes are legitimate named risks: if the diff changes
     lock ordering, a function or API contract, or shared mutable state,
     checking the call sites is the right method.
@@ -63,14 +60,13 @@ Subagent (general-purpose):
 
     ## Tests
 
-    The implementer already ran the tests and reported results with TDD
-    evidence for exactly this code. Do not re-run the suite to confirm their
-    report. Run a test only when reading the code raises a specific doubt
-    that no existing run answers — and then a focused test, never a
-    package-wide suite, race detector run, or repeated/high-count loop. If
-    heavy validation seems warranted, recommend it in your report instead of
-    running it. If you cannot run commands in this environment, name the
-    test you would run.
+    Check that the verification records match the source, inputs, environment
+    and requirements under review. Reuse valid evidence; do not rerun a suite
+    merely because review has started. Missing, stale, skipped or failed evidence
+    leaves its gate unverified. Request affected checks or run a focused check
+    for a concrete uncovered risk. Tests that write artifacts need an isolated
+    validation workspace, not this read-only checkout. Recommend broader checks
+    to the integration owner when needed.
 
     Warnings or other noise in the implementer's reported test output are
     findings — test output should be pristine.
@@ -86,9 +82,9 @@ Subagent (general-purpose):
     - **Misunderstood:** right feature built the wrong way, wrong problem
       solved
 
-    If a requirement cannot be verified from this diff alone (it lives in
-    unchanged code or spans tasks), report it as a ⚠️ item instead of
-    broadening your search.
+    Check unchanged code when it is needed to judge a named task requirement.
+    If the necessary evidence is unavailable or belongs to a later integration
+    gate, report a ⚠️ item with the exact requirement and missing check.
 
     ## Part 2: Code Quality
 
@@ -166,7 +162,7 @@ Subagent (general-purpose):
 ```
 
 **Placeholders:**
-- `[MODEL]` — REQUIRED: reviewer model per SKILL.md Model Selection
+- `[MODEL]` — configured reviewer model or explicit risk-appropriate override
 - `[BRIEF_FILE]` — REQUIRED: the task brief file (`scripts/task-brief PLAN N`
   prints the path; same file the implementer worked from)
 - `[GLOBAL_CONSTRAINTS]` — the binding requirements copied verbatim from
@@ -175,8 +171,10 @@ Subagent (general-purpose):
   are already in this template)
 - `[REPORT_FILE]` — REQUIRED: the file the implementer wrote its detailed
   report to
-- `[BASE_SHA]` — commit before this task
-- `[HEAD_SHA]` — current commit
+- `[BASE_SHA]` — immutable source revision before this task
+- `[HEAD_SHA]` — immutable source revision or saved dirty snapshot under review
+- `[EXACT_WORKSPACE]` — workspace containing the reviewed source
+- `[VERIFICATION_GUIDE]` — this skill's verification.md
 - `[DIFF_FILE]` — REQUIRED: the path the controller wrote the review
   package to (`scripts/review-package BASE HEAD` prints the unique path it
   wrote; the package never enters the controller's context)

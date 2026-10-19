@@ -23,12 +23,13 @@ workflow's final whole-branch review.
 
 ## How to Request
 
-1. Resolve the base and head commits for the review range.
+1. Resolve the base and exact source state for review, including pending edits.
 2. Dispatch a reviewer using [code-reviewer.md](code-reviewer.md).
 3. Provide:
    - A concise description of the change
    - The plan or requirements it must satisfy
-   - The base and head commit IDs
+   - The workspace, base and head commit IDs or saved dirty snapshot
+   - The review package and verification records, when available
 4. Evaluate the findings against the code and tests.
 
 Fix critical issues immediately and important issues before integration. If a

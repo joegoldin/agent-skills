@@ -611,6 +611,26 @@
             touch $out
           '';
 
+          sdd-helpers =
+            pkgs.runCommand "sdd-helpers-tests"
+              {
+                nativeBuildInputs = [
+                  pkgs.python3
+                  pkgs.bash
+                  pkgs.coreutils
+                  pkgs.gawk
+                  pkgs.git
+                  pkgs.jujutsu
+                ];
+              }
+              ''
+                mkdir -p skills/subagent-driven-development tests
+                cp -r ${./skills/subagent-driven-development/scripts} skills/subagent-driven-development/scripts
+                cp ${./tests/sdd-helpers-test.py} tests/sdd-helpers-test.py
+                python3 tests/sdd-helpers-test.py
+                touch $out
+              '';
+
           re-shell-launcher =
             pkgs.runCommand "re-shell-launcher-tests"
               {

@@ -154,5 +154,34 @@
     "forbid": [
       "herdr"
     ]
+  },
+  {
+    "task": "Execute this existing implementation plan with two independent components. Use isolated subagents for the components and review their integration.",
+    "expect": [
+      "subagent-driven-development"
+    ],
+    "forbid": [
+      "writing-plans",
+      "dispatching-parallel-agents"
+    ]
+  },
+  {
+    "task": "Implement the tasks in this existing plan yourself; do not delegate or create a new plan.",
+    "expect": [
+      "subagent-driven-development"
+    ],
+    "forbid": [
+      "writing-plans",
+      "dispatching-parallel-agents"
+    ]
+  },
+  {
+    "task": "Investigate two unrelated failures with read-only agents in parallel; do not implement anything.",
+    "expect": [
+      "dispatching-parallel-agents"
+    ],
+    "forbid": [
+      "subagent-driven-development"
+    ]
   }
 ]

@@ -1,12 +1,12 @@
 # Implementer Subagent Prompt Template
 
-Use this template when dispatching an implementer subagent.
+Use this role template with the harness's native dispatch tool. The fields below
+are task content, not a tool-call schema.
 
 ```
-Subagent (general-purpose):
+Role: component writer
   description: "Implement Task N: [task name]"
-  model: [MODEL — REQUIRED: choose per SKILL.md Model Selection; an omitted
-         model silently inherits the session's most expensive one]
+  model: [configured role or task-appropriate override]
   prompt: |
     You are implementing Task N: [task name]
 
@@ -24,18 +24,30 @@ Subagent (general-purpose):
     1. Implement exactly what the task specifies
     2. Write tests (test-first if the task says to)
     3. Verify implementation works
-    4. Commit your work
+    4. Preserve a durable handoff; commit only if explicitly authorized
     5. Self-review (see below)
     6. Report back
 
-    Work from: [directory]
+    Work from: [exact workspace and starting source revision]
+    Owns: [exclusive files and allowed actions]
+    Needs: [prerequisites and interface examples]
+    Produces: [outcome and interface promised to consumers]
+    Verify: [focused commands and required gates]
+    Integration: [owner and real-interface checks]
+    Stop conditions: [ownership conflict, missing prerequisite, required decision]
+
+    Report necessary edits outside your ownership to the parent before making
+    them. Do not spawn more workers unless that authority was explicitly granted.
 
     If something is unclear, make the most reasonable assumption, note it in
     your report, and continue. Return BLOCKED only when the task cannot be
     completed without a decision from the controller.
 
-    While iterating, run the focused test for what you're changing; run the
-    full suite once before committing, not after every edit.
+    Run focused checks while iterating and the gates assigned in your contract.
+    Record evidence using [VERIFICATION_GUIDE], including the exact source state,
+    command, environment, result and log path. Broad integration checks belong to
+    the integration owner unless your task explicitly requires them. A passing
+    stub test does not prove the real integration works.
 
     ## Code Organization
 
@@ -93,13 +105,14 @@ Subagent (general-purpose):
 
     If a reviewer finds issues and you fix them, re-run the tests that cover
     the amended code and append the results to your report file. Reviewers
-    will not re-run tests for you — your report is the test evidence.
+    reuse valid evidence for the same source state, not an earlier passing run.
 
     ## Report Format
 
     Write your full report to [REPORT_FILE]:
     - What you implemented (or what you attempted, if blocked)
-    - What you tested and test results
+    - Verification records and log paths, including failures and skipped checks
+    - Exact source state and workspace; uncommitted files or commits if authorized
     - **Test-first evidence** (if the task required it):
       - RED: command run, relevant failing output before implementation, and why the failure was expected
       - GREEN: command run and relevant passing output after implementation
@@ -111,7 +124,7 @@ Subagent (general-purpose):
     Then report back with ONLY (under 15 lines — the detail lives in the
     report file):
     - **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
-    - Commits created (short SHA + subject)
+    - Source snapshot or commits created if authorized
     - One-line test summary (e.g. "14/14 passing, output pristine")
     - Your concerns, if any
     - The report file path
