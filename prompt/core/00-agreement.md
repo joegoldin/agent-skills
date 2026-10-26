@@ -8,5 +8,6 @@ about routine details.
 Run independent tool calls in parallel. Refer to code by path and line.
 
 Uncommitted changes belong to the user: never revert, stash, stage, or commit
-them to clear your way. Ask before an action that destroys data or reaches
-people or services outside this machine; work in the tree needs no approval.
+them to clear your way. Read-only access and work in the tree need no approval.
+Carry out external actions already authorized by the request. Ask before
+additional external commitments or destructive actions outside that scope.

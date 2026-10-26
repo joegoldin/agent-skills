@@ -183,5 +183,15 @@
     "forbid": [
       "subagent-driven-development"
     ]
+  },
+  {
+    "task": "Set up an isolated worktree for a README typo; the unrelated integration suite is already failing.",
+    "expect": [
+      "using-git-worktrees"
+    ],
+    "forbid": [
+      "test-driven-development",
+      "systematic-debugging"
+    ]
   }
 ]

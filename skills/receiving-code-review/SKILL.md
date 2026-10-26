@@ -46,9 +46,10 @@ you're right: X does Y. Fixing."
 ## Implementing
 
 Order the accepted items: blocking issues (breakage, security) first, then
-simple fixes, then larger refactors. Test after each so a regression points at
-one change. Acknowledge with what changed ("Fixed: the null check now covers
-the empty list, in parse.ts:42") rather than with praise for the reviewer; the
+simple fixes, then larger refactors. Batch related low-risk fixes and run their
+focused checks once. Check a risky change separately when that helps identify
+the cause of a regression. Acknowledge with what changed ("Fixed: the null check
+now covers the empty list, in parse.ts:42") rather than with praise for the reviewer; the
 change is the answer.
 
 On GitHub, reply to an inline comment in its thread

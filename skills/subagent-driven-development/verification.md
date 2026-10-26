@@ -4,7 +4,13 @@ A test result covers a source state and an environment, not a task number or a
 branch name. Record it once, then let later reviewers and finishing steps use it
 when those inputs still match. This is a portable record, not a test cache.
 
-Keep one record per check and attempt with its task report:
+For routine work in one session, record the command, result and relevant scope.
+Reuse the result while the inputs affecting that check remain unchanged. A new
+reviewer or finishing step alone is no reason to rerun it.
+
+For a handoff across sessions or workspaces, or an explicit audit requirement,
+keep the following record with the task report. The snapshot and environment
+requirements below apply to that portable record:
 
 ```text
 Check: classifier integration
