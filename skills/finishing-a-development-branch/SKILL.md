@@ -5,8 +5,9 @@ description: Wrap up a finished branch or jj change stack by merging locally, op
 
 # Finishing a Development Branch
 
-Done means the tests pass on what you integrate, the user's chosen outcome is
-carried out, and only a workspace this workflow created is removed.
+Done means the user's chosen outcome is carried out and only a workspace this
+workflow created is removed. Merging requires passing checks on the integrated
+result; a draft PR may carry explicitly listed failures or missing checks.
 
 ## 1. Check the tests
 
@@ -14,8 +15,9 @@ Use existing verification evidence when it covers the required gates on the exac
 source, inputs and environment being integrated; otherwise run the missing checks.
 The [verification record](../subagent-driven-development/verification.md) describes
 what makes evidence reusable. A branch name or a worker's summary is not enough.
-If a required check fails, is skipped or cannot run, report it and stop before
-merging or opening a PR.
+If a required merge check fails, is skipped or cannot run, report it and leave
+the merge blocked. When the user has authorized a PR, open it as a draft with
+the failed or missing checks listed. CI and review can proceed there.
 
 ## 2. Work out where you are
 

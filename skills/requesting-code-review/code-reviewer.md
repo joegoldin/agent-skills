@@ -65,7 +65,7 @@ Role: fresh read-only code reviewer
     - Tests verify real behavior, not mocks?
     - Edge cases covered?
     - Integration tests where they matter?
-    - All tests passing?
+    - Required checks passing, with unavailable checks identified?
 
     **Production readiness:**
     - Migration strategy if schema changed?
@@ -75,7 +75,10 @@ Role: fresh read-only code reviewer
 
     ## Calibration
 
-    Categorize issues by actual severity. Not everything is Critical.
+    Tie each blocking finding to a concrete failure scenario or unmet
+    requirement. A missing test blocks only when it leaves such a risk
+    unresolved or violates a required check. Optional coverage, cleanup and
+    design preferences are advisory; report them without demanding a fix.
     Acknowledge what was done well before listing issues — accurate praise
     helps the implementer trust the rest of the feedback.
 
@@ -95,7 +98,7 @@ Role: fresh read-only code reviewer
     [Bugs, security issues, data loss risks, broken functionality]
 
     #### Important (Should Fix)
-    [Architecture problems, missing features, poor error handling, test gaps]
+    [Concrete failures or unmet requirements that must be fixed before merge]
 
     #### Minor (Nice to Have)
     [Code style, optimization opportunities, documentation polish]
@@ -140,40 +143,19 @@ Role: fresh read-only code reviewer
 
 **Reviewer returns:** Strengths, Issues (Critical / Important / Minor), Recommendations, Assessment
 
-## Example Output
+## Example output
 
-```
-### Strengths
-- Clean database schema with proper migrations (db.ts:15-42)
-- Comprehensive test coverage (18 tests, all edge cases)
-- Good error handling with fallbacks (summarizer.ts:85-92)
-
+```text
 ### Issues
 
-#### Important
-1. **Missing help text in CLI wrapper**
-   - File: index-conversations:1-31
-   - Issue: No --help flag, users won't discover --concurrency
-   - Fix: Add --help case with usage examples
+Important: search.ts:25 accepts an invalid date and silently returns no results.
+The API contract requires a validation error. Validate the date before querying.
 
-2. **Date validation missing**
-   - File: search.ts:25-27
-   - Issue: Invalid dates silently return no results
-   - Fix: Validate ISO format, throw error with example
-
-#### Minor
-1. **Progress indicators**
-   - File: indexer.ts:130
-   - Issue: No "X of Y" counter for long operations
-   - Impact: Users don't know how long to wait
-
-### Recommendations
-- Add progress reporting for user experience
-- Consider config file for excluded projects (portability)
+Minor: index-conversations:1 has no --help flag. Adding one would make the
+options easier to discover; it is not required for this change.
 
 ### Assessment
 
-**Ready to merge: With fixes**
-
-**Reasoning:** Core implementation is solid with good architecture and tests. Important issues (help text, date validation) are easily fixed and don't affect core functionality.
+Ready to merge: With fixes.
+Fix date validation and run its focused tests. The help text can follow later.
 ```
