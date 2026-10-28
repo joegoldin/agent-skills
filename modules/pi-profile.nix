@@ -129,6 +129,7 @@ in
           "openai/gpt-6.1-sol"
           "openai/gpt-6-sol"
           "openai/gpt-6-luna"
+          "cerebras/qwen-3.8-27b"
         ];
         defaultThinkingLevel = "medium";
         # Fullscreen owns the mouse, which is what lets a click on a tool card

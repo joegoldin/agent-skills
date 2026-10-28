@@ -9,13 +9,22 @@ Keep the plan's decisions and acceptance with the parent. Give each worker a
 bounded task and enough context to finish it without the session history.
 Delegation needs authorization from the user or applicable project instructions;
 an implementation plan alone does not grant it. Without that authorization,
-work directly and use the same task contracts and verification records.
+work directly. For small serial tasks, keep a short progress note and the
+commands and results needed to explain the handoff.
 
 On Pi, read [pi.md](pi.md) before dispatching. On other harnesses, use their
 native agent and isolation facilities; the templates below describe roles,
 not tool-call syntax. A skill does not authorize commits or publication.
 
-## The process
+## Small serial tasks
+
+Implement the existing plan directly, review the diff, and run the focused
+checks the change needs. Keep progress and results in the session. If the
+project requires independent review or other gates, satisfy those before
+integration. The contracts and file-based handoffs below are for delegated or
+resumable work.
+
+## Delegated or resumable work
 
 1. Read the plan and existing progress. Check for contradictory requirements
    and shared interfaces that do not agree. Resolve routine details yourself;
@@ -79,8 +88,10 @@ The final review checks the integrated result, not merely the sum of task report
 
 Use requesting-code-review for the final review and receiving-code-review when
 adjudicating findings. Critical and Important findings block acceptance of the
-affected work. Record Minor findings for the final review. A plan-mandated defect
-is still a finding; ask about a conflict that requires changing the user's intent.
+affected work when they identify a concrete failure or unmet requirement.
+Optional coverage, cleanup and design preferences remain advisory. Record Minor
+findings for the final review. A plan-mandated defect is still a finding; ask
+about a conflict that requires changing the user's intent.
 
 A review package is a starting point, not a restriction on investigation. Give
 reviewers the exact workspace and source state. They may inspect surrounding code
@@ -104,6 +115,9 @@ and diagnose the cause before another attempt. A tooling failure remains a
 blocker; do not silently change execution protocols to get around it.
 
 ## Artifacts and verification
+
+The contracts and artifacts below support delegated or resumable work. Small
+serial tasks need only relevant progress, decisions, and check results.
 
 Use [verification.md](verification.md) to record test evidence and decide whether
 an earlier run still covers the current code. Focused tests belong with each
@@ -147,6 +161,6 @@ gate still needs them.
 - [task-reviewer-prompt.md](task-reviewer-prompt.md): spec and quality reviewer
 - [code-reviewer.md](../requesting-code-review/code-reviewer.md): whole-change review
 
-Without native subagents, work directly with the same contracts and evidence.
+Without native subagents, work directly with records sized to the task.
 Report that independent review was unavailable; a self-review does not satisfy a
 required fresh reviewer gate.

@@ -185,6 +185,16 @@
     ]
   },
   {
+    "task": "Set up an isolated worktree for a README typo; the unrelated integration suite is already failing.",
+    "expect": [
+      "using-git-worktrees"
+    ],
+    "forbid": [
+      "test-driven-development",
+      "systematic-debugging"
+    ]
+  },
+  {
     "task": "/dotfiles-update pi-nix: publish the required dependency changes and leave only that dotfiles input updated and committed locally, without pushing dotfiles or building my machine.",
     "expect": [
       "dotfiles-update"

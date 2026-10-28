@@ -1,13 +1,14 @@
 ---
 name: using-git-worktrees
-description: Set up an isolated workspace (git worktree or jj workspace) for feature work, with a clean test baseline. Use when starting work that should not touch the current checkout, or before executing a plan.
+description: Set up an isolated workspace (git worktree or jj workspace) for feature work, with a baseline check when needed. Use when starting work that should not touch the current checkout, or before executing a plan.
 ---
 
 # Using Git Worktrees
 
 Put the work in its own workspace so the user's checkout, and any uncommitted
-changes in it, stay untouched. Done means you are in an isolated workspace,
-dependencies are installed, and you have reported the baseline test result.
+changes in it, stay untouched. Done means the chosen workspace is ready, the
+tools needed for the task are available, and relevant baseline failures are
+recorded. If isolation is declined or blocked, use the fallback below.
 
 ## 1. Check for existing isolation
 
@@ -82,13 +83,13 @@ rather than git. The jujutsu skill covers workspaces, bookmarks and pushing.
 If creation fails with a permission error, the sandbox blocked it. Say so and
 work in the current directory instead.
 
-## 3. Set up and check the baseline
+## 3. Set up for the task
 
-Install dependencies the way the project does (a dev shell or `nix develop`
-where there is a flake; otherwise `npm install`, `cargo build`, `uv sync`,
-`go mod download`), then run the test suite.
+Use the project's environment and install dependencies only when the task needs
+them. Run a focused baseline check when it helps distinguish an existing failure
+from one the change might introduce. Creating a workspace alone does not call
+for a full suite.
 
-Report the location and the result, for example "Workspace ready at
-`<path>`; 214 tests pass." If tests already fail, report which ones and ask
-whether to proceed or investigate first; otherwise new failures can't be told
-apart from old ones.
+Report the workspace location. Record existing failures and continue work that
+they do not block. Ask only when resolving a failure requires a decision about
+scope or the intended result.
