@@ -626,6 +626,8 @@
               ''
                 mkdir -p skills/subagent-driven-development tests
                 cp -r ${./skills/subagent-driven-development/scripts} skills/subagent-driven-development/scripts
+                chmod -R u+w skills/subagent-driven-development/scripts
+                patchShebangs skills/subagent-driven-development/scripts
                 cp ${./tests/sdd-helpers-test.py} tests/sdd-helpers-test.py
                 python3 tests/sdd-helpers-test.py
                 touch $out

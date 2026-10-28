@@ -183,5 +183,19 @@
     "forbid": [
       "subagent-driven-development"
     ]
+  },
+  {
+    "task": "/dotfiles-update pi-nix: publish the required dependency changes and leave only that dotfiles input updated and committed locally, without pushing dotfiles or building my machine.",
+    "expect": [
+      "dotfiles-update"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "Explain how Nix flake follows edges work; do not change or publish any repositories.",
+    "expect": [],
+    "forbid": [
+      "dotfiles-update"
+    ]
   }
 ]
