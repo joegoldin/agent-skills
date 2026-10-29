@@ -207,5 +207,31 @@
     "forbid": [
       "dotfiles-update"
     ]
+  },
+  {
+    "task": "In this Rex terminal, split a pane beside you and run the test suite there.",
+    "expect": [
+      "rex"
+    ],
+    "forbid": [
+      "herdr"
+    ]
+  },
+  {
+    "task": "Use Rex to list my sessions without changing their names or layout.",
+    "expect": [
+      "rex"
+    ],
+    "forbid": [
+      "herdr"
+    ]
+  },
+  {
+    "task": "Add a unit test for the parser. Do not open any other terminals.",
+    "expect": [],
+    "forbid": [
+      "rex",
+      "herdr"
+    ]
   }
 ]
