@@ -578,34 +578,11 @@ let
       done
     '';
 
-  # A command-style skill: invoked by the user, hidden from the model's
-  # skill list. pi honours `disable-model-invocation` natively
-  # (formatSkillsForPrompt filters them out) and registers every skill as
-  # /skill:<name>; the prompt template is what gives it the short /<name>
-  # form plus an argument hint in the autocomplete.
-  isPiCommandSkill = skill: (skill.parsed.fields."disable-model-invocation" or "false") == "true";
-
-  # SKILL.md frontmatter → pi prompt-template frontmatter. `description` is
-  # required (pi otherwise takes the first 60 characters of the body);
-  # `argument-hint` is forwarded when present. Everything else is dropped:
-  # a prompt template is a body plus those two fields, nothing more.
-  mkPiPromptTemplateFor =
-    skill:
-    assert piLib != null;
-    piLib.mkPiPromptTemplate (
-      {
-        inherit (skill.meta) name description;
-      }
-      // lib.optionalAttrs (skill.parsed.fields ? "argument-hint") {
-        argument-hint = skill.parsed.fields."argument-hint";
-      }
-    ) skill.parsed.body;
-
   # ── pi package ──
   # pi consumes a *package*: a directory whose package.json carries a `pi`
   # key naming the resource directories (pi.dev/docs/latest/packages). One
-  # entry in settings.packages loads skills, prompt templates, and
-  # extensions together.
+  # entry in settings.packages loads skills and extensions together. Skills use
+  # Pi's native /skill:name commands; generated prompt aliases would duplicate them.
   #
   # A3 (design §4): skills are the SAME skill-<name> derivations the Claude
   # plugin ships, linked in by buildEnv — never copied. pi's loadSkills
@@ -626,15 +603,12 @@ let
     let
       skillPackages = skillPackagesOf skills;
 
-      prompts = map mkPiPromptTemplateFor (builtins.filter isPiCommandSkill skills);
-
       extensions = lib.optional (extensionsDir != null) (buildPiExtensions name skills extensionsDir);
 
       plugin = piLib.mkPlugin {
         inherit
           name
           description
-          prompts
           extensions
           ;
         skills = map (s: s.drv) skills;
@@ -840,8 +814,6 @@ in
     buildCodexPlugin
     buildPiPlugin
     buildPiExtensions
-    isPiCommandSkill
-    mkPiPromptTemplateFor
     buildAntigravityHooks
     buildCodexHooks
     buildSessionStartHooks

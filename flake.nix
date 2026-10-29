@@ -762,46 +762,37 @@
               touch $out
             '';
 
-          # Command-style skills (disable-model-invocation) get a pi prompt
-          # template so they are reachable as /name, not just /skill:name.
-          # Model-invocable skills must NOT get one.
+          # Command-style skills are registered by Pi itself, not duplicated as prompts.
           pi-prompt-templates =
             let
               piTree = self.packages.${system}.pi-plugin;
             in
-            pkgs.runCommand "pi-prompt-templates" { nativeBuildInputs = [ pkgs.jq ]; } ''
-              jq -e '.pi.prompts == ["./prompts"]' ${piTree}/package.json >/dev/null
-
-              test -f ${piTree}/prompts/format-nix.md
-              test -f ${piTree}/prompts/nix-dotfiles.md
-              test -f ${piTree}/prompts/brainstorming.md
-              test -f ${piTree}/prompts/writing-plans.md
-              test ! -e ${piTree}/skills/no-plan
-              test ! -e ${piTree}/prompts/no-plan.md
-
-              # description and argument-hint carried over from frontmatter
-              grep -qxF 'description: Format all Nix files in the project with nixfmt' \
-                ${piTree}/prompts/format-nix.md
-              grep -qxF 'argument-hint: "[directory]"' ${piTree}/prompts/format-nix.md
-              grep -qxF 'argument-hint: "<what to change>"' ${piTree}/prompts/nix-dotfiles.md
-
-              # body carried over verbatim, including pi-native $ARGUMENTS
-              grep -qF '$ARGUMENTS' ${piTree}/prompts/format-nix.md
-
-              # Claude-only frontmatter must not leak into the template
-              grep -q '^disable-model-invocation:' ${piTree}/prompts/format-nix.md && exit 1
-              grep -q '^allowed-tools:' ${piTree}/prompts/format-nix.md && exit 1
-
-              # model-invocable skills get no template
-              test ! -e ${piTree}/prompts/using-agent-skills.md
-              test ! -e ${piTree}/prompts/writing-skills.md
-
-              # ...but they are still shipped as skills
-              test -f ${piTree}/skills/format-nix/SKILL.md
-              test -f ${piTree}/skills/using-agent-skills/SKILL.md
-
-              touch $out
-            '';
+            pkgs.runCommand "pi-single-command-registration"
+              {
+                nativeBuildInputs = [
+                  pkgs.jq
+                  pkgs.bun
+                ];
+              }
+              ''
+                jq -e '(.pi.prompts // []) | length == 0' ${piTree}/package.json >/dev/null
+                for name in format-nix nix-dotfiles brainstorming writing-plans dotfiles-update; do
+                  test -f ${piTree}/skills/$name/SKILL.md
+                  test ! -e ${piTree}/prompts/$name.md
+                done
+                grep -qxF 'argument-hint: "[directory]"' ${piTree}/skills/format-nix/SKILL.md
+                grep -qxF 'argument-hint: "<what to change>"' ${piTree}/skills/nix-dotfiles/SKILL.md
+                grep -qF '$ARGUMENTS' ${piTree}/skills/format-nix/SKILL.md
+                grep -qxF 'disable-model-invocation: true' ${piTree}/skills/format-nix/SKILL.md
+                test -f ${piTree}/skills/using-agent-skills/SKILL.md
+                test ! -e ${piTree}/prompts/using-agent-skills.md
+                test ! -e ${piTree}/skills/no-plan
+                export HOME="$TMPDIR"
+                bun ${./tests/pi-skill-commands.mjs} ${
+                  pi-nix.packages.${system}.coding-agent-bun
+                }/lib/node_modules ${piTree}
+                touch $out
+              '';
 
           pi-extensions =
             let
