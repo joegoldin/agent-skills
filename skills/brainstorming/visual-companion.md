@@ -84,7 +84,7 @@ scripts/start-server.sh --project-dir /path/to/project --open --foreground
 
 **Other environments:** The server must keep running in the background across conversation turns. If your environment reaps detached processes, use `--foreground` and launch the command with your platform's background execution mechanism.
 
-If the URL is unreachable from your browser (common in remote/containerized setups), bind a non-loopback host:
+If the URL is unreachable from the user's browser (common in remote/containerized setups), bind a non-loopback host:
 
 ```bash
 scripts/start-server.sh \

@@ -56,8 +56,8 @@ nor the private key belongs in the Nix store.
 
 For initial setup, configure an explicit macOS app ID with **Claim USB
 Accessory**, then create a development provisioning profile for that app ID,
-your signing certificate, and this Mac. Ad-hoc signing cannot use this
-restricted entitlement. The profile and certificate are reusable until they
+the user's signing certificate, and the target Mac. Ad-hoc signing cannot use
+this restricted entitlement. The profile and certificate are reusable until they
 expire or their app/device configuration changes. Dotfiles activation signs
 updated builds; launching another VM does not require another signature. If
 codesign returns `errSecInternalComponent` over SSH, unlock the login keychain

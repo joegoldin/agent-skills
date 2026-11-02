@@ -82,7 +82,8 @@ google-workspace-cli skill). PRs need an authenticated `gh`.
    - Sync back to Notion: list each item's suggestion verbatim — things the
      user finished/moved locally that Notion still shows as open.
 3. Offer the add step: "want me to insert the missing items?" On yes, run
-   `add --dry-run --yes`, show the diff, then `add --yes` once confirmed.
+   `add --dry-run --yes`, show the diff, then `add --yes` once the user confirms
+   the diff.
    For cherry-picking, have the user run `./day_sync.py add` in a terminal.
 
 ## Conventions

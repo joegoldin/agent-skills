@@ -17,7 +17,7 @@ Check which tool owns the repo before acting: if `.jj/` exists, use jj for every
 - **Descendants rebase automatically** when you rewrite a commit. Editing the middle of a stack is normal.
 - **Conflicts are committed, not blocking.** A rebase always succeeds; conflicted commits show `(conflict)` and are resolved later.
 - **Bookmarks = git branches, but they don't follow you.** A new commit doesn't advance a bookmark; move it explicitly (`jj b a` / `jj b m`).
-- **`trunk()` and everything reachable from it or from tags is immutable.** Rewriting an immutable commit fails unless you pass `--ignore-immutable`. Don't pass it without being asked.
+- **`trunk()` and everything reachable from it or from tags is immutable.** Rewriting an immutable commit fails unless you pass `--ignore-immutable`. Don't pass it unless the user explicitly requests it.
 - **Everything is undoable.** `jj undo` reverts the last operation; `jj op log` + `jj op restore <id>` go further back.
 
 Revsets used everywhere: `@` (working copy), `@-` (parent), `trunk()`, `x::y` (ancestry range), `trunk()..@` (my unmerged work), `mine()`, `conflicts()`, `description(substring:"foo")`, `bookmarks()`.

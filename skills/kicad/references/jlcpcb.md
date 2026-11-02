@@ -198,7 +198,7 @@ translator's `--bom` filter mode solves this:
    python3 skills/bom/scripts/translate_bom_pnp.py pnp input_cpl.csv -o jlc_cpl.csv --bom jlc_bom.csv
    ```
    The returned `filtered_orphans` count plus `filtered_orphan_samples`
-   list lets the operator confirm which CPL rows were dropped — sanity-
+   list lets the user confirm which CPL rows were dropped — sanity-
    check this list before uploading. Common orphans (mounting holes,
    fiducials, test points) are expected; anything else may indicate a
    BOM/PCB mismatch worth investigating.

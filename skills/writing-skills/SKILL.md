@@ -76,6 +76,17 @@ matters") reopens the negotiation, so express a real exception as its own
 conditional; and an exemption clause ("this doesn't apply to code blocks") does
 not scope reliably, so restructure so the rule cannot reach what is exempt.
 
+## Name the actor
+
+Skill instructions address the agent: "you" means the agent. Name **the user**
+for requests, preferences, approval, waivers, and ownership of accounts or
+infrastructure. Name a reviewer, deployer, or service operator when that distinct
+role is intended. Avoid passive approval clauses that leave the approver unnamed.
+
+In text the agent is meant to say to the user, "you" addresses the user; label
+that text as a quoted reply or example. Keep that voice separate from the
+instructions around it.
+
 ## Structure
 
 - **Short skill:** everything in SKILL.md. Aim well under 500 words; frequently

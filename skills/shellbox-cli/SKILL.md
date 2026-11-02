@@ -8,7 +8,7 @@ allowed-tools: Bash(ssh shellbox.dev:*), Bash(scp:*), Bash(sftp:*)
 
 ## Overview
 
-`shellbox.dev` is "instant Linux boxes via SSH". The product surface is the SSH server itself — every command is `ssh shellbox.dev <command>`, every box is reached at `ssh <name>@shellbox.dev`. No web dashboard, no API key, no signup. Identity = your SSH public key fingerprint.
+`shellbox.dev` is "instant Linux boxes via SSH". The product surface is the SSH server itself — every command is `ssh shellbox.dev <command>`, every box is reached at `ssh <name>@shellbox.dev`. No web dashboard, no API key, no signup. Identity = the user's SSH public key fingerprint.
 
 **Core idioms:**
 
@@ -51,7 +51,7 @@ OpenSSH 9.0+ negotiates the post-quantum hybrid KEX `sntrup761x25519-sha512@open
 
 | Concept | Detail |
 |---------|--------|
-| **Account** | Auto-created from your SSH key fingerprint on first connection. No email/password. |
+| **Account** | Auto-created from the user's SSH key fingerprint on first connection. No email/password. |
 | **Sizes** | `x1`–`x8`. x1 = 2 vCPU / 4 GB RAM / 50 GB SSD. xN scales linearly in CPU/RAM/disk **and price**. Set at create; cannot be resized — delete + recreate (or `duplicate`). |
 | **Slot limits** | 16 running slots, 64 total slots per account. An xN box uses N slots. |
 | **Backends** | `--fc` Firecracker (default; faster snapshots). `--ch` Cloud Hypervisor (slower snapshots, **nested virtualization** + `/dev/kvm`). Set at create. |
@@ -88,7 +88,7 @@ OpenSSH 9.0+ negotiates the post-quantum hybrid KEX `sntrup761x25519-sha512@open
 | `image status <image-ref>` | Show prep status / digest | |
 | `duplicate <src> <name>` | Point-in-time copy of a stopped box | Inherits size; works as a snapshot/backup |
 | `rename <name> <new>` | Rename a box | Safe during active SSH; URL/email change to match new name |
-| `list` | List all your boxes | `--json` for scripting |
+| `list` | List all boxes in the user's account | `--json` for scripting |
 | `show <name>` | Detailed metadata | Includes IPv6 if enabled |
 | `stop <name>` | Force-stop, clears `keepalive`, preserves `wakeup`/`cron` | The escape hatch for runaway boxes |
 | `delete <name>` | Delete the box | Irreversible |
@@ -103,16 +103,16 @@ Modes are per-box toggles. Only one of `keepalive` / `wakeup` / `cron` is meanin
 | `wakeup <name> [min]` | Toggle: HTTP request auto-starts the box; stops after `min` minutes of TCP idle (default 5) |
 | `cron <name> <interval_min> [runtime_min]` | Toggle: every `interval_min`, wake the box, POST `http://localhost:80/cron`, run for `runtime_min`, stop |
 
-A live SSH session blocks cron stop until you disconnect.
+A live SSH session blocks cron stop until that session disconnects.
 
 ### Connecting & file transfer
 
 | Command | Purpose |
 |---------|---------|
 | `ssh <name>@shellbox.dev` | Interactive shell (auto-resumes paused box) |
-| `ssh -A <name>@shellbox.dev` | Forward your local SSH agent — clone GitHub without copying keys |
+| `ssh -A <name>@shellbox.dev` | Forward the user's local SSH agent — clone GitHub without copying keys |
 | `ssh -L 8080:localhost:80 <name>@shellbox.dev` | Port-forward guest:80 → localhost:8080 |
-| `ssh -R 3000:localhost:3000 <name>@shellbox.dev` | Reverse forward your local 3000 into the box |
+| `ssh -R 3000:localhost:3000 <name>@shellbox.dev` | Reverse forward local port 3000 into the box |
 | `ssh -D 1080 <name>@shellbox.dev` | SOCKS5 proxy on localhost:1080 |
 | `ssh -fN <flags…> <name>@shellbox.dev` | Background tunnel without opening a shell |
 | `scp file.txt <name>@shellbox.dev:/root/` | Copy local → box |
@@ -124,7 +124,7 @@ A live SSH session blocks cron stop until you disconnect.
 
 | Command | Purpose |
 |---------|---------|
-| `key list` | Show keys linked to your account |
+| `key list` | Show keys linked to the user's account |
 | `key add "<pubkey>"` | Add another key (laptop, phone, deploy key) |
 | `key remove <fingerprint>` | Revoke a key |
 
@@ -137,7 +137,7 @@ Each linked key gets full account access.
 | `domain add <box> <hostname>` | Create pending mapping |
 | `domain verify <box> <hostname>` | Activate after DNS is in place |
 | `domain remove <box> <hostname>` | Detach |
-| `domain list` | List all your custom domains |
+| `domain list` | List all custom domains in the user's account |
 
 DNS pointer (CNAME for subdomains; A/AAAA/ALIAS for apex):
 
@@ -172,7 +172,7 @@ Upstream multi-user installer (matches the rest of this dotfiles setup). Survive
 
 ```bash
 ssh shellbox.dev create webapp x1
-ssh webapp@shellbox.dev        # install / deploy your app on :80
+ssh webapp@shellbox.dev        # install / deploy the user's app on :80
 exit
 ssh shellbox.dev wakeup webapp 10   # auto-start on HTTP, stop after 10min idle
 # Optional: attach a real domain
@@ -196,7 +196,7 @@ ssh shellbox.dev cron batch 60 5
 ssh shellbox.dev keepalive mybox
 ssh mybox@shellbox.dev
 
-# Inside the box: generate a dedicated key and add it to your account
+# Inside the box: generate a dedicated key and add it to the user's account
 ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519
 cat ~/.ssh/id_ed25519.pub
 # (back on local) ssh shellbox.dev key add "<paste>"
@@ -236,7 +236,7 @@ Host mybox
 
 | Approach | When |
 |----------|------|
-| `ssh -A` agent forwarding | One-off clones; key never leaves your laptop |
+| `ssh -A` agent forwarding | One-off clones; key never leaves the user's machine |
 | HTTPS + PAT | Long-lived, no SSH keys; cache with `git config --global credential.helper store` |
 | `gh auth login` | Interactive device-code flow |
 | Generate a key in the box | Dedicated deploy key per box |
@@ -257,7 +257,7 @@ Fields are only added over time, never removed/renamed — safe to depend on wha
 | Mistake | Fix |
 |---------|-----|
 | Calling shellbox a "container service" | It runs **microVMs** (Firecracker / Cloud Hypervisor). Docker semantics from OCI images are NOT preserved. |
-| `shutdown -h now` from inside a `keepalive` box and expecting billing to stop | Shellbox honors the keepalive flag on disconnect. Use `ssh shellbox.dev stop <name>` from outside (or from inside, after adding your key — see agent-stop pattern). |
+| `shutdown -h now` from inside a `keepalive` box and expecting billing to stop | Shellbox honors the keepalive flag on disconnect. Use `ssh shellbox.dev stop <name>` from outside (or from inside, after linking the box's key to the user's account — see agent-stop pattern). |
 | Trying to resize a box | Sizes are immutable. `duplicate` to a new name with the new size, or `delete` + `create`. |
 | Pointing a CDN-proxied DNS record at a custom domain | DNS must be **DNS-only**. Proxied records resolve to CDN IPs and `domain verify` fails. |
 | Expecting `mosh` to wake a stopped box | mosh + direct IPv6 are a separate access plane. Box must already be running. Start it via `ssh <name>@shellbox.dev` first (with keepalive on), or use the HTTPS URL to wake it. |
@@ -276,8 +276,8 @@ Fields are only added over time, never removed/renamed — safe to depend on wha
 
 ## Security model
 
-- Identity is your SSH public key fingerprint. Add multiple keys with `key add`; revoke with `key remove`.
+- Identity is the user's SSH public key fingerprint. Add multiple keys with `key add`; revoke with `key remove`.
 - Linked keys are equivalent — full account access. Treat them like password-equivalents.
 - Custom domain ownership is checked once at `verify`; not continuously revalidated in v1.
-- Email endpoint goes through Cloudflare → HTTPS POST to your box. Treat `/email` as untrusted input.
-- Wakeup mode means **anyone** who can reach your URL can wake the box. If that matters, gate `/` with auth.
+- Email endpoint goes through Cloudflare → HTTPS POST to the box. Treat `/email` as untrusted input.
+- Wakeup mode means **anyone** who can reach the box's URL can wake the box. If that matters, gate `/` with auth.

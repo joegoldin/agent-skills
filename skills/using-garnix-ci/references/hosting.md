@@ -90,7 +90,7 @@ servers:
   - configuration: myServer
     deployment: { branch: main, machine: i2x2 }
     exposeSSH: true                    # open a public DNAT port -> guest :22
-    authorizeDeployerGithubKeys: true  # authorize your github.com/<user>.keys
+    authorizeDeployerGithubKeys: true  # authorize the deployer's github.com/<user>.keys
     authorizedSSHKeys: [ "ssh-ed25519 AAAA... me@laptop" ]
     ports:
       - { name: api, port: 8080, type: http }   # -> <name>.<server-domain>
@@ -103,8 +103,8 @@ activation, but it has no human direct-SSH keys by default; add those with
 `authorizeDeployerGithubKeys` and/or `authorizedSSHKeys`. `exposeSSH` only opens
 network reachability; it grants no human login by itself. The authenticated
 browser terminal is separate and may log in as `garnix` or any real guest user
-captured after activation via a short-lived terminal-CA certificate. Or bring
-your own login user in the guest config (declare `users.users.<name>` with
+captured after activation via a short-lived terminal-CA certificate. Or define
+a login account in the guest config (declare `users.users.<name>` with
 `openssh.authorizedKeys.keys`, the [user-module](https://github.com/garnix-io/user-module)
 pattern) and use `exposeSSH`/tailscale purely for reach. The **Servers** page
 shows copyable `ssh` commands per method (Tailscale / ProxyJump / DNAT);

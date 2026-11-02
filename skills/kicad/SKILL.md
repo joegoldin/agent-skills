@@ -54,6 +54,10 @@ converts BOM and placement files to JLCPCB's columns.
 
 ## Vendored guides
 
+The guides also address a human designer: "your design", "your schematic", and
+"your project" refer to the user's work, not a design owned by the agent.
+Instructions to inspect, analyze, or report address the agent.
+
 In the guides, `<skill-path>` means `kicad-happy/kicad` or `kicad-happy/spice`,
 and `skills/<name>/` paths resolve under `kicad-happy/`. They mention other
 kicad-happy skills (bom, emc, datasheets, digikey, mouser, lcsc) that are not

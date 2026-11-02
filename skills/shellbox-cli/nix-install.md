@@ -49,7 +49,7 @@ Test:
 nix run nixpkgs#hello
 ```
 
-## What this gets you
+## Installed components
 
 - `/nix` store with a multi-user daemon as a systemd service (`nix-daemon.service`).
 - A `nixbld` group + build users.
@@ -86,7 +86,7 @@ nix develop
 
 When the SSH session disconnects, shellbox pauses the VM to a memory snapshot and resumes it on reconnect. `nix-daemon` is a normal systemd service — it survives pause+resume like any other process. **No extra steps required.**
 
-In-flight builds: a `nix build` mid-download when you disconnect will resume from where it left off when the box wakes. A `nix build` mid-compile keeps compiling (with `keepalive` on) or pauses with the VM (with keepalive off) and resumes on reconnect.
+In-flight builds: a `nix build` mid-download when the SSH session disconnects will resume from where it left off when the box wakes. A `nix build` mid-compile keeps compiling (with `keepalive` on) or pauses with the VM (with keepalive off) and resumes on reconnect.
 
 ## Disk usage — important
 
