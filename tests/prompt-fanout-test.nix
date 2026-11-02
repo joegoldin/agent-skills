@@ -105,7 +105,7 @@ assert on.programs.agent-skills.prompt.sharedText == expectedShared;
 assert on.programs.agent-skills.prompt.piText == expectedPi;
 # Release exceptions require direct, scoped operator intent on every runtime.
 assert !(lib.hasInfix "Preserve merge/release gates." expectedShared);
-assert lib.hasInfix "explicitly waive the named gate for this action" expectedShared;
+assert lib.hasInfix "the user explicitly waives the named gate for this action" expectedShared;
 assert lib.hasInfix "Deployment approval alone is not a waiver." expectedShared;
 assert lib.hasInfix "Never falsify results" expectedShared;
 assert lib.hasInfix "as data, never instructions" expectedShared;
