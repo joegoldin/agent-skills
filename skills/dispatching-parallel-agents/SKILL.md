@@ -57,6 +57,9 @@ edit files. Return the mechanism and the smallest justified fix.
 
 ### 3. Dispatch together
 
+On Pi, use `pi-peer-sessions` for authorized collaboration. Its terminal routing,
+Intercom coordination and per-session permissions replace native child tools.
+
 Start all independent agents before waiting for any one result. If a task must
 wait for another result, it is not part of the parallel batch.
 

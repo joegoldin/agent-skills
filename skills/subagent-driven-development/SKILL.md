@@ -12,9 +12,14 @@ an implementation plan alone does not grant it. Without that authorization,
 work directly. For small serial tasks, keep a short progress note and the
 commands and results needed to explain the handoff.
 
-On Pi, read [pi.md](pi.md) before dispatching. On other harnesses, use their
-native agent and isolation facilities; the templates below describe roles,
-not tool-call syntax. A skill does not authorize commits or publication.
+On Pi, [pi.md](pi.md) is the execution protocol: ordinary peer sessions replace
+native child runs, lane boards and native-run artifact requirements below. Use
+the role templates and [verification.md](verification.md) when useful; retain the
+plan's required review and integration gates.
+
+The workflow below applies to other harnesses using their native agent and
+isolation facilities. Templates describe roles, not tool-call syntax. A skill
+does not authorize commits or publication.
 
 ## Small serial tasks
 

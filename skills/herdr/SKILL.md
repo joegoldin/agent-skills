@@ -1,7 +1,7 @@
 ---
 name: herdr
-# Vendored from herdrdev/herdr v0.9.3; local change: description shortened for the 300-character limit.
-description: "Control Herdr panes, tabs, workspaces, commands, and agents. Use only when the user explicitly mentions Herdr or asks to operate it, not for generic background tasks, delegation, or parallel work. Requires HERDR_ENV=1."
+# Vendored from herdrdev/herdr v0.9.3; local trigger includes authorized Pi peer launches.
+description: "Control Herdr panes, tabs, workspaces, commands, and agents. Use when the user asks to operate Herdr, or when authorized Pi peer collaboration needs a pane inside Herdr. Requires HERDR_ENV=1."
 ---
 
 # Herdr
@@ -128,6 +128,13 @@ An available shell pane must be at its interactive prompt, with the shell itself
 ```bash
 herdr agent start reviewer --kind codex --pane <returned-pane-id>
 ```
+
+For ordinary peer Pi collaboration, use `--kind pi` and follow `pi-peer-sessions`
+for identity, task handoff and results. Its normal launcher supplies permissions;
+Herdr controls the terminal, not the peer's approvals. For completion and cleanup,
+read `pi-peer-sessions`' completion reference. Pass `--peer-auto-exit` after `--`
+only for a user-authorized disposable Pi instance. A `done` agent is still live:
+confirm graceful exit and revalidate the pane's occupant before closing it.
 
 Use the kind requested by the user. Run `herdr agent` to inspect the installed kind list and options. Pass native agent arguments only after `--`:
 
