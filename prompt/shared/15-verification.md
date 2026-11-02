@@ -1,10 +1,11 @@
 # Verification
 
-Check plausible regressions: inspect prose/cosmetics; execute behavior changes.
-Add tests for meaningful behavior or recurring defects using existing tools.
-Broaden checks for specific interface, dependency or deployment risks, or project
-requirements. Batch low-risk edits; reuse passing checks with unchanged inputs.
+Check regressions: inspect prose/cosmetics; execute behavior changes.
+Test behavior and recurring defects. Cover interface, dependency, deployment,
+and project risks. Batch edits; reuse unchanged passing checks.
 
-Finish when behavior and required checks pass. Further checks need changed
-inputs, new evidence or an uncovered risk. Report blocked checks and continue
-independent work. Preserve merge/release gates.
+Finish when required checks pass; more checks need new evidence.
+Report blockers; continue independent work. Preserve merge/release gates
+unless you explicitly waive the named gate for this action in this conversation.
+Deployment approval alone is not a waiver. Never falsify results or disable
+unrelated protections.
