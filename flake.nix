@@ -798,28 +798,37 @@
             let
               piTree = self.packages.${system}.pi-plugin;
             in
-            pkgs.runCommand "pi-extensions" { nativeBuildInputs = [ pkgs.jq ]; } ''
-              jq -e '.pi.extensions == ["./extensions"]' ${piTree}/package.json >/dev/null
-              test -f ${piTree}/extensions/agent-skills-session-start.ts
+            pkgs.runCommand "pi-extensions"
+              {
+                nativeBuildInputs = [
+                  pkgs.jq
+                  pkgs.bun
+                ];
+              }
+              ''
+                jq -e '.pi.extensions == ["./extensions"]' ${piTree}/package.json >/dev/null
+                test -f ${piTree}/extensions/agent-skills-session-start.ts
 
-              # The build-time placeholder must be gone and replaced by a
-              # store path that exists and holds the real skill.
-              ! grep -q '@USING_AGENT_SKILLS@' ${piTree}/extensions/agent-skills-session-start.ts
-              p=$(grep -o '/nix/store/[^"]*using-agent-skills-content' \
-                    ${piTree}/extensions/agent-skills-session-start.ts | head -1)
-              test -n "$p"
-              grep -q '^# Using skills' "$p"
-              test "$(wc -w < "$p")" -le 180
-              ! grep -Eq 'EXTREMELY_IMPORTANT|LEGACY_WARNING|Skill tool' \
-                ${piTree}/extensions/agent-skills-session-start.ts
+                # The build-time placeholder must be gone and replaced by a
+                # store path that exists and holds the real skill.
+                ! grep -q '@USING_AGENT_SKILLS@' ${piTree}/extensions/agent-skills-session-start.ts
+                p=$(grep -o '/nix/store/[^"]*using-agent-skills-content' \
+                      ${piTree}/extensions/agent-skills-session-start.ts | head -1)
+                test -n "$p"
+                grep -q '^# Using skills' "$p"
+                test "$(wc -w < "$p")" -le 180
+                ! grep -Eq 'EXTREMELY_IMPORTANT|LEGACY_WARNING|Skill tool' \
+                  ${piTree}/extensions/agent-skills-session-start.ts
 
-              # Only type imports — a value import from @earendil-works
-              # would fail to resolve from a /nix/store path.
-              ! grep -E '^import[^t]' ${piTree}/extensions/agent-skills-session-start.ts \
-                | grep -q '@earendil-works'
+                bun ${./tests/pi-terminal-context.mjs} ${piTree}/extensions/agent-skills-session-start.ts
 
-              touch $out
-            '';
+                # Only type imports — a value import from @earendil-works
+                # would fail to resolve from a /nix/store path.
+                ! grep -E '^import[^t]' ${piTree}/extensions/agent-skills-session-start.ts \
+                  | grep -q '@earendil-works'
+
+                touch $out
+              '';
 
           temporal-pi =
             let
@@ -1244,23 +1253,9 @@
             # every launch, so a Nix-declared key wins over an interactive
             # change to that key. Same trade-off as modules/ai/codex.nix.
             #
-            # Auto mode rides along here rather than only on --extension, and
-            # the reason is subagents. pi-subagents spawns a child pi and hands
-            # it a fixed extension list -- the prompt runtime, its fanout child,
-            # and the permission system, but only when the child has permission
-            # rules -- so a child inherits nothing from this process's command
-            # line. It does read settings.json, which is how the skill packages
-            # above reach it, so naming auto mode's package there is what gives
-            # every child the same gate the parent has. That package is
-            # pi-permissions, both halves.
-            #
-            # Listing it twice is safe. In the parent, pi resolves a package
-            # directory through its manifest and de-duplicates the resulting
-            # entry paths (loader.js's addPaths), so it loads one copy. A child
-            # can also be handed it through pi-subagents' npm link, a different
-            # path to the same package that pi does not de-duplicate;
-            # pi-permissions registers once per session however many times it
-            # is loaded.
+            # Ordinary peer Pi sessions load the same packages and permission
+            # system through settings. No child-specific extension list or
+            # cross-session permission routing is needed.
             programs.pi.coding-agent.settings.packages =
               map toString piPackages
               ++ lib.optional config.programs.pi.coding-agent.autoMode.enable (
@@ -1269,7 +1264,7 @@
 
             # The curated third-party set, enabled by default because each one
             # restores something pi deliberately omits and this library's
-            # skills assume: subagents, code diagnostics and web
+            # skills assume: code diagnostics and web
             # search. Permissions come with auto mode, in pi-permissions. Todos, background bash, structured questions,
             # goal-driven looping and side questions come from pi-nix's
             # first-party pi-custom, enabled through its own option. MCP is no
@@ -1283,43 +1278,38 @@
             # notify, statusline, intercom, pi-custom) are not listed: each
             # arrives from its own option in pi-nix, and naming them here would
             # enable them behind that option's back.
-            programs.pi.coding-agent.extensionPackages = lib.mkDefault (
-              map (n: pi-nix.packages.${pkgs.stdenv.hostPlatform.system}.${n}) [
-                "ext-pi-subagents"
-              ]
-              ++ [
-                # Diagnostics only: left on, its formatter and autofixer
-                # rewrite files the agent just wrote, outside the agent's view.
-                (
-                  let
-                    lens = pi-nix.packages.${pkgs.stdenv.hostPlatform.system}.ext-pi-lens;
-                  in
-                  lens
-                  // {
-                    passthru = lens.passthru // {
-                      configFiles."extensions/pi-lens.json" = {
-                        format.enabled = false;
-                        autofix.enabled = false;
-                      };
+            programs.pi.coding-agent.extensionPackages = lib.mkDefault [
+              # Diagnostics only: left on, its formatter and autofixer
+              # rewrite files the agent just wrote, outside the agent's view.
+              (
+                let
+                  lens = pi-nix.packages.${pkgs.stdenv.hostPlatform.system}.ext-pi-lens;
+                in
+                lens
+                // {
+                  passthru = lens.passthru // {
+                    configFiles."extensions/pi-lens.json" = {
+                      format.enabled = false;
+                      autofix.enabled = false;
                     };
-                  }
-                )
-                # Search only through the ChatGPT subscription pi is signed
-                # into. An explicit provider is strict, so a failed search
-                # errors rather than falling back to Exa or another service.
-                (
-                  let
-                    webAccess = pi-nix.packages.${pkgs.stdenv.hostPlatform.system}.ext-pi-web-access;
-                  in
-                  webAccess
-                  // {
-                    passthru = webAccess.passthru // {
-                      configFiles."web-search.json".provider = "openai";
-                    };
-                  }
-                )
-              ]
-            );
+                  };
+                }
+              )
+              # Search only through the ChatGPT subscription pi is signed
+              # into. An explicit provider is strict, so a failed search
+              # errors rather than falling back to Exa or another service.
+              (
+                let
+                  webAccess = pi-nix.packages.${pkgs.stdenv.hostPlatform.system}.ext-pi-web-access;
+                in
+                webAccess
+                // {
+                  passthru = webAccess.passthru // {
+                    configFiles."web-search.json".provider = "openai";
+                  };
+                }
+              )
+            ];
           };
 
         agent-skills =

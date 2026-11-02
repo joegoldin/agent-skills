@@ -233,5 +233,49 @@
       "rex",
       "herdr"
     ]
+  },
+  {
+    "task": "In Pi, launch one ordinary peer Pi session for a read-only review and coordinate it through Intercom. We are inside Herdr (HERDR_ENV=1).",
+    "expect": [
+      "pi-peer-sessions",
+      "herdr"
+    ],
+    "forbid": [
+      "rex"
+    ]
+  },
+  {
+    "task": "We are inside Rex (REX_SESSION and REX_BLOCK are set). Open a peer Pi instance beside this pane for an independent investigation.",
+    "expect": [
+      "pi-peer-sessions",
+      "rex"
+    ],
+    "forbid": [
+      "herdr"
+    ]
+  },
+  {
+    "task": "The peer Pi session I launched timed out; recover the Intercom collaboration without accidentally launching a duplicate.",
+    "expect": [
+      "pi-peer-sessions"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "Fix this one-line typo yourself in the current Pi session. Do not delegate or open a terminal.",
+    "expect": [],
+    "forbid": [
+      "pi-peer-sessions",
+      "herdr",
+      "rex",
+      "dispatching-parallel-agents"
+    ]
+  },
+  {
+    "task": "In Pi, give this existing available Pi session a bounded read-only task through Intercom; do not create another pane.",
+    "expect": [
+      "pi-peer-sessions"
+    ],
+    "forbid": []
   }
 ]

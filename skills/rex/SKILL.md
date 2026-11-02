@@ -1,6 +1,6 @@
 ---
 name: rex
-description: Operate Rex sessions, tabs, panes, terminals, and connected apps. Use when the user asks to control Rex, or to arrange or inspect terminals while running inside Rex.
+description: Operate Rex sessions, tabs, panes, terminals, and connected apps. Use when the user asks to control Rex, to arrange or inspect terminals inside Rex, or when authorized Pi peer collaboration needs a Rex pane.
 ---
 
 # Rex
@@ -18,3 +18,9 @@ sessions running; restart a server or rename a session only when asked.
 
 Rex's skill and awareness hooks are managed by Nix here. Do not run
 `rex skill setup` to overwrite the managed agent configuration.
+
+For authorized Pi peer collaboration, follow `pi-peer-sessions`. Use the installed
+guide's `split` command with the caller's session/block, explicit cwd and
+`--focus=false`, running ordinary `pi` after `--`. Keep the returned block ID.
+Use launch metadata or Intercom rendezvous to identify the Pi session; a block
+ID alone is not its messaging address. Preserve the normal Pi permission setup.

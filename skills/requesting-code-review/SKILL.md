@@ -24,7 +24,8 @@ workflow's final whole-branch review.
 ## How to Request
 
 1. Resolve the base and exact source state for review, including pending edits.
-2. Dispatch a reviewer using [code-reviewer.md](code-reviewer.md).
+2. Dispatch a reviewer using [code-reviewer.md](code-reviewer.md). On Pi, use
+   `pi-peer-sessions` to arrange an ordinary read-only peer session.
 3. Provide:
    - A concise description of the change
    - The plan or requirements it must satisfy
