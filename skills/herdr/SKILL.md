@@ -131,7 +131,10 @@ herdr agent start reviewer --kind codex --pane <returned-pane-id>
 
 For ordinary peer Pi collaboration, use `--kind pi` and follow `pi-peer-sessions`
 for identity, task handoff and results. Its normal launcher supplies permissions;
-Herdr controls the terminal, not the peer's approvals.
+Herdr controls the terminal, not the peer's approvals. For completion and cleanup,
+read `pi-peer-sessions`' completion reference. Pass `--peer-auto-exit` after `--`
+only for a user-authorized disposable Pi instance. A `done` agent is still live:
+confirm graceful exit and revalidate the pane's occupant before closing it.
 
 Use the kind requested by the user. Run `herdr agent` to inspect the installed kind list and options. Pass native agent arguments only after `--`:
 

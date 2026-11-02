@@ -277,5 +277,31 @@
       "pi-peer-sessions"
     ],
     "forbid": []
+  },
+  {
+    "task": "The Pi peer finished its review. Have it signal completion and ask the user whether to quit; do not silently close its pane.",
+    "expect": [
+      "pi-peer-sessions"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "We are in Herdr. The user pre-authorized automatic cleanup of the disposable Pi reviewer pane; verify its graceful exit and close only that pane.",
+    "expect": [
+      "pi-peer-sessions",
+      "herdr"
+    ],
+    "forbid": [
+      "rex"
+    ]
+  },
+  {
+    "task": "The tests in this main Pi session passed. Summarize the results here; there is no peer assignment or terminal cleanup to perform.",
+    "expect": [],
+    "forbid": [
+      "pi-peer-sessions",
+      "herdr",
+      "rex"
+    ]
   }
 ]

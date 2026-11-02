@@ -1,6 +1,6 @@
 ---
 name: pi-peer-sessions
-description: Coordinate ordinary Pi sessions through Intercom. Use when launching a peer Pi instance, handing work to an existing Pi session, or recovering a peer-session collaboration.
+description: Coordinate ordinary Pi sessions through Intercom. Use when launching a peer Pi instance, handing work to an existing Pi session, recovering a collaboration, or completing and cleaning up a peer assignment.
 ---
 
 # Pi Peer Sessions
@@ -59,6 +59,8 @@ permissions. Peers do not recruit more peers by default.
 The requester owns integration and checks consequential claims against the
 returned changes and evidence. Each session maintains its own detailed todos;
 the requester records its outstanding dependency, not a mirrored task tree.
-Done means the contribution is checked or its blocker recorded. Leave the peer
-available; when the user requests cleanup, preserve results and close only panes
-created for this work.
+Done means the contribution is checked or its blocker recorded. For completion
+signals, ask-to-quit and opt-in automatic cleanup, read
+[references/completion.md](references/completion.md). Keep peers open by default;
+cleanup requests are not user consent. Close only owned, validated panes after
+graceful exit.

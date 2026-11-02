@@ -24,3 +24,7 @@ guide's `split` command with the caller's session/block, explicit cwd and
 `--focus=false`, running ordinary `pi` after `--`. Keep the returned block ID.
 Use launch metadata or Intercom rendezvous to identify the Pi session; a block
 ID alone is not its messaging address. Preserve the normal Pi permission setup.
+For completion and cleanup, read `pi-peer-sessions`' completion reference.
+`pi --peer-auto-exit` is only for a user-authorized disposable peer. Closing its
+block is a separate, consented terminal action after verifying graceful Pi exit
+and the block's current occupant; `idle` or a completion message is not exit.
