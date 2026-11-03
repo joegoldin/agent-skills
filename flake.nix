@@ -906,6 +906,34 @@
                 touch $out
               '';
 
+          pi-peer-wakeups =
+            let
+              profile = import ./tests/pi-peer-wakeups.nix {
+                inherit pkgs lib;
+                piModule = self.homeManagerModules.pi;
+                coreModule = pi-nix.homeManagerModules.coding-agent;
+              };
+              agent = pi-nix.packages.${system}.coding-agent-bun;
+              runtime = pi-nix.packages.${system}.ext-pi-custom;
+              bun = pi-nix.inputs.nixpkgs.legacyPackages.${system}.bun;
+            in
+            if profile.failures == [ ] then
+              pkgs.runCommand "pi-peer-wakeups"
+                {
+                  nativeBuildInputs = [ bun ];
+                  NODE_PATH = "${agent}/lib/node_modules";
+                }
+                ''
+                  export HOME="$TMPDIR/home"
+                  mkdir -p "$HOME"
+                  bun ${./tests/pi-peer-wakeups.mjs} ${runtime.src} \
+                    ${agent}/lib/node_modules/@earendil-works/pi-coding-agent \
+                    ${lib.getExe bun} ${profile.inboundTrigger}
+                  touch $out
+                ''
+            else
+              throw "peer wakeup profile tests failed: ${builtins.toJSON profile.failures}";
+
           module-tests =
             let
               failures = import ./modules/module-tests.nix { inherit pkgs lib; };
