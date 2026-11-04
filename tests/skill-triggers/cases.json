@@ -135,24 +135,17 @@
     "forbid": []
   },
   {
-    "task": "Inside this Herdr pane (HERDR_ENV=1), split a sibling pane and run the test suite there without changing my focus.",
-    "expect": [
-      "herdr"
-    ],
-    "forbid": []
-  },
-  {
     "task": "Run the development server in the background so it survives this terminal disconnecting.",
     "expect": [],
     "forbid": [
-      "herdr"
+      "rex"
     ]
   },
   {
     "task": "Ask another agent to review this change in parallel.",
     "expect": [],
     "forbid": [
-      "herdr"
+      "rex"
     ]
   },
   {
@@ -213,36 +206,29 @@
     "expect": [
       "rex"
     ],
-    "forbid": [
-      "herdr"
-    ]
+    "forbid": []
   },
   {
     "task": "Use Rex to list my sessions without changing their names or layout.",
     "expect": [
       "rex"
     ],
-    "forbid": [
-      "herdr"
-    ]
+    "forbid": []
   },
   {
     "task": "Add a unit test for the parser. Do not open any other terminals.",
     "expect": [],
     "forbid": [
-      "rex",
-      "herdr"
+      "rex"
     ]
   },
   {
-    "task": "In Pi, launch one ordinary peer Pi session for a read-only review and coordinate it through Intercom. We are inside Herdr (HERDR_ENV=1).",
+    "task": "In Pi, launch one ordinary peer Pi session for a read-only review and coordinate it through Intercom. We are inside Rex (REX_SESSION and REX_BLOCK are set).",
     "expect": [
       "pi-peer-sessions",
-      "herdr"
-    ],
-    "forbid": [
       "rex"
-    ]
+    ],
+    "forbid": []
   },
   {
     "task": "We are inside Rex (REX_SESSION and REX_BLOCK are set). Open a peer Pi instance beside this pane for an independent investigation.",
@@ -250,9 +236,7 @@
       "pi-peer-sessions",
       "rex"
     ],
-    "forbid": [
-      "herdr"
-    ]
+    "forbid": []
   },
   {
     "task": "The peer Pi session I launched timed out; recover the Intercom collaboration without accidentally launching a duplicate.",
@@ -266,7 +250,6 @@
     "expect": [],
     "forbid": [
       "pi-peer-sessions",
-      "herdr",
       "rex",
       "dispatching-parallel-agents"
     ]
@@ -286,21 +269,18 @@
     "forbid": []
   },
   {
-    "task": "We are in Herdr. The user pre-authorized automatic cleanup of the disposable Pi reviewer pane; verify its graceful exit and close only that pane.",
+    "task": "We are in Rex. The user pre-authorized automatic cleanup of the disposable Pi reviewer pane; verify its graceful exit and close only that pane.",
     "expect": [
       "pi-peer-sessions",
-      "herdr"
-    ],
-    "forbid": [
       "rex"
-    ]
+    ],
+    "forbid": []
   },
   {
     "task": "The tests in this main Pi session passed. Summarize the results here; there is no peer assignment or terminal cleanup to perform.",
     "expect": [],
     "forbid": [
       "pi-peer-sessions",
-      "herdr",
       "rex"
     ]
   }

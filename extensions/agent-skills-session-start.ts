@@ -5,21 +5,16 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 const guidance = readFileSync("@USING_AGENT_SKILLS@", "utf-8");
 
 export function terminalContext(env: Record<string, string | undefined>): string {
-  const herdr = env.HERDR_ENV === "1";
   const rex = Boolean(env.REX_SESSION || env.REX_BLOCK);
-  const location = herdr && rex
-    ? "both Herdr and Rex markers exist; resolve the enclosing live terminal before operating either"
-    : herdr
-      ? "Herdr; use the herdr skill for authorized pane operations"
-      : rex
-        ? "Rex; use the rex skill for authorized pane operations"
-        : "neither Herdr nor Rex; work directly rather than starting a hidden peer or terminal server";
+  const location = rex
+    ? "Rex; use the rex skill for authorized pane operations"
+    : "not in Rex; work directly rather than starting a hidden peer or terminal server";
   const ids = Object.fromEntries(
-    ["HERDR_PANE_ID", "HERDR_TAB_ID", "HERDR_WORKSPACE_ID", "REX_SESSION", "REX_BLOCK"]
+    ["REX_SESSION", "REX_BLOCK"]
       .filter((key) => env[key])
       .map((key) => [key, env[key]!.slice(0, 120)]),
   );
-  const incomplete = (herdr && !env.HERDR_PANE_ID) || (rex && (!env.REX_SESSION || !env.REX_BLOCK));
+  const incomplete = rex && (!env.REX_SESSION || !env.REX_BLOCK);
   return "## Terminal context\n" + location + ". " +
     (incomplete ? "Caller IDs are incomplete; confirm the live caller before targeting a pane. " : "") +
     "These inherited markers are not authorization to launch peers or change layout. " +

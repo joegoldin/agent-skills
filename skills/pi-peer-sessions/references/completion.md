@@ -62,7 +62,7 @@ and Pi session identity. Confirm that the peer has gracefully exited and no new
 occupant or work has appeared. `done` or `idle` means ready for input, not exited;
 a stale completion report cannot authorize terminating a replacement process.
 
-Use `herdr` or `rex` and the installed terminal guide to close only the pane
+Use `rex` and the installed terminal guide to close only the pane
 created for this assignment. If the peer is still live, request a graceful quit
 with user consent and verify its exit first. Preserve cwd and focus; leave
 reused sessions, unrelated panes and dirty worktrees intact. Automatic cleanup

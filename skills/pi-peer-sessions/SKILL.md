@@ -12,16 +12,13 @@ Creating peers needs user or project authorization, not just parallelizable work
 ## Choose the terminal
 
 Read Pi's terminal context; validate IDs before changing layout. If absent,
-inspect `HERDR_ENV`, `HERDR_PANE_ID`, `REX_SESSION` and `REX_BLOCK` in the
-current process environment.
+inspect `REX_SESSION` and `REX_BLOCK` in the current process environment.
 
-- **Herdr:** load `herdr`. Create a sibling pane without focus, preserving cwd,
-  and start a named ordinary Pi agent there.
 - **Rex:** load `rex` and its installed guide. Split beside the caller with
   explicit session/block IDs, cwd, and focus preservation; run ordinary `pi`.
-- **Both:** resolve the enclosing live terminal before creating anything. Do not
-  choose based on whichever application's CLI happens to be installed.
-- **Neither:** keep working directly. If an independent session is required,
+- **Incomplete Rex IDs:** resolve the live caller before creating anything.
+  An installed CLI does not identify the enclosing terminal.
+- **Outside Rex:** keep working directly. If an independent session is required,
   ask the user to arrange one; do not start a terminal server or hidden worker.
 
 Use the normal Pi launcher and profile. Each instance keeps its existing auto
@@ -35,9 +32,8 @@ reusing it. A matching cwd is not enough. For concurrent writers, use
 `using-git-worktrees` and `jujutsu` where applicable before launch; read-only
 peers can share the checkout.
 
-Keep the returned pane/block ID. Resolve its Pi session through launch metadata
-or terminal agent metadata, then match the live Intercom roster. Herdr may expose
-an `agent_session` JSONL path; read its session header rather than guessing an ID.
+Keep the returned block ID. Resolve its Pi session through launch metadata
+or terminal agent metadata, then match the live Intercom roster.
 If no mapping is available, give the new instance a unique rendezvous token and
 the requester's Intercom address in its startup brief; have it identify itself by
 replying. Skip rendezvous when identity is known.
