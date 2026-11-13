@@ -610,6 +610,14 @@
             touch $out
           '';
 
+          skill-trigger-harness =
+            pkgs.runCommand "skill-trigger-harness-tests" { nativeBuildInputs = [ pkgs.python3 ]; }
+              ''
+                cp -r ${./tests/skill-triggers} skill-triggers
+                python3 -m unittest discover -s skill-triggers -p test_run.py -v
+                touch $out
+              '';
+
           sdd-helpers =
             pkgs.runCommand "sdd-helpers-tests"
               {

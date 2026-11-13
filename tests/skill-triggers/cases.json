@@ -297,5 +297,38 @@
     "forbid": [
       "using-garnix-ci"
     ]
+  },
+  {
+    "task": "Configure an AuthHero custom API resource and scoped CIMD admission for an MCP client, preserving the source application policy.",
+    "expect": [
+      "using-authhero"
+    ],
+    "forbid": [
+      "using-garnix-ci"
+    ]
+  },
+  {
+    "task": "Deploy our AuthHero Cloudflare Worker and verify D1 migration and account preservation.",
+    "expect": [
+      "using-authhero"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "Our self-hosted Garnix NixOS build succeeded but the cache upload never finished and there is no redeployment.",
+    "expect": [
+      "using-garnix-ci"
+    ],
+    "forbid": [
+      "using-authhero"
+    ]
+  },
+  {
+    "task": "List the groceries in my fridge and suggest dinner from the leftovers.",
+    "expect": [],
+    "forbid": [
+      "using-authhero",
+      "using-garnix-ci"
+    ]
   }
 ]

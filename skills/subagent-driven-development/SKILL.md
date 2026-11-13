@@ -1,6 +1,6 @@
 ---
 name: subagent-driven-development
-description: Coordinate implementation and review of an existing plan. Use when the user asks to execute a plan whose tasks are mostly independent.
+description: Execute and review an existing implementation plan, directly or with authorized delegation. Use when the user asks to carry out a plan, including requests to work alone without spawning agents.
 ---
 
 # Subagent-Driven Development

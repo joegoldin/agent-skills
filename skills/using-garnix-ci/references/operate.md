@@ -84,6 +84,23 @@ rate usually means something is randomly generated and only sometimes valid;
 chase the generator, not the environment. When a deploy fails with no usable
 message, fix the log capture first; guessing costs more than the capture does.
 
+## Successful builds with no deployment
+
+Check the exact commit, its required check names, evaluation/overall state, the
+selected NixOS build's cache-upload completion and deployment-run existence.
+`Hosting/Deploy.hs` waits for successful NixOS uploads: package success alone does
+not prove the closure is available for deployment. A successful build with
+`uploaded_to_cache = false` explains that wait, not the upload failure's cause.
+Correlate uploader logs by build/commit; an unrelated HTTP 400 is not a diagnosis.
+
+A non-Nix repo can also receive an erroneous deployment-plan check that waits for
+an overall Nix build which will never exist. Treat that separately from a hosted
+Nix consumer's real build/upload/redeployment requirements. A narrow user waiver
+for the former does not waive the latter or authorize a service restart, forced
+DB flags or a manual deployment. If the user chooses an empty commit to retry
+normal CI, verify its tree is identical and observe the new exact-head checks;
+its success does not establish the original stall's root cause.
+
 ## Monitoring
 
 The self-host **Monitoring** page (`<garnixDomain>/monitoring`, sidebar) reads

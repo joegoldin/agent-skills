@@ -63,6 +63,10 @@ The dotfiles aspects that define it:
 | Hosted servers: hash subdomains, microVM guests, SSH and the web terminal, application logs, custom domains, OIDC-gated guests (legacy `authentik` keys) | [references/hosting.md](references/hosting.md) |
 | Logs, DB queries, scheduling and timeouts, failure signatures, monitoring, backups | [references/operate.md](references/operate.md) |
 
+For AuthHero API resources, scopes and resource-scoped CIMD/MCP client admission,
+use `using-authhero`. Browser OIDC migration and bearer-authenticated MCP routes
+are separate consumer contracts; configuring one does not switch the other.
+
 ## Reference links
 
 - Re-hosted docs: `<garnixDomain>/docs` (mirror of `garnix.io/docs`)

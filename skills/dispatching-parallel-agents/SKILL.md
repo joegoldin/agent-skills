@@ -1,6 +1,6 @@
 ---
 name: dispatching-parallel-agents
-description: Use when two or more independent investigations or read-only tasks can run concurrently without shared writes or sequential dependencies
+description: Coordinate independent read-only investigations in parallel. Use for concurrent diagnosis, research or evidence gathering, not execution of an implementation plan.
 ---
 
 # Dispatching Parallel Agents

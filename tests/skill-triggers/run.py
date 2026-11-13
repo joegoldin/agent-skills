@@ -5,7 +5,9 @@ Descriptions decide which skills load, so rewording one can quietly stop a
 skill loading where it should, or start it loading everywhere. This asks a
 real pi session, with its real skill listing, which skills it would load for
 each task in cases.json, without doing the task, and checks the answer
-against what each case expects and forbids.
+against what each case expects and forbids. For an explicit /name or /skill:name
+invocation, the question also supplies that skill's name and description: Pi
+omits manual-only skills from its automatic listing. No skill body is expanded.
 
 It needs a live model, so it is a script rather than a Nix check. Point PI at
 the build under test:
@@ -45,12 +47,29 @@ Using only the names and descriptions of the skills available to you, which skil
 
 
 def ask(pi: str, task: str, timeout: int, env: dict[str, str] | None) -> list[str]:
+    question = QUESTION.format(task=task)
+    command = re.match(r"^/(?:skill:)?([a-z0-9]+(?:-[a-z0-9]+)*)(?=\s|$)", task)
+    if command:
+        home = Path((env if env is not None else os.environ).get("HOME", str(Path.home())))
+        skill = home / ".agents" / "skills" / command.group(1) / "SKILL.md"
+        if skill.is_file():
+            frontmatter = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|$)", skill.read_text(), re.S)
+            if not frontmatter:
+                raise ValueError(f"Missing frontmatter: {skill}")
+            metadata = "\n".join(
+                line for line in frontmatter.group(1).splitlines()
+                if line.startswith(("name:", "description:"))
+            )
+            # Pi hides manual-only skills from automatic listings, but an explicit
+            # command makes that skill available. Supply metadata, never its body.
+            question += f"\n\nThe user explicitly invoked this skill, which is available for this request even if hidden from automatic selection:\n{metadata}"
     # An empty directory, so no project context files leak into the choice.
     with tempfile.TemporaryDirectory() as cwd:
         out = subprocess.run(
-            [pi, "-p", QUESTION.format(task=task)],
+            [pi, "-p", question],
             cwd=cwd,
             capture_output=True,
+            check=True,
             text=True,
             timeout=timeout,
             env=env,

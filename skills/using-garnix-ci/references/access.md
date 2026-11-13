@@ -150,3 +150,24 @@ Treat **My apps** as a separate deployment and acceptance check, not evidence
 that a garnix cutover has passed. Verify ordinary non-admin MFA login, live
 per-user policy filtering and explicit launch URLs, not callbacks. Do not use
 the management console as a substitute or infer availability from source code.
+
+## Bearer-authenticated MCP beside a browser gate
+
+An app can retain its OIDC-protected website while exposing an OAuth-protected
+MCP endpoint. Use `using-authhero` for the API resource, registered public clients,
+scoped CIMD rules and token contract; those are not proxy-client registrations.
+
+Bypass only the exact MCP/discovery routes required by the protocol. The app
+must verify access-token signature, issuer, resource/audience, expiry, required
+scope/group and existing-account mapping on every MCP request. Public routing is
+not anonymous authorization. Do not turn cookie/proxy headers into a bearer-token
+fallback or broaden the entire website's bypass to repair an MCP connection.
+
+Deploy the consumer with its normal Nix/package/redeployment gates, preserving
+its persistent identity and encrypted settings. In a persistent flake-configured
+server, retain `garnix.server.persistence.name`: renaming it replaces the VM and
+can destroy its data. Confirm a restorable backup before a cutover, including
+SQLite-consistent snapshot hooks where applicable. Verify metadata and challenges,
+invalid/static-token rejection, real MCP initialization/tool listing/read-only
+native attribution and refresh separately from browser login. A completed OAuth
+callback does not prove the app can fetch its signing keys or accept the token.
