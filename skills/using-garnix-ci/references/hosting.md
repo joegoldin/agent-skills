@@ -188,7 +188,13 @@ under any base → bare custom domain, needs an `A` record (→ erdtree's
 - **Servers page (i) menu:** per-domain DNS records to set (`A`/`CNAME`) with
   a live "resolves here yet?" status, using the same check as Verify.
 
-## Gating a deployed server behind Authentik
+## Gating a deployed server with OIDC (AuthHero target)
+
+Garnix and existing default guests still use Authentik pending acceptance.
+For target AuthHero provisioning, callback registration, managed policy and
+cutover checks, read [access.md](access.md). The module's `authentik` names are
+compatibility keys, not a requirement to use that issuer. The Authentik cookbook
+and provision helper are source-provider-specific, not AuthHero tooling.
 
 `garnix-ci.nixosModules.garnix-authentik` locks a deployed server behind an OIDC
 login with one import: it runs `oauth2-proxy` + an nginx forward-auth gate on
@@ -202,7 +208,11 @@ reaches your service on `garnix.authentik.upstream`. Three modes:
   repo; whoever can log into garnix can reach the app. Requires
   `services.garnixServer.defaultAuthentik = { issuerUrl, clientId,
   clientSecretFile }` on erdtree (already set in the aspect) and the deploy
-  callback URLs allowed on that Authentik provider (use a regex redirect URI).
+  callback URLs allowed on the configured provider. For AuthHero, register each
+  guest's exact public URL + `/oauth2/callback`, including custom domains. Do
+  not copy Authentik regex allowances into its callback list. If dynamic hosts
+  lack a safe registration workflow, keep this consumer on Authentik. Migrating
+  only the main proxy does not migrate these delivered credentials.
 
   ```yaml
   servers:
@@ -214,16 +224,21 @@ reaches your service on `garnix.authentik.upstream`. Three modes:
   garnix.authentik = { enable = true; mode = "default"; upstream = "127.0.0.1:8080"; };
   ```
 
-- **`mode = "dedicated"` (default) / `"shared"`:** the app gets its own Authentik
-  provider (or shares one gated by group claims). Deliver the OIDC client secret
+- **`mode = "dedicated"` (default) / `"shared"`:** the app gets its own OIDC
+  client (or shares one gated by group claims). Name AuthHero applications
+  `domain-appname`, preserving existing IDs. Dedicated clients need explicit
+  managed bindings; `allowedGroups` may add defense in depth. Shared clients
+  require a custom scope and non-empty `allowedGroups` per app, or anyone
+  admitted to the shared client could reach every guest. Configure the mapping
+  for that requested scope and expected `groupsClaim`.
+  Deliver the OIDC client secret
   the garnix-native way: encrypt it to the repo key
-  (`GET /api/keys/<owner>/<repo>/repo-key.public`, or the `authentik-provision`
-  helper) and reference the `.age` ciphertext by path (`clientSecretFile`) or
+  (`GET /api/keys/<owner>/<repo>/repo-key.public`) and reference the `.age` ciphertext by path (`clientSecretFile`) or
   inline (`clientSecretAge`); the guest decrypts at runtime with the repo private
   key garnix drops at `/var/garnix/keys/repo-key`. No plaintext secret reaches
-  the world-readable nix store. Full worked recipes (dedicated vs shared, the
-  provision helper, regex redirect URIs) are in `docs/authentik-cookbook.md` in
-  the fork.
+  the world-readable nix store. `docs/authentik-cookbook.md` in the fork covers
+  legacy Authentik recipes, helper and regexes. Use access.md for AuthHero;
+  do not run the Authentik provision helper against the new provider.
 
   ```nix
   modules = [
@@ -233,10 +248,10 @@ reaches your service on `garnix.authentik.upstream`. Three modes:
       garnix.authentik = {
         enable = true;
         publicUrl = "https://hello.main.<repo>.<owner>.<appsDomain>";
-        issuerUrl = "https://<authentik>/application/o/<app>/";
+        issuerUrl = "https://auth.turnin.quest/"; # target AuthHero issuer
         clientId = "<oidc client id>";
         clientSecretFile = ./client-secret.age;   # committed, repo-key-encrypted
-        allowedGroups = [ "app-users" ];           # omit to gate on entitlements
+        allowedGroups = [ "app-users" ];           # match the mapped claim
         upstream = "127.0.0.1:8080";               # your service (NOT on :80)
       };
       services.myApp.port = 8080;
@@ -245,7 +260,7 @@ reaches your service on `garnix.authentik.upstream`. Three modes:
   ```
 
 The public-key endpoints (`/api/keys/*`), status badges (`/api/badges/*`), and
-webhooks (`/api/events/*`) bypass the Authentik gate in Caddy: the provision
+webhooks (`/api/events/*`) bypass the OIDC gate in Caddy: the provision
 helper and guests fetch repo public keys unauthenticated (they can encrypt, not
 decrypt).
 
@@ -255,9 +270,11 @@ The cookie secret is generated once per guest and persisted at
 `base64.RawURLEncoding` and falls back to the literal string on failure, so
 standard `base64` output is taken as a 44-byte key and the process refuses to
 start. Keep the `tr '+/' '-_' | tr -d '='` in any generator you write, and
-validate rather than merely existence-check a persisted secret. Verifying a
-gated deploy end to end is one curl; a working gate 302s to `/oauth2/start`
-and follows through to the Authentik login flow:
+validate rather than merely existence-check a persisted secret. Checking
+a gate's redirect starts with one curl: a working gate 302s to `/oauth2/start`
+and follows through to the configured provider. This is not acceptance: also
+verify fresh MFA login, a denied user, scoped groups, account continuity and
+rollback for each migrated guest:
 
 ```bash
 curl -sSL -o /dev/null -w '%{http_code} %{url_effective}\n' \

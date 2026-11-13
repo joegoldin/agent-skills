@@ -24,8 +24,9 @@ cache so other machines pull pre-built closures instead of rebuilding.
   to erdtree with `just build-to-erdtree`.
 - **Private values:** real domains, issuer URLs, keys and B2 regions live in the
   private `dotfiles-secrets` repo (`domains.nix`, `garnix.nix`, `attic.nix`).
-  Keep them out of public repos (this skill, the fork frontend, the public
-  dotfiles repo) and refer to them by their attr names.
+  Refer to them by attr name rather than copying private values into public
+  repos. The explicitly documented public AuthHero issuer in access.md is the
+  cutover target, not a replacement for secret-store references.
 
 This is a reference for operating the instance, not a garnix tutorial; for that,
 read the re-hosted docs at `<garnixDomain>/docs` (mirror of `garnix.io/docs`).
@@ -39,7 +40,7 @@ read the re-hosted docs at `<garnixDomain>/docs` (mirror of `garnix.io/docs`).
 | PostgreSQL 18 | `postgresql.service` | 9178 | db `garnix`, user `garnix`, TLS `verify-full` |
 | OpenSearch | (opensearch) | 9200 | build-log storage; fluent-bit ships logs into it |
 | Caddy | reverse proxy | 443 | vhosts for the web UI, the cache, and `/docs` |
-| oauth2-proxy | (oauth2-proxy) | — | Authentik OIDC; Caddy forwards its `X-Auth-Request-*` headers with a private proxy marker |
+| oauth2-proxy | (oauth2-proxy) | — | Currently Authentik OIDC, AuthHero cutover pending; Caddy forwards `X-Auth-Request-*` with a private proxy marker |
 
 The dotfiles aspects that define it:
 
@@ -57,9 +58,9 @@ The dotfiles aspects that define it:
 | Task | Read |
 |---|---|
 | Deploy a dotfiles or fork change, compile-gate the fork, run the backend specs, manage agenix secrets | [references/deploy.md](references/deploy.md) |
-| Authentik entitlements, the proxy-auth marker, the admin UI | [references/access.md](references/access.md) |
+| OIDC access: current Authentik, target AuthHero provisioning/policies, proxy trust, cutover acceptance and rollback | [references/access.md](references/access.md) |
 | Build a repo with `garnix.yaml`, binary caches, private flake inputs, actions, `githubToken`, artifacts | [references/repos.md](references/repos.md) |
-| Hosted servers: hash subdomains, microVM guests, SSH and the web terminal, application logs, custom domains, Authentik-gated guests | [references/hosting.md](references/hosting.md) |
+| Hosted servers: hash subdomains, microVM guests, SSH and the web terminal, application logs, custom domains, OIDC-gated guests (legacy `authentik` keys) | [references/hosting.md](references/hosting.md) |
 | Logs, DB queries, scheduling and timeouts, failure signatures, monitoring, backups | [references/operate.md](references/operate.md) |
 
 ## Reference links
