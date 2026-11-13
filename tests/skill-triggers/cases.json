@@ -223,6 +223,68 @@
     ]
   },
   {
+    "task": "In Pi, launch one ordinary peer Pi session for a read-only review and coordinate it through Intercom. We are inside Rex (REX_SESSION and REX_BLOCK are set).",
+    "expect": [
+      "pi-peer-sessions",
+      "rex"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "We are inside Rex (REX_SESSION and REX_BLOCK are set). Open a peer Pi instance beside this pane for an independent investigation.",
+    "expect": [
+      "pi-peer-sessions",
+      "rex"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "The peer Pi session I launched timed out; recover the Intercom collaboration without accidentally launching a duplicate.",
+    "expect": [
+      "pi-peer-sessions"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "Fix this one-line typo yourself in the current Pi session. Do not delegate or open a terminal.",
+    "expect": [],
+    "forbid": [
+      "pi-peer-sessions",
+      "rex",
+      "dispatching-parallel-agents"
+    ]
+  },
+  {
+    "task": "In Pi, give this existing available Pi session a bounded read-only task through Intercom; do not create another pane.",
+    "expect": [
+      "pi-peer-sessions"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "The Pi peer finished its review. Have it signal completion and ask the user whether to quit; do not silently close its pane.",
+    "expect": [
+      "pi-peer-sessions"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "We are in Rex. The user pre-authorized automatic cleanup of the disposable Pi reviewer pane; verify its graceful exit and close only that pane.",
+    "expect": [
+      "pi-peer-sessions",
+      "rex"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "The tests in this main Pi session passed. Summarize the results here; there is no peer assignment or terminal cleanup to perform.",
+    "expect": [],
+    "forbid": [
+      "pi-peer-sessions",
+      "rex"
+    ]
+  },
+  {
     "task": "Update the self-hosted garnix CI OIDC integration from Authentik to AuthHero, including default guest callbacks and access claims.",
     "expect": [
       "using-garnix-ci"

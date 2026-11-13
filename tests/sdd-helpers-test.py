@@ -81,8 +81,25 @@ class HelpersTest(unittest.TestCase):
         self.init_repo("colocate")
         linked = self.root / "linked"
         self.run_cmd("jj", "workspace", "add", str(linked))
+        primary_source = self.repo / "source.txt"
+        primary_source.write_text("unsaved primary change\n")
+        primary_commit = self.run_cmd("jj", "--ignore-working-copy", "log", "--no-graph",
+                                      "-r", "@", "-T", "commit_id").stdout
+        (linked / "source.txt").write_text("independent secondary change\n")
         self.check_workspace(linked)
-        self.assertFalse((linked / ".git").exists())
+        # Recent jj versions also create .git here; shared jj metadata and
+        # isolated behavior identify a secondary workspace, not Git's absence.
+        repo_pointer = linked / ".jj/repo"
+        self.assertTrue(repo_pointer.is_file())
+        self.assertEqual((repo_pointer.parent / repo_pointer.read_text().strip()).resolve(),
+                         (self.repo / ".jj/repo").resolve())
+        self.assertEqual(self.run_cmd("jj", "workspace", "root", cwd=linked).stdout.strip(),
+                         str(linked))
+        self.assertEqual(primary_source.read_text(), "unsaved primary change\n")
+        self.assertEqual(self.run_cmd("jj", "--ignore-working-copy", "log", "--no-graph",
+                                     "-r", "@", "-T", "commit_id").stdout, primary_commit)
+        self.assertEqual((linked / "source.txt").read_text(), "independent secondary change\n")
+        self.assertNotIn(".agent-skills", self.run_cmd("jj", "status", cwd=linked).stdout)
 
     def check_review(self, vcs):
         base = self.init_repo(vcs)

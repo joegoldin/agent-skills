@@ -113,6 +113,9 @@ in
       custom.enable = true;
       messaging = {
         enable = true;
+        # Ordinary peers receive new work as sends, not just correlated replies.
+        # Waking a turn does not grant authority to the sender.
+        inboundTrigger = lib.mkDefault "always";
         askTimeoutSeconds = 300;
       };
       settings = {
