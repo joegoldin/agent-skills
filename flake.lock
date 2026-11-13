@@ -362,11 +362,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794554984,
-        "narHash": "sha256-9L4iLxd88/bfr+zEJrUph01vlrXVYY/O05/iB5xoYto=",
+        "lastModified": 1794605260,
+        "narHash": "sha256-jQZ+dT5PuW7/u6ZZKWPiGnVdE5M5YMjn7N/Id3CB7lQ=",
         "owner": "joegoldin",
         "repo": "pi-nix",
-        "rev": "7d21343fc13420522d1138939f34e49ae707bdc3",
+        "rev": "ea0acde582725944f07f584b84d20bbec6b31891",
         "type": "github"
       },
       "original": {
