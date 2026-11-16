@@ -5,26 +5,58 @@ description: Operate Rex sessions, tabs, panes, terminals, and connected apps. U
 
 # Rex
 
-Run `rex skill show` for the official guide from the installed Rex version.
-Use `rex --help` and `rex <command> --help` if that version has no guide.
+Run `rex skill show` for the official guide shipped with the installed version.
+Use `rex --help`, command help and `rex api describe` to resolve differences
+between the [current docs](https://www.superlogical.com/rex/docs/automate/agent-skill.md)
+and the connected server. Use the CLI rather than the server socket or app UI
+scripting.
 
-`REX_SESSION` and `REX_BLOCK` identify this agent's session and pane, not
-necessarily the user's focused pane. An explicit target in the request wins.
-Confirm stale or ambiguous targets with `rex whoami --json` and the CLI's
-resource listings before acting.
+## Choose the target
 
-The presence of Rex context does not request terminal changes. Keep existing
-sessions running; restart a server or rename a session only when asked.
+`REX_SESSION` and `REX_BLOCK` identify the agent's location, not necessarily the
+user's focused pane. Verify inherited IDs when choosing targets:
 
-Rex's skill and awareness hooks are managed by Nix here. Do not run
-`rex skill setup` to overwrite the managed agent configuration.
+| User's location | Target |
+| --- | --- |
+| Here, beside you, or no location | The agent's session and block |
+| Focused pane or current tab | Inspect the viewed session; match `active_window_id` to a window's `window_id`, then use its `focused_block_id` |
+| Named session, tab or pane | The named resource; it takes precedence over agent location and app focus |
+| Outside Rex or stale IDs | `rex whoami --json`, then `rex ls --json`; select the matching session, asking only if ambiguous |
 
-For authorized Pi peer collaboration, follow `pi-peer-sessions`. Use the installed
-guide's `split` command with the caller's session/block, explicit cwd and
-`--focus=false`, running ordinary `pi` after `--`. Keep the returned block ID.
-Use launch metadata or Intercom rendezvous to identify the Pi session; a block
-ID alone is not its messaging address. Preserve the normal Pi permission setup.
-For completion and cleanup, read `pi-peer-sessions`' completion reference.
-`pi --peer-auto-exit` is only for a user-authorized disposable peer. Closing its
-block is a separate, consented terminal action after verifying graceful Pi exit
-and the block's current occupant; `idle` or a completion message is not exit.
+Use full IDs. Rex calls a tab a **window** and a pane a **block**. `rex new`
+creates a session; it does not switch the app to it.
+The presence of Rex context is not a request to alter terminals, rename sessions
+or restart a server.
+
+## Run and inspect work
+
+For command recipes, output capture, process checks and remote/client targeting,
+read [references/operations.md](references/operations.md).
+
+Put Rex options before `--` and the program's arguments after it. Set an explicit
+cwd and use `--focus=false` for background work. Save the new block/window IDs;
+a timeout can leave a successful creation behind, so inspect before retrying.
+Capture a terminal before sending input: text goes to its current foreground
+program, not necessarily a shell. Do not send input to the agent's own pane.
+
+For an app action, discover the client with `rex client ls` and its actions with
+`rex -C CLIENT actions`. Remote Control must already be enabled by the user.
+For another host, use its full label with `-S`, not `REX_SERVER`: an unreachable
+`REX_SERVER` can silently fall back to the local machine.
+
+## Local integration and Pi peers
+
+Rex's skill and awareness configuration are Nix-managed here. Use
+`rex skill status` to inspect installation; do not run `rex skill setup` or
+`rex skill remove` over the managed configuration.
+
+For authorized Pi collaboration, follow `pi-peer-sessions`. Split beside the
+caller's verified block with explicit cwd and `--focus=false`, running ordinary
+`pi` after `--`. Keep the returned block ID. Identify the Pi session through
+launch metadata or Intercom rendezvous; a Rex block ID is not its messaging
+address. Preserve Pi's normal permissions.
+
+Follow its completion reference for cleanup. `pi --peer-auto-exit` requires
+user authorization for a disposable peer. Closing its block is a separate,
+consented action after verifying graceful Pi exit and the current occupant;
+`idle` or a completion message is not exit.

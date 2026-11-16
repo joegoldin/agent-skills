@@ -102,13 +102,8 @@ in
           };
         };
       };
-      notifications = {
-        enable = true;
-        events = [
-          "needs_input"
-          "settled"
-        ];
-      };
+      # OSC 7501 reports status; the terminal owns alerts and focus policy.
+      # Do not add a parallel desktop-notification extension here.
       foreignSkills.enable = true;
       custom.enable = true;
       messaging = {
