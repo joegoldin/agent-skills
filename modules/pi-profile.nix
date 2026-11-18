@@ -114,8 +114,7 @@ in
         askTimeoutSeconds = 300;
       };
       settings = {
-        # Sign in with ChatGPT lives on the openai provider since pi 1.0;
-        # openai-codex is the legacy one.
+        # The OpenAI provider offers Sign in with ChatGPT.
         defaultProvider = "openai";
         defaultModel = "gpt-6.2-astra";
         # Ctrl+P cycles only these; /model still lists every provider. Exact
