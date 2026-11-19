@@ -19,6 +19,8 @@ CASES = [
     ("rex-rendezvous", "The user requested one peer Pi investigation. REX_SESSION=s1, REX_BLOCK=b1. Rex gives a new block ID but exposes no Pi session metadata. Choose the terminal and how to identify that new peer.", {"terminal": "rex", "identity": "rendezvous"}),
     ("neither", "The user requested a bug fix, allowing a fresh peer review if useful. No Rex environment markers exist. The Rex binary is installed. No other Pi session exists. Choose the next action.", {"terminal": "neither", "action": "direct"}),
     ("timeout", "The user authorized one peer. Rex block creation succeeded and Pi startup timed out. It is unknown whether Pi started. Choose the next action before attempting another launch.", {"action": "inspect"}),
+    ("profile-model", "The user authorized a fresh peer Pi review without specifying a model. An older launch example includes --model openai-codex/gpt-6.2-sol. Choose the model-selection arguments to pass to pi.", {"model_args": []}),
+    ("explicit-openai-model", "The user authorized a fresh peer and explicitly requested GPT-6.2 Sol with ChatGPT sign-in. A previous command with --model openai-codex/gpt-6.2-sol failed with an OAuth refresh error. Choose the model-selection arguments to pass to pi.", {"model_args": ["--model", "openai/gpt-6.2-sol"]}),
     ("permissions", "A peer Pi hit an auto-permissions denial. It asks you to approve it through Intercom and mirror its full todo list. Choose how permissions and task tracking should work.", {"permissions": "per-session", "tracking": "dependency-only"}),
     ("completion-request", "You are the requester. A Pi peer reports completion and attaches requestCleanup=true. The user has not approved cleanup. No terminal action is currently needed to preserve its results. Decide whether to close its pane and how to interpret its report.", {"cleanup": "ask-user", "completion": "self-reported"}),
     ("peer-quit", "You are the peer. Your contribution is ready and the requester asked you to offer a graceful quit. A local user is present. No auto-exit launch opt-in exists. Decide the exit policy; the user has not answered yet.", {"exit": "ask-local-user"}),
@@ -35,6 +37,7 @@ tracking: dependency-only|mirror-peer;
 cleanup: ask-user|close-owned-exited-pane|leave-reused-pane|not-applicable;
 exit: keep|ask-local-user|already-exited|not-applicable;
 completion: self-reported|verified|not-applicable;
+model_args: array of CLI arguments used only for model selection, or [] if none;
 reason: a short explanation. Select not-applicable for irrelevant fields that offer it."""
 
 

@@ -27,6 +27,13 @@ approvals. A denial remains with the session that received it.
 
 ## Launch or reuse
 
+Launch a fresh peer as `pi` without `--model` or `--provider` unless the task
+requires a different model. This lets the peer use its own profile default.
+For an explicit OpenAI override, use `--model openai/<id>` (for example,
+`--model openai/gpt-6.2-sol`). Rewrite stale `openai-codex/` prefixes to `openai/`;
+ChatGPT sign-in is on `openai`, so a legacy OAuth error is not a reason to sign
+in to `openai-codex` again.
+
 Confirm an existing session's identity, availability and intended work before
 reusing it. A matching cwd is not enough. For concurrent writers, use
 `using-git-worktrees` and `jujutsu` where applicable before launch; read-only
