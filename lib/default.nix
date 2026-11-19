@@ -190,7 +190,11 @@ let
     let
       entries = builtins.readDir skillsDir;
       dirNames = builtins.attrNames (lib.filterAttrs (_: type: type == "directory") entries);
-      validNames = builtins.filter (name: builtins.pathExists (skillsDir + "/${name}/SKILL.md")) dirNames;
+      validNames = builtins.filter (
+        name:
+        (name != "apple-mail" || pkgs.stdenv.hostPlatform.isDarwin)
+        && builtins.pathExists (skillsDir + "/${name}/SKILL.md")
+      ) dirNames;
     in
     map (
       name:
@@ -324,21 +328,9 @@ let
       fi
     '';
 
-  # ── Build using-agent-skills content (shared across targets) ──
-  buildUsingAgentSkillsContent =
-    skills:
-    let
-      usingAgentSkillsSkill = lib.findFirst (s: s.name == "using-agent-skills") null skills;
-    in
-    if usingAgentSkillsSkill != null then usingAgentSkillsSkill.parsed.body else "";
-
-  # ── Build session-start hooks derivation (shared across all targets) ──
+  # ── Build terminal context hooks ──
   buildSessionStartHooks =
-    name: skills: hooksDir:
-    let
-      usingAgentSkillsContent = buildUsingAgentSkillsContent skills;
-      skillContentFile = pkgs.writeText "using-agent-skills-content" usingAgentSkillsContent;
-    in
+    name: hooksDir:
     pkgs.runCommand "${name}-hooks" { } ''
       mkdir -p $out/hooks
       for item in ${hooksDir}/*; do
@@ -346,7 +338,6 @@ let
         case "$basename" in
           *.sh)
             substitute "$item" $out/hooks/"$basename" \
-              --replace-fail @USING_AGENT_SKILLS@ ${skillContentFile} \
               --replace-fail @JQ@ ${pkgs.jq}/bin/jq
             chmod +x $out/hooks/"$basename"
             ;;
@@ -359,11 +350,10 @@ let
     {
       mkHook,
       name,
-      skills,
       hooksDir,
     }:
     let
-      hooksDrv = buildSessionStartHooks name skills hooksDir;
+      hooksDrv = buildSessionStartHooks name hooksDir;
     in
     [
       (mkHook {
@@ -377,24 +367,22 @@ let
   buildAntigravityHooks =
     {
       name,
-      skills,
       hooksDir,
     }:
     assert agyLib != null;
     buildTargetSessionStartHooks {
-      inherit name skills hooksDir;
+      inherit name hooksDir;
       mkHook = agyLib.mkHook;
     };
 
   buildCodexHooks =
     {
       name,
-      skills,
       hooksDir,
     }:
     assert codexLib != null;
     buildTargetSessionStartHooks {
-      inherit name skills hooksDir;
+      inherit name hooksDir;
       mkHook = codexLib.mkHook;
     };
 
@@ -426,7 +414,7 @@ let
         lspServers = allLspServers;
       };
 
-      hooksDrv = lib.optional (hooksDir != null) (buildSessionStartHooks name skills hooksDir);
+      hooksDrv = lib.optional (hooksDir != null) (buildSessionStartHooks name hooksDir);
 
       attributionDrv = lib.optional (attributionFile != null) (
         pkgs.runCommand "${name}-attribution" { } ''
@@ -488,7 +476,7 @@ let
       agyMcpServers = lib.mapAttrsToList (n: c: agyLib.mkMcpServer ({ name = n; } // c)) skillMcpServers;
 
       sessionStartHooks =
-        if hooksDir != null then buildAntigravityHooks { inherit name skills hooksDir; } else [ ];
+        if hooksDir != null then buildAntigravityHooks { inherit name hooksDir; } else [ ];
 
       plugin = agyLib.mkPlugin {
         inherit name description;
@@ -532,8 +520,7 @@ let
 
       codexAgents = map mkCodexAgentFromSpec (lib.concatMap (s: s.meta.agentSpecs or [ ]) skills);
 
-      sessionStartHooks =
-        if hooksDir != null then buildCodexHooks { inherit name skills hooksDir; } else [ ];
+      sessionStartHooks = if hooksDir != null then buildCodexHooks { inherit name hooksDir; } else [ ];
 
       plugin = codexLib.mkPlugin {
         inherit name;
@@ -560,22 +547,11 @@ let
     };
 
   # ── pi extensions ──
-  # Same substitution contract as buildSessionStartHooks: every .ts under
-  # the directory gets @USING_AGENT_SKILLS@ replaced with the store path of
-  # the rendered using-agent-skills SKILL.md.
   buildPiExtensions =
-    name: skills: extensionsDir:
-    let
-      skillContentFile = pkgs.writeText "using-agent-skills-content" (
-        buildUsingAgentSkillsContent skills
-      );
-    in
+    name: extensionsDir:
     pkgs.runCommand "${name}-pi-extensions" { } ''
       mkdir -p $out/extensions
-      for item in ${extensionsDir}/*.ts; do
-        substitute "$item" $out/extensions/"$(basename "$item")" \
-          --replace-fail @USING_AGENT_SKILLS@ ${skillContentFile}
-      done
+      cp ${extensionsDir}/*.ts $out/extensions/
     '';
 
   # ── pi package ──
@@ -603,7 +579,7 @@ let
     let
       skillPackages = skillPackagesOf skills;
 
-      extensions = lib.optional (extensionsDir != null) (buildPiExtensions name skills extensionsDir);
+      extensions = lib.optional (extensionsDir != null) (buildPiExtensions name extensionsDir);
 
       plugin = piLib.mkPlugin {
         inherit

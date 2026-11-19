@@ -26,7 +26,7 @@ try {
   assert.equal(commands.length, loaded.skills.length);
   assert.equal(new Set(commands.map(command => command.name)).size, commands.length);
   assert(commands.every(command => command.name.startsWith("skill:")), "use Pi's existing namespaced registration only");
-  for (const name of ["dotfiles-update", "nix-dotfiles", "format-nix"]) {
+  for (const name of ["dotfiles-update", "brainstorming"]) {
     assert.equal(commands.filter(command => command.name === `skill:${name}`).length, 1);
     assert(!commands.some(command => command.name === name));
   }
@@ -34,7 +34,7 @@ try {
   const provider = InteractiveMode.prototype.createBaseAutocompleteProvider.call(host);
   const names = (await provider.getSuggestions(["/dotfiles"], 0, 9, { signal: new AbortController().signal })).items.map(item => item.value);
   assert(names.includes("skill:dotfiles-update"));
-  assert(names.includes("skill:nix-dotfiles"));
+  assert(!names.includes("skill:nix-dotfiles"), "repo-local skills must not be installed globally");
   assert(!names.includes("dotfiles-update"));
   assert(!names.includes("nix-dotfiles"));
   assert.equal(names.length, new Set(names).size);

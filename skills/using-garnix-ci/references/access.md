@@ -154,7 +154,7 @@ the management console as a substitute or infer availability from source code.
 ## Bearer-authenticated MCP beside a browser gate
 
 An app can retain its OIDC-protected website while exposing an OAuth-protected
-MCP endpoint. Use `using-authhero` for the API resource, registered public clients,
+MCP endpoint. Use the AuthHero fork’s `.agents/skills/using-authhero/SKILL.md` for the API resource, registered public clients,
 scoped CIMD rules and token contract; those are not proxy-client registrations.
 
 Bypass only the exact MCP/discovery routes required by the protocol. The app

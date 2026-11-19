@@ -1,6 +1,6 @@
 ---
 name: test-driven-development
-description: Test-first workflow (red, green, refactor). Use when the user asks for TDD or test-first work, or when fixing a reproducible bug that has no failing test yet.
+description: Use red-green-refactor when the user asks for TDD or test-first development. A request to fix a bug or add test coverage alone does not call for this workflow.
 ---
 
 # Test-Driven Development

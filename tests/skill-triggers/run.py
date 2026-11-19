@@ -16,9 +16,9 @@ the build under test:
     tests/skill-triggers/run.py --save baseline.json   # snapshot
     tests/skill-triggers/run.py --compare baseline.json
 
-pi reads skills from ~/.agents/skills, which follows the active home-manager
-generation, so a build's own skills are only seen with --skills pointing at
-its home-files (.agents/skills inside the home-files output).
+For a candidate run, point PI at the base Pi executable and pass --skills
+with the built skills directory. Installed profiles can inject old skills;
+the harness rejects names outside the requested catalog.
 
 Exit status is non-zero when any case misses an expected skill or picks a
 forbidden one.
@@ -63,10 +63,15 @@ def ask(pi: str, task: str, timeout: int, env: dict[str, str] | None) -> list[st
             # Pi hides manual-only skills from automatic listings, but an explicit
             # command makes that skill available. Supply metadata, never its body.
             question += f"\n\nThe user explicitly invoked this skill, which is available for this request even if hidden from automatic selection:\n{metadata}"
+    # Pi omits the skill listing when it has no way to read skill files.
+    flags = ["--no-session", "--tools", "read", "--no-mcp"]
+    if env is not None:
+        catalog = Path(env["HOME"]) / ".agents" / "skills"
+        flags.extend(["--no-extensions", "--no-context-files", "--no-skills", "--skill", str(catalog)])
     # An empty directory, so no project context files leak into the choice.
     with tempfile.TemporaryDirectory() as cwd:
         out = subprocess.run(
-            [pi, "-p", question],
+            [pi, *flags, "-p", question],
             cwd=cwd,
             capture_output=True,
             check=True,
@@ -79,7 +84,14 @@ def ask(pi: str, task: str, timeout: int, env: dict[str, str] | None) -> list[st
     answer = lines[-1] if lines else ""
     if answer.strip().lower() in {"none", "none."}:
         return []
-    return sorted({s.strip().strip("`.") for s in re.split(r"[,\n]", answer) if s.strip()})
+    if not answer.strip():
+        raise ValueError("Pi returned no selection answer")
+    picks = sorted({s.strip().strip("`.") for s in re.split(r"[,\n]", answer) if s.strip()})
+    if env is not None:
+        unknown = set(picks) - {p.parent.name for p in catalog.glob("*/SKILL.md")}
+        if unknown:
+            raise ValueError(f"Pi selected skills outside the candidate catalog: {sorted(unknown)}")
+    return picks
 
 
 def main() -> int:

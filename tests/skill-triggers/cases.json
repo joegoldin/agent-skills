@@ -27,8 +27,7 @@
     "expect": [],
     "forbid": [
       "test-driven-development",
-      "systematic-debugging",
-      "writing-plans"
+      "systematic-debugging"
     ]
   },
   {
@@ -153,25 +152,19 @@
     "expect": [
       "subagent-driven-development"
     ],
-    "forbid": [
-      "writing-plans",
-      "dispatching-parallel-agents"
-    ]
+    "forbid": []
   },
   {
     "task": "Implement the tasks in this existing plan yourself; do not delegate or create a new plan.",
     "expect": [
       "subagent-driven-development"
     ],
-    "forbid": [
-      "writing-plans",
-      "dispatching-parallel-agents"
-    ]
+    "forbid": []
   },
   {
-    "task": "Investigate two unrelated failures with read-only agents in parallel; do not implement anything.",
+    "task": "In Pi, investigate two unrelated failures with read-only agents in parallel; do not implement anything.",
     "expect": [
-      "dispatching-parallel-agents"
+      "pi-peer-sessions"
     ],
     "forbid": [
       "subagent-driven-development"
@@ -250,8 +243,7 @@
     "expect": [],
     "forbid": [
       "pi-peer-sessions",
-      "rex",
-      "dispatching-parallel-agents"
+      "rex"
     ]
   },
   {
@@ -299,36 +291,69 @@
     ]
   },
   {
-    "task": "Configure an AuthHero custom API resource and scoped CIMD admission for an MCP client, preserving the source application policy.",
-    "expect": [
-      "using-authhero"
-    ],
-    "forbid": [
-      "using-garnix-ci"
-    ]
-  },
-  {
-    "task": "Deploy our AuthHero Cloudflare Worker and verify D1 migration and account preservation.",
-    "expect": [
-      "using-authhero"
-    ],
-    "forbid": []
-  },
-  {
     "task": "Our self-hosted Garnix NixOS build succeeded but the cache upload never finished and there is no redeployment.",
     "expect": [
       "using-garnix-ci"
     ],
-    "forbid": [
-      "using-authhero"
-    ]
+    "forbid": []
   },
   {
     "task": "List the groceries in my fridge and suggest dinner from the leftovers.",
     "expect": [],
     "forbid": [
-      "using-authhero",
       "using-garnix-ci"
     ]
+  },
+  {
+    "task": "Update CHANGELOG.md under Unreleased with the user-visible changes since the last tag. Don't cut a release.",
+    "expect": [
+      "changelog-and-versioning"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "Our last stable release was 1.8.4. We removed a documented CLI flag. What should the next version be?",
+    "expect": [
+      "changelog-and-versioning"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "Rename the CLI's private parsing helper and update its unit tests. Do not change the public CLI or release files.",
+    "expect": [],
+    "forbid": [
+      "changelog-and-versioning"
+    ]
+  },
+  {
+    "task": "Correct the misspelled label in the existing component and add a regression assertion.",
+    "expect": [],
+    "forbid": [
+      "test-driven-development",
+      "systematic-debugging",
+      "using-git-worktrees",
+      "finishing-a-development-branch"
+    ]
+  },
+  {
+    "task": "Open a PR for this finished feature branch, then remove the temporary worktree once it is merged.",
+    "expect": [
+      "finishing-a-development-branch"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "My jj rebase left a conflict in a middle change; how can I fix it without abandoning its descendants?",
+    "expect": [
+      "jujutsu"
+    ],
+    "forbid": []
+  },
+  {
+    "task": "I finished a jj change and my bookmark stayed on the old parent. How do I advance it locally without pushing?",
+    "expect": [
+      "jujutsu"
+    ],
+    "forbid": []
   }
 ]

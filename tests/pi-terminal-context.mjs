@@ -20,7 +20,7 @@ register({ on: (event, callback) => handlers.set(event, callback) });
 assert.deepEqual([...handlers.keys()], ["before_agent_start"], "awareness must not schedule or launch work");
 const handler = handlers.get("before_agent_start");
 const prompt = handler({ systemPrompt: "Existing instructions" }).systemPrompt;
-assert(prompt.startsWith("Existing instructions"));
+assert.equal(prompt, `Existing instructions\n\n${terminalContext(process.env)}`, "add only terminal context");
 assert.match(prompt, /Terminal context/);
 assert.match(prompt, /not authorization/);
 assert.equal(handler({ systemPrompt: prompt }).systemPrompt, prompt, "preparation must not accumulate guidance");

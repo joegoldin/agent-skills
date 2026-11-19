@@ -91,8 +91,8 @@ Review risky interfaces before consumers rely on them. Do not add a duplicate
 review when a native acceptance gate already covers the same scope and evidence.
 The final review checks the integrated result, not merely the sum of task reports.
 
-Use requesting-code-review for the final review and receiving-code-review when
-adjudicating findings. Critical and Important findings block acceptance of the
+Give the final reviewer the [review brief](code-reviewer.md), requirements, and
+exact source state. Check each finding against the code before acting on it. Critical and Important findings block acceptance of the
 affected work when they identify a concrete failure or unmet requirement.
 Optional coverage, cleanup and design preferences remain advisory. Record Minor
 findings for the final review. A plan-mandated defect is still a finding; ask
@@ -164,7 +164,7 @@ gate still needs them.
 
 - [implementer-prompt.md](implementer-prompt.md): component writer
 - [task-reviewer-prompt.md](task-reviewer-prompt.md): spec and quality reviewer
-- [code-reviewer.md](../requesting-code-review/code-reviewer.md): whole-change review
+- [code-reviewer.md](code-reviewer.md): whole-change review
 
 Without native subagents, work directly with records sized to the task.
 Report that independent review was unavailable; a self-review does not satisfy a

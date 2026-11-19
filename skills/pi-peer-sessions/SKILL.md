@@ -1,6 +1,6 @@
 ---
 name: pi-peer-sessions
-description: Coordinate ordinary Pi sessions through Intercom. Use when launching a peer Pi instance, handing work to an existing Pi session, recovering a collaboration, or completing and cleaning up a peer assignment.
+description: Coordinate ordinary Pi sessions through Intercom. Use for authorized parallel investigations in Pi, launching a peer Pi instance, handing work to an existing Pi session, recovering a collaboration, or completing and cleaning up a peer assignment.
 ---
 
 # Pi Peer Sessions
@@ -47,6 +47,10 @@ replying. Skip rendezvous when identity is known.
 After a timeout, inspect the created pane and roster before retrying launch.
 
 ## Coordinate the work
+
+For parallel investigations, give each peer one independent question and a
+read-only scope. For an independent code review, use `code-reviewer.md` from
+the `subagent-driven-development` skill. Check each finding against the code.
 
 Send the outcome or question, paths and source state, read/write scope,
 constraints, expected evidence, and reply address. For example, ask a reviewer

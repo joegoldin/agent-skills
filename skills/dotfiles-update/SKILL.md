@@ -13,6 +13,8 @@ dotfiles committed locally but not pushed, no machine build or activation.
 An explicit instruction to push dotfiles or build the machine changes that
 endpoint; otherwise stop at the local commit.
 
+Requested input or dependency: $ARGUMENTS
+
 ## Follow the dependency path
 
 1. Identify the requested input from the conversation or arguments. Read

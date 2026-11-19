@@ -1,6 +1,6 @@
 ---
 name: using-git-worktrees
-description: Set up an isolated workspace (git worktree or jj workspace) for feature work, with a baseline check when needed. Use when starting work that should not touch the current checkout, or before executing a plan.
+description: Set up or reuse an isolated Git worktree or jj workspace. Use when the user requests isolation or concurrent writers need separate checkouts.
 ---
 
 # Using Git Worktrees

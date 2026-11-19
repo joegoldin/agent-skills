@@ -783,15 +783,15 @@
               }
               ''
                 jq -e '(.pi.prompts // []) | length == 0' ${piTree}/package.json >/dev/null
-                for name in format-nix nix-dotfiles brainstorming writing-plans dotfiles-update; do
+                for name in brainstorming dotfiles-update; do
                   test -f ${piTree}/skills/$name/SKILL.md
                   test ! -e ${piTree}/prompts/$name.md
                 done
-                grep -qxF 'argument-hint: "[directory]"' ${piTree}/skills/format-nix/SKILL.md
-                grep -qxF 'argument-hint: "<what to change>"' ${piTree}/skills/nix-dotfiles/SKILL.md
-                grep -qF '$ARGUMENTS' ${piTree}/skills/format-nix/SKILL.md
-                grep -qxF 'disable-model-invocation: true' ${piTree}/skills/format-nix/SKILL.md
-                test -f ${piTree}/skills/using-agent-skills/SKILL.md
+                grep -qxF 'argument-hint: "[input or dependency repository]"' ${piTree}/skills/dotfiles-update/SKILL.md
+                test ! -e ${piTree}/skills/nix-dotfiles
+                grep -qF '$ARGUMENTS' ${piTree}/skills/dotfiles-update/SKILL.md
+                grep -qxF 'disable-model-invocation: true' ${piTree}/skills/dotfiles-update/SKILL.md
+                test ! -e ${piTree}/skills/using-agent-skills
                 test ! -e ${piTree}/prompts/using-agent-skills.md
                 test ! -e ${piTree}/skills/no-plan
                 export HOME="$TMPDIR"
@@ -816,14 +816,6 @@
                 jq -e '.pi.extensions == ["./extensions"]' ${piTree}/package.json >/dev/null
                 test -f ${piTree}/extensions/agent-skills-session-start.ts
 
-                # The build-time placeholder must be gone and replaced by a
-                # store path that exists and holds the real skill.
-                ! grep -q '@USING_AGENT_SKILLS@' ${piTree}/extensions/agent-skills-session-start.ts
-                p=$(grep -o '/nix/store/[^"]*using-agent-skills-content' \
-                      ${piTree}/extensions/agent-skills-session-start.ts | head -1)
-                test -n "$p"
-                grep -q '^# Using skills' "$p"
-                test "$(wc -w < "$p")" -le 180
                 ! grep -Eq 'EXTREMELY_IMPORTANT|LEGACY_WARNING|Skill tool' \
                   ${piTree}/extensions/agent-skills-session-start.ts
 
@@ -888,6 +880,11 @@
                 for pair in $trees; do
                   t="''${pair%%=*}"
                   tree="''${pair#*=}"
+
+                  # Mail.app and its local index are available only on macOS.
+                  test ${
+                    if pkgs.stdenv.hostPlatform.isDarwin then "-f" else "! -e"
+                  } "$tree/skills/apple-mail/SKILL.md"
 
                   # every discovered skill is present, with a non-empty SKILL.md
                   for n in $names; do

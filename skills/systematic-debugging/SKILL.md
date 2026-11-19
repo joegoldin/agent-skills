@@ -1,6 +1,6 @@
 ---
 name: systematic-debugging
-description: Root-cause method for bugs that resist a first fix. Use when a fix has already failed, the cause is unclear, or the failure spans several components.
+description: Trace a bug after a failed fix, intermittent failure, or contradictory evidence across components. Use when the cause still needs investigation.
 ---
 
 # Systematic Debugging

@@ -6,16 +6,11 @@ The following skills are derived from [obra/superpowers](https://github.com/obra
 (vendored at upstream **v6.1.1**), licensed under the MIT License:
 
 - brainstorming
-- dispatching-parallel-agents
 - finishing-a-development-branch
-- receiving-code-review
-- requesting-code-review
-- subagent-driven-development
+- subagent-driven-development (including the reviewer brief from requesting-code-review)
 - systematic-debugging
 - test-driven-development
 - using-git-worktrees
-- using-agent-skills (formerly using-superpowers)
-- writing-plans
 - writing-skills
 
 These skills are adapted from their originals. The workflows (red-green-refactor,

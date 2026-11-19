@@ -118,25 +118,8 @@ nix build --no-link --override-input agent-skills path:$HOME/Development/agent-s
   .#darwinConfigurations.torrent.config.home-manager.users.joe.home.path
 ```
 
-## Release and Apply
+## Release and apply
 
-This repository and the dotfiles are colocated jj repositories; make VCS
-writes with jj. After verification, commit, move the bookmark and push:
-
-```sh
-jj commit -m "feat(skills): ..." <paths>
-jj bookmark set main -r @-
-jj git push -b main
-```
-
-Then update the input in the dotfiles, commit the lock, and apply:
-
-```sh
-cd ~/Development/dotfiles
-nix flake update agent-skills
-jj commit -m "chore(flake): bump agent-skills" flake.lock
-jj bookmark set main -r @-
-just switch
-```
-
-`just switch` picks nix-darwin or NixOS for the current host.
+Check for `.jj/` before choosing jj or Git. Publish the tested revision first;
+then update only the `agent-skills` input in the dotfiles checkout. Commit,
+push, and activate only the steps the user requested.

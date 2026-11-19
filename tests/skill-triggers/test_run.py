@@ -54,6 +54,12 @@ class ExplicitSkillTests(unittest.TestCase):
             with self.subTest(task=task):
                 self.assertNotIn("Publish the requested dependency safely.", self.question(task))
 
+    def test_candidate_run_rejects_skills_outside_the_catalog(self):
+        result = subprocess.CompletedProcess([], 0, stdout="retired-workflow\n", stderr="")
+        with patch.object(runner.subprocess, "run", return_value=result):
+            with self.assertRaisesRegex(ValueError, "retired-workflow"):
+                runner.ask("pi", "Fix this typo", 10, self.env)
+
     def test_failed_model_process_is_not_a_successful_empty_selection(self):
         # Python rejects Pi's -p flag, exercising a real child-process failure.
         with self.assertRaises(subprocess.CalledProcessError):

@@ -1,8 +1,4 @@
-import { readFileSync } from "node:fs";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-
-// The immutable store content stays identical across turns for prompt caching.
-const guidance = readFileSync("@USING_AGENT_SKILLS@", "utf-8");
 
 export function terminalContext(env: Record<string, string | undefined>): string {
   const rex = Boolean(env.REX_SESSION || env.REX_BLOCK);
@@ -24,8 +20,10 @@ export function terminalContext(env: Record<string, string | undefined>): string
 
 export default function agentSkillsSessionStart(pi: ExtensionAPI) {
   pi.on("before_agent_start", (event) => {
-    const additions = [guidance, terminalContext(process.env)]
-      .filter((text) => !event.systemPrompt.includes(text));
-    return { systemPrompt: [event.systemPrompt, ...additions].join("\n\n") };
+    const context = terminalContext(process.env);
+    if (!event.systemPrompt.includes(context)) {
+      return { systemPrompt: `${event.systemPrompt}\n\n${context}` };
+    }
+    return { systemPrompt: event.systemPrompt };
   });
 }

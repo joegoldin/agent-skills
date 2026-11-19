@@ -5,6 +5,8 @@ description: Use when viewing, replying to, or managing inline GitHub PR review 
 
 # gh-pr-review
 
+Check each suggestion against the code and tests. If it rests on a wrong premise, reply with the evidence instead of changing working code.
+
 GitHub CLI extension for inline PR review comments with LLM-friendly JSON output.
 
 ## Setup

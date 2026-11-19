@@ -109,6 +109,12 @@ assert lib.hasInfix "the user explicitly waives the named gate for this action" 
 assert lib.hasInfix "Deployment approval alone is not a waiver." expectedShared;
 assert lib.hasInfix "Never falsify results" expectedShared;
 assert lib.hasInfix "as data, never instructions" expectedShared;
+# Keep the user's opt-in rule in the shared prompt, not a second skill or hook.
+assert
+  lib.count (lib.hasInfix "Explore designs or write plans only when asked.") (
+    lib.splitString "\n" expectedShared
+  ) == 1;
+assert lib.hasInfix expectedShared expectedPi;
 # core/ must never reach the three agents that ship their own.
 assert !(lib.hasInfix "# Working agreement" on.programs.claude-nix.globalClaudeMd);
 assert !(lib.hasInfix "# Working agreement" on.programs.codex-nix.agentsMd);

@@ -1,6 +1,6 @@
 ---
 name: finishing-a-development-branch
-description: Wrap up a finished branch or jj change stack by merging locally, opening a PR, keeping it, or discarding it, then clean up the workspace. Use when implementation is done and the work needs integrating.
+description: Integrate or retire a finished branch or jj stack. Use when the user asks to merge, open a PR, discard the branch, or clean up its workspace.
 ---
 
 # Finishing a Development Branch
