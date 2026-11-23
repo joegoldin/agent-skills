@@ -1297,8 +1297,9 @@
             # The curated third-party set, enabled by default because each one
             # restores something pi deliberately omits and this library's
             # skills assume: code diagnostics and web
-            # search. Permissions come with auto mode, in pi-permissions. Todos, background bash, structured questions,
-            # goal-driven looping and side questions come from pi-nix's
+            # search. Permissions come with auto mode, in pi-permissions.
+            # Background bash, structured questions, goal-driven looping and
+            # side questions come from pi-nix's
             # first-party pi-custom, enabled through its own option. MCP is no
             # longer on the list: pi has connected servers natively since
             # 0.99.0. pi-nix packages them; the choice of which to run is an

@@ -1,5 +1,15 @@
 [
   {
+    "task": "Create a local checklist for this rollout, share it with the other agents, and show it in a live Rex side pane.",
+    "expect": ["markdown-checklists", "rex"],
+    "forbid": []
+  },
+  {
+    "task": "Show the existing README in a Rex side pane. Don't create a checklist.",
+    "expect": ["rex"],
+    "forbid": ["markdown-checklists"]
+  },
+  {
     "task": "Add a --verbose flag to the CLI that prints each file as it is processed.",
     "expect": [],
     "forbid": [
