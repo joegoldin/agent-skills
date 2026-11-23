@@ -13,8 +13,11 @@ scripting.
 
 ## Choose the target
 
-`REX_SESSION` and `REX_BLOCK` identify the agent's location, not necessarily the
-user's focused pane. Verify inherited IDs when choosing targets:
+`REX_BLOCK` identifies the agent's pane, not necessarily the user's focused pane.
+Current Rex infers the session from that block and accepts its full ID anywhere
+in the CLI a session selector is expected: `-s "$REX_BLOCK"`. Older versions
+also set `REX_SESSION`; verify it with `rex whoami --json` if the installed CLI
+needs a session ID. Inherited IDs aren't proof a target is still live:
 
 | User's location | Target |
 | --- | --- |
@@ -41,8 +44,8 @@ program, not necessarily a shell. Do not send input to the agent's own pane.
 
 For an app action, discover the client with `rex client ls` and its actions with
 `rex -C CLIENT actions`. Remote Control must already be enabled by the user.
-For another host, use its full label with `-S`, not `REX_SERVER`: an unreachable
-`REX_SERVER` can silently fall back to the local machine.
+For another host, use its full label or `-S ssh://HOST`, not `REX_SERVER`: an
+unreachable `REX_SERVER` can silently fall back to the local machine.
 
 ## Local integration and Pi peers
 

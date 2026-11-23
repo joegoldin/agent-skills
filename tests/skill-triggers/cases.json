@@ -234,7 +234,7 @@
     "forbid": []
   },
   {
-    "task": "We are inside Rex (REX_SESSION and REX_BLOCK are set). Open a peer Pi instance beside this pane for an independent investigation.",
+    "task": "We are inside Rex (REX_BLOCK is set, REX_SESSION is not). Open a peer Pi instance beside this pane for an independent investigation.",
     "expect": [
       "pi-peer-sessions",
       "rex"

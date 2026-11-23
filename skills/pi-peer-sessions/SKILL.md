@@ -12,10 +12,13 @@ Creating peers needs user or project authorization, not just parallelizable work
 ## Choose the terminal
 
 Read Pi's terminal context; validate IDs before changing layout. If absent,
-inspect `REX_SESSION` and `REX_BLOCK` in the current process environment.
+inspect `REX_BLOCK` in the current process environment. Current Rex sets it
+without `REX_SESSION`.
 
 - **Rex:** load `rex` and its installed guide. Split beside the caller with
-  explicit session/block IDs, cwd, and focus preservation; run ordinary `pi`.
+  explicit session and block selectors, cwd, and focus preservation; run
+  ordinary `pi`. Current Rex accepts the full block ID in both selectors;
+  use the verified session ID on older versions.
 - **Incomplete Rex IDs:** resolve the live caller before creating anything.
   An installed CLI does not identify the enclosing terminal.
 - **Outside Rex:** keep working directly. If an independent session is required,
