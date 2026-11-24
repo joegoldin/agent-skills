@@ -1,7 +1,4 @@
 { pkgs }:
 {
-  packages = [
-    pkgs.glow
-    pkgs.unixtools.watch
-  ];
+  packages = [ (pkgs.callPackage ../../packages/checklist-view { }) ];
 }

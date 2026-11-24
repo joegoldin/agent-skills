@@ -260,6 +260,7 @@
           prompt-shared = pkgs.writeText "agent-skills-shared-prompt.md" sharedPromptText;
           prompt-pi = pkgs.writeText "agent-skills-pi-SYSTEM.md" piPromptText;
           avoid-ai-detect = avoidAiDetect;
+          checklist-view = pkgs.callPackage ./packages/checklist-view { };
           inherit
             claude-plugin
             antigravity-plugin
@@ -1156,6 +1157,20 @@
               }
               ''
                 cp "$summaryPath" $out
+              '';
+
+          checklist-view =
+            pkgs.runCommand "checklist-view-test"
+              {
+                nativeBuildInputs = [
+                  pkgs.python3
+                  pkgs.tmux
+                ];
+              }
+              ''
+                export HOME="$TMPDIR"
+                python3 ${./tests/checklist-view.py} ${lib.getExe self.packages.${system}.checklist-view}
+                touch "$out"
               '';
 
           # Builds the detector package, whose checkPhase runs the vendored
