@@ -39,8 +39,8 @@ in to `openai-codex` again.
 
 Confirm an existing session's identity, availability and intended work before
 reusing it. A matching cwd is not enough. For concurrent writers, use
-`using-git-worktrees` and `jujutsu` where applicable before launch; read-only
-peers can share the checkout.
+the workspace guidance in `jujutsu` before launch; read-only peers can share
+the checkout.
 
 Keep the returned block ID. Resolve its Pi session through launch metadata
 or terminal agent metadata, then match the live Intercom roster.

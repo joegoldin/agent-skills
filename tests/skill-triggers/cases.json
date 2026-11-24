@@ -183,7 +183,7 @@
   {
     "task": "Set up an isolated worktree for a README typo; the unrelated integration suite is already failing.",
     "expect": [
-      "using-git-worktrees"
+      "jujutsu"
     ],
     "forbid": [
       "test-driven-development",
@@ -341,9 +341,16 @@
     "forbid": [
       "test-driven-development",
       "systematic-debugging",
-      "using-git-worktrees",
+      "jujutsu",
       "finishing-a-development-branch"
     ]
+  },
+  {
+    "task": "I have two unrelated changes in the same file. Help me commit only the first hunk.",
+    "expect": [
+      "jujutsu"
+    ],
+    "forbid": []
   },
   {
     "task": "Open a PR for this finished feature branch, then remove the temporary worktree once it is merged.",

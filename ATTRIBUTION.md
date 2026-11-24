@@ -10,7 +10,6 @@ The following skills are derived from [obra/superpowers](https://github.com/obra
 - subagent-driven-development (including the reviewer brief from requesting-code-review)
 - systematic-debugging
 - test-driven-development
-- using-git-worktrees
 - writing-skills
 
 These skills are adapted from their originals. The workflows (red-green-refactor,
@@ -29,17 +28,18 @@ current models:
   persuasion-principles, the vendored Anthropic best-practices copy and the
   graphviz helpers, and replaces testing-skills-with-subagents with a shorter
   `testing.md`.
-- **jj-aware.** `using-git-worktrees` and `finishing-a-development-branch` use
-  jj workspaces and bookmarks where a repository has `.jj/`.
+- **jj-aware.** `finishing-a-development-branch` uses jj workspaces and
+  bookmarks where a repository has `.jj/`.
 - **Genericization** — the `Superpowers` project name and its filesystem
   conventions are renamed for this plugin: cross-skill references drop the
   `superpowers:` namespace prefix, `~/.config/superpowers/` → `~/.config/agent-skills/`,
   `.superpowers/brainstorm/` → `.agent-skills/brainstorm/`, `docs/superpowers/{plans,specs}/`
   → `docs/plans/`, `using-superpowers` → `using-agent-skills`, and visible
   "Superpowers" UI branding is dropped.
-- **Worktree conventions** — `using-git-worktrees` / `finishing-a-development-branch`
-  default new worktrees to `~/.worktrees/$project/$BRANCH_NAME` and recognize the
-  legacy `~/.config/agent-skills/worktrees/` path.
+- **Worktree conventions.** The former `using-git-worktrees` guidance from
+  Superpowers now lives in `jujutsu`’s workspace reference. It and
+  `finishing-a-development-branch` use `~/.worktrees/$project/$BRANCH_NAME`
+  and recognize the legacy `~/.config/agent-skills/worktrees/` path.
 - **`brainstorming` visual companion** — `scripts/server.cjs` `brandMarkup()` is
   neutralized to render nothing, which drops the Superpowers brand footer and
   avoids the remote `primeradiant.com` brand-image request (a version-tagged
