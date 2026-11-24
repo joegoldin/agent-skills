@@ -9,18 +9,16 @@ The Markdown file is the tracker. No Pi session state or Rex pane is required to
 
 ## Keep one file per work batch
 
-Reuse the checklist the user or coordinating agent names. Otherwise, create a private batch directory under `$XDG_STATE_HOME/agent-checklists` (default `~/.local/state/agent-checklists`), outside the checkout. Use a short project/topic slug and a unique suffix so two sessions don't overwrite one another. For example, in fish:
+For read-only work, track milestones in the conversation unless the user asks for a file. Otherwise, reuse the task's local checklist or create `.pi/todo/<topic>.<unique-suffix>/checklist.md` under the active checkout or working directory. Use the worktree you're actually working in, not another checkout or your home directory. If there's no suitable writable directory or `.pi` or `.pi/todo` is a symlink, track progress in the conversation instead.
+
+From the active checkout or working directory, in fish:
 
 ```fish
-set -l state_root $XDG_STATE_HOME
-if test -z "$state_root"
-    set state_root ~/.local/state
-end
-set -l root "$state_root/agent-checklists"
-mkdir -p -- "$root"; and set -l batch (mktemp -d "$root/repo-topic.XXXXXXXX")
+set -l root "$PWD/.pi/todo"
+test ! -L "$PWD/.pi"; and test ! -L "$root"; and mkdir -p -- "$root"; and mktemp -d "$root/topic.XXXXXXXX"
 ```
 
-Write `checklist.md` inside the new directory and share its absolute path in the conversation or handoff. Use an in-repo path only when the user wants the checklist there. Use a heading, a line naming the checkout or worktree, and one checkbox per verifiable outcome:
+Write `checklist.md` in the printed directory and share its absolute path in the conversation or handoff. Keep scratch checklists out of commits unless the user asks to include one. Use a heading, a line naming the checkout or worktree, and one checkbox per verifiable outcome:
 
 ```markdown
 # Upgrade staging
@@ -31,7 +29,7 @@ Checkout: /absolute/path/to/worktree
 - [ ] Verify the upgrade — blocked on the approved deploy window.
 ```
 
-Read the current file before updating it. Check off an item only with evidence; leave blockers and next actions beside unchecked items. On resume, reopen the same file and reconcile it with current results. A checked box records progress; it does not execute anything or waive a gate.
+Read the current file before updating it. A checklist you created here is task scratch, not a permission record or audit log; leave those records untouched. Check off an item only with evidence; leave blockers and next actions beside unchecked items. On resume, reopen the same file and reconcile it with current results. A checked box records progress; it does not execute anything or waive a gate.
 
 For shared work, give agents the same absolute path and distinct items. Keep one writer (the coordinator by default); peers send evidence for their items rather than racing to rewrite the file. If agents cannot access the same filesystem, exchange updates and let the coordinator edit. A checklist does not authorize delegation or network sync.
 

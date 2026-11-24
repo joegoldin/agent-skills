@@ -7,11 +7,8 @@
  *   SessionStart      →  session_start        (unthrottled, fires once)
  *   SessionStart:compact → session_compact    (post-compaction refresh)
  *
- * pi has no additionalContext, so the stamp is appended to the system
- * prompt, which pi rebuilds every turn. Between throttle windows the SAME
- * stamp string is re-appended rather than a fresh one: a per-turn timestamp
- * would invalidate the prompt cache on every request, which is precisely
- * what TEMPORAL_INTERVAL exists to prevent.
+ * Append a context message when the stamp changes. Rewriting the system
+ * prompt would invalidate the cached prefix and encrypted reasoning tied to it.
  *
  * Env:
  *   TEMPORAL_STATE_DIR  State directory. Default ~/.pi/.temporal, matching
@@ -99,7 +96,6 @@ function stampFor(startMs: number, nowMs: number): string {
 export default function temporal(pi: ExtensionAPI) {
   let sessionId = "";
   let pending: string | null = null;
-  let lastEmitted = "";
 
   const load = (ctx: ExtensionContext): { path: string; state: State; nowMs: number } => {
     sessionId = ctx.sessionManager.getSessionId() ?? sessionId;
@@ -123,24 +119,15 @@ export default function temporal(pi: ExtensionAPI) {
     writeState(path, state);
   });
 
-  pi.on("before_agent_start", (event, ctx) => {
+  pi.on("before_agent_start", (_event, ctx) => {
     const { path, state, nowMs } = load(ctx);
+    const elapsed = Math.floor((nowMs - (state.last_inject_ms ?? 0)) / 1000);
+    if (pending === null && INTERVAL_S !== 0 && elapsed < INTERVAL_S) return;
 
-    if (pending !== null) {
-      lastEmitted = pending;
-      pending = null;
-      state.last_inject_ms = nowMs;
-      writeState(path, state);
-    } else {
-      const elapsed = Math.floor((nowMs - (state.last_inject_ms ?? 0)) / 1000);
-      if (INTERVAL_S === 0 || elapsed >= INTERVAL_S) {
-        lastEmitted = `[⏱ ${stampFor(state.start_ms as number, nowMs)}]`;
-        state.last_inject_ms = nowMs;
-        writeState(path, state);
-      }
-    }
-
-    if (lastEmitted === "") return;
-    return { systemPrompt: `${event.systemPrompt}\n\n${lastEmitted}` };
+    const content = pending ?? `[⏱ ${stampFor(state.start_ms as number, nowMs)}]`;
+    pending = null;
+    state.last_inject_ms = nowMs;
+    writeState(path, state);
+    return { message: { customType: "temporal", content, display: false } };
   });
 }

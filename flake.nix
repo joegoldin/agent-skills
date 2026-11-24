@@ -833,25 +833,33 @@
             let
               tree = self.packages.${system}.temporal-pi;
             in
-            pkgs.runCommand "temporal-pi" { nativeBuildInputs = [ pkgs.jq ]; } ''
-              jq -e '.name == "agent-skills-temporal"' ${tree}/package.json >/dev/null
-              jq -e '.pi.extensions == ["./extensions"]' ${tree}/package.json >/dev/null
-              test -f ${tree}/extensions/temporal.ts
-              test -f ${tree}/skills/temporal/SKILL.md
+            pkgs.runCommand "temporal-pi"
+              {
+                nativeBuildInputs = [
+                  pkgs.bun
+                  pkgs.jq
+                ];
+              }
+              ''
+                jq -e '.name == "agent-skills-temporal"' ${tree}/package.json >/dev/null
+                jq -e '.pi.extensions == ["./extensions"]' ${tree}/package.json >/dev/null
+                test -f ${tree}/extensions/temporal.ts
+                test -f ${tree}/skills/temporal/SKILL.md
 
-              # the pi build must not drag in the Python the hook targets need
-              test ! -e ${tree}/bin/python3
+                # the pi build must not drag in the Python the hook targets need
+                test ! -e ${tree}/bin/python3
 
-              # behaviour parity with temporal.py: the three env knobs and
-              # both stamp forms must be present
-              grep -qF 'TEMPORAL_INTERVAL' ${tree}/extensions/temporal.ts
-              grep -qF 'TEMPORAL_TTL_DAYS' ${tree}/extensions/temporal.ts
-              grep -qF 'TEMPORAL_STATE_DIR' ${tree}/extensions/temporal.ts
-              grep -qF 'post-compaction time check' ${tree}/extensions/temporal.ts
-              grep -qF 'unix_ms=' ${tree}/extensions/temporal.ts
+                # behaviour parity with temporal.py: the three env knobs and
+                # both stamp forms must be present
+                grep -qF 'TEMPORAL_INTERVAL' ${tree}/extensions/temporal.ts
+                grep -qF 'TEMPORAL_TTL_DAYS' ${tree}/extensions/temporal.ts
+                grep -qF 'TEMPORAL_STATE_DIR' ${tree}/extensions/temporal.ts
+                grep -qF 'post-compaction time check' ${tree}/extensions/temporal.ts
+                grep -qF 'unix_ms=' ${tree}/extensions/temporal.ts
+                bun ${./tests/temporal-pi.mjs} ${tree}/extensions/temporal.ts
 
-              touch $out
-            '';
+                touch $out
+              '';
 
           # Design §14: every skill must build for all four targets. This
           # catches the failure mode where one target's mkSkill silently
