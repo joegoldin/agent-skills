@@ -87,7 +87,7 @@ Descendants of a resolved commit rebase and often resolve too; recheck `conflict
 - **After a squash-merge upstream:** `jj git fetch && jj rebase -o 'trunk()' --skip-emptied`. Your now-empty local copies are abandoned.
 - **Refused pushes:** jj rejects commits without descriptions, with conflicts, or matching `git.private-commits`. Fix the commit rather than passing `--allow-*`.
 - **git in a colocated repo:** read-only git (`git log`, `git blame`, `gh pr view`, `gh pr checks`) is fine. Mutating git commands (`commit`, `checkout`, `rebase`, `stash`) get imported but fight jj. Use the jj equivalent. git sees a detached HEAD; that's expected.
-- **git-hunk and `git add -p` don't apply.** There's no index; use `jj split <paths>` or `jj commit <paths>`.
+- **Partial commits in jj:** there is no index. Use `jj split -m "message" <paths>` or `jj commit -m "message" <paths>` for whole files. To split hunks within one file, use `jj split -i -m "message" <path>` in a real terminal with a diff editor. If no interactive terminal is available and the hunks cannot be selected safely, leave the mixed file alone. In a plain Git checkout, `git add -- <paths>` or interactive `git add -p -- <path>` is still appropriate.
 
 ## Stacks (stacked PRs)
 

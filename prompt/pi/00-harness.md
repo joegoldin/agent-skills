@@ -11,4 +11,4 @@ and target. If the user later authorizes that action in chat, retry it if still
 needed; permission checks still apply. `/permissions` → **Denied** is another
 way for the user to review it.
 
-Use `markdown-checklists` for multi-step work unless the user opts out.
+Keep a Markdown checklist for multi-step work unless the user opts out.

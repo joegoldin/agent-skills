@@ -821,6 +821,7 @@
                   ${piTree}/extensions/agent-skills-session-start.ts
 
                 bun ${./tests/pi-terminal-context.mjs} ${piTree}/extensions/agent-skills-session-start.ts
+                bun ${./tests/pi-todos.mjs} ${piTree}/extensions/todos.ts
 
                 # Only type imports — a value import from @earendil-works
                 # would fail to resolve from a /nix/store path.
@@ -1311,6 +1312,9 @@
             # Ordinary peer Pi sessions load the same packages and permission
             # system through settings. No child-specific extension list or
             # cross-session permission routing is needed.
+            programs.pi.coding-agent.environment.PI_CHECKLIST_VIEWER.value =
+              lib.getExe
+                self.packages.${pkgs.stdenv.hostPlatform.system}.checklist-view;
             programs.pi.coding-agent.settings.packages =
               map toString piPackages
               ++ lib.optional config.programs.pi.coding-agent.autoMode.enable (
