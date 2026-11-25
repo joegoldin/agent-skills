@@ -38,7 +38,11 @@ For shared work, give agents the same absolute path and distinct items. Keep one
 
 ## Show the live checklist in Rex
 
-When the user wants a side pane, use the `rex` skill to verify the target session and block. Reuse a live preview of the same file; otherwise open a non-focused split, substituting the verified IDs and absolute paths:
+In Pi, `/todos` opens a checklist from the current worktree beside your pane
+without moving focus. If there are several checklists, pick one from the list
+(newest first). Outside Rex, the command shows the selected file's path.
+
+When the user asks the agent to open a side pane, use the `rex` skill to verify the target session and block. Reuse a live preview of the same file; otherwise open a non-focused split, substituting the verified IDs and absolute paths:
 
 ```fish
 rex split -s SESSION -b BLOCK --split=right --ratio 40 --focus=false -c /absolute/worktree --label Checklist --json -- checklist-view /absolute/path/to/checklist.md
